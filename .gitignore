@@ -1,0 +1,41 @@
+# Environment variables (keep .env.example for reference)
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# AWS credentials (should never be committed)
+.aws/
+*.pem
+*.key
+
+# Docker volumes data
+postgres_data/
+n8n_data/
+redis_data/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
