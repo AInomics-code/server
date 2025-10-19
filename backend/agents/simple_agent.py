@@ -1,6 +1,7 @@
 from langchain_aws import ChatBedrock
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.runnables import RunnableConfig
 from config import get_settings
 from prompts import load_prompt
 from typing import Dict, Any, List
@@ -85,7 +86,7 @@ class SimpleAgent:
         self.tools.append(create_sales_tool(self.queries_executed))
         self.tools.append(create_backorders_tool(self.queries_executed))
     
-    async def execute(self, query: str, session_id: str) -> Dict[str, Any]:
+    async def execute(self, query: str, session_id: str, user_id: str) -> Dict[str, Any]:
         """Execute a simple data lookup query"""
         self.queries_executed = []
         
@@ -93,9 +94,27 @@ class SimpleAgent:
         print(f"[SIMPLE AGENT] Query: {query}")
         print(f"{'='*70}\n")
         
+        # LangSmith config with metadata
+        config = RunnableConfig(
+            metadata={
+                "conversation_id": session_id,
+                "user_id": user_id,
+                "agent_type": "simple",
+                "model": "haiku"
+            },
+            tags=[
+                settings.environment if hasattr(settings, 'environment') else "development",
+                "simple_agent",
+                "haiku"
+            ]
+        )
+        
         try:
             # LangChain handles everything
-            result = await self.agent_executor.ainvoke({"input": query})
+            result = await self.agent_executor.ainvoke(
+                {"input": query},
+                config=config
+            )
             
             output = result.get("output", "No pude procesar tu consulta.")
             

@@ -21,29 +21,29 @@ class QueryExecutor:
             aws_secret_access_key=settings.aws_secret_access_key
         )
     
-    async def execute(self, query: str, query_type: QueryType, tenant_id: str, session_id: str) -> dict:
+    async def execute(self, query: str, query_type: QueryType, session_id: str, user_id: str) -> dict:
         if query_type == QueryType.SIMPLE:
-            result = await self._execute_simple(query, session_id)
+            result = await self._execute_simple(query, session_id, user_id)
         else:  # DYNAMIC
-            result = await self._execute_dynamic(query, session_id)
+            result = await self._execute_dynamic(query, session_id, user_id)
         
         return await self._format_for_frontend(result, query)
     
-    async def execute_stream(self, query: str, query_type: QueryType, tenant_id: str, session_id: str) -> AsyncGenerator[str, None]:
+    async def execute_stream(self, query: str, query_type: QueryType, session_id: str, user_id: str) -> AsyncGenerator[str, None]:
         if query_type == QueryType.SIMPLE:
-            result = await self._execute_simple(query, session_id)
+            result = await self._execute_simple(query, session_id, user_id)
             yield result["answer"]
         else:  # DYNAMIC
-            result = await self._execute_dynamic(query, session_id)
+            result = await self._execute_dynamic(query, session_id, user_id)
             yield result["answer"]
     
-    async def _execute_simple(self, query: str, session_id: str) -> dict:
+    async def _execute_simple(self, query: str, session_id: str, user_id: str) -> dict:
         """Execute simple queries using Haiku agent with predefined tools"""
-        return await self.simple_agent.execute(query, session_id)
+        return await self.simple_agent.execute(query, session_id, user_id)
     
-    async def _execute_dynamic(self, query: str, session_id: str) -> dict:
+    async def _execute_dynamic(self, query: str, session_id: str, user_id: str) -> dict:
         """Execute dynamic queries using Sonnet agent"""
-        return await self.dynamic_agent.execute(query, session_id)
+        return await self.dynamic_agent.execute(query, session_id, user_id)
     
     async def _format_for_frontend(self, result: dict, original_query: str) -> dict:
         """Format agent response for frontend consumption"""

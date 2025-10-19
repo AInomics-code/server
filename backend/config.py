@@ -30,6 +30,14 @@ class Settings(BaseSettings):
     session_ttl_seconds: int = 2700  # 45 minutes
     max_session_ttl_seconds: int = 86400  # 24 hours
     
+    # Environment
+    environment: str = "development"  # development, staging, production
+    
+    # LangSmith Tracing
+    langchain_tracing_v2: str = "false"
+    langchain_api_key: str = ""
+    langchain_project: str = "vorta-agent"
+    
     class Config:
         env_file = ".env"
         case_sensitive = False

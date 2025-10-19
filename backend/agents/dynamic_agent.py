@@ -67,13 +67,14 @@ class DynamicAgent:
         # self.tools.append(create_prediction_tool())
         # self.tools.append(create_external_api_tool())
     
-    async def execute(self, query: str, session_id: str) -> Dict[str, Any]:
+    async def execute(self, query: str, session_id: str, user_id: str) -> Dict[str, Any]:
         """
         Execute a dynamic query using LangGraph agent
         
         Args:
             query: User's natural language query
             session_id: Session identifier for conversation tracking
+            user_id: User identifier for tracking
             
         Returns:
             Dict with answer, queries_executed, and metadata
@@ -89,7 +90,18 @@ class DynamicAgent:
             "configurable": {
                 "thread_id": session_id
             },
-            "recursion_limit": 15
+            "recursion_limit": 15,
+            "metadata": {
+                "conversation_id": session_id,
+                "user_id": user_id,
+                "agent_type": "dynamic",
+                "model": "sonnet"
+            },
+            "tags": [
+                settings.environment if hasattr(settings, 'environment') else "development",
+                "dynamic_agent",
+                "sonnet"
+            ]
         }
         
         print(f"\n{'='*70}")

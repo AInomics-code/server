@@ -16,7 +16,6 @@ memory = RedisMemory()
 
 class QueryRequest(BaseModel):
     query: str
-    tenant_id: str
     user_id: str
     session_id: Optional[str] = None
 
@@ -31,7 +30,7 @@ async def query_endpoint(request: QueryRequest):
     import time
     start = time.time()
     
-    session_id = request.session_id or f"{request.tenant_id}_{request.user_id}_{int(time.time())}"
+    session_id = request.session_id or f"{request.user_id}_{int(time.time())}"
     
     await memory.add_message(session_id, "user", request.query)
     
@@ -40,8 +39,8 @@ async def query_endpoint(request: QueryRequest):
     result = await executor.execute(
         query=request.query,
         query_type=query_type,
-        tenant_id=request.tenant_id,
-        session_id=session_id
+        session_id=session_id,
+        user_id=request.user_id
     )
     
     await memory.add_message(session_id, "assistant", result["message"])
@@ -66,7 +65,7 @@ async def query_stream_endpoint(request: QueryRequest):
         import time
         start = time.time()
         
-        session_id = request.session_id or f"{request.tenant_id}_{request.user_id}_{int(time.time())}"
+        session_id = request.session_id or f"{request.user_id}_{int(time.time())}"
         
         await memory.add_message(session_id, "user", request.query)
         
@@ -79,8 +78,8 @@ async def query_stream_endpoint(request: QueryRequest):
         async for chunk in executor.execute_stream(
             query=request.query,
             query_type=query_type,
-            tenant_id=request.tenant_id,
-            session_id=session_id
+            session_id=session_id,
+            user_id=request.user_id
         ):
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
             await asyncio.sleep(0.01)
