@@ -22,26 +22,32 @@ class QueryExecutor:
         )
     
     async def execute(self, query: str, query_type: QueryType, session_id: str, user_id: str) -> dict:
+        # Get conversation history
+        history = await self.memory.get_messages(session_id)
+        
         if query_type == QueryType.SIMPLE:
-            result = await self._execute_simple(query, session_id, user_id)
+            result = await self._execute_simple(query, session_id, user_id, history)
         else:  # DYNAMIC
-            result = await self._execute_dynamic(query, session_id, user_id)
+            result = await self._execute_dynamic(query, session_id, user_id, history)
         
         return await self._format_for_frontend(result, query)
     
     async def execute_stream(self, query: str, query_type: QueryType, session_id: str, user_id: str) -> AsyncGenerator[str, None]:
+        # Get conversation history
+        history = await self.memory.get_messages(session_id)
+        
         if query_type == QueryType.SIMPLE:
-            result = await self._execute_simple(query, session_id, user_id)
+            result = await self._execute_simple(query, session_id, user_id, history)
             yield result["answer"]
         else:  # DYNAMIC
-            result = await self._execute_dynamic(query, session_id, user_id)
+            result = await self._execute_dynamic(query, session_id, user_id, history)
             yield result["answer"]
     
-    async def _execute_simple(self, query: str, session_id: str, user_id: str) -> dict:
+    async def _execute_simple(self, query: str, session_id: str, user_id: str, history: list) -> dict:
         """Execute simple queries using Haiku agent with predefined tools"""
-        return await self.simple_agent.execute(query, session_id, user_id)
+        return await self.simple_agent.execute(query, session_id, user_id, history)
     
-    async def _execute_dynamic(self, query: str, session_id: str, user_id: str) -> dict:
+    async def _execute_dynamic(self, query: str, session_id: str, user_id: str, history: list) -> dict:
         """Execute dynamic queries using Sonnet agent"""
         return await self.dynamic_agent.execute(query, session_id, user_id)
     

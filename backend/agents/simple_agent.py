@@ -2,6 +2,7 @@ from langchain_aws import ChatBedrock
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
+from langchain_core.messages import HumanMessage, AIMessage
 from config import get_settings
 from prompts import load_prompt
 from typing import Dict, Any, List
@@ -23,9 +24,10 @@ class SimpleAgent:
         
         self._load_tools()
         
-        # Create prompt
+        # Create prompt with memory support
         prompt = ChatPromptTemplate.from_messages([
             ("system", self._get_system_prompt()),
+            MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("human", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
@@ -86,13 +88,23 @@ class SimpleAgent:
         self.tools.append(create_sales_tool(self.queries_executed))
         self.tools.append(create_backorders_tool(self.queries_executed))
     
-    async def execute(self, query: str, session_id: str, user_id: str) -> Dict[str, Any]:
-        """Execute a simple data lookup query"""
+    async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
+        """Execute a simple data lookup query with conversation memory"""
         self.queries_executed = []
         
         print(f"\n{'='*70}")
         print(f"[SIMPLE AGENT] Query: {query}")
+        print(f"[SIMPLE AGENT] History messages: {len(conversation_history) if conversation_history else 0}")
         print(f"{'='*70}\n")
+        
+        # Convert history to LangChain message format
+        chat_history = []
+        if conversation_history:
+            for msg in conversation_history[-10:]:  # Last 10 messages for context
+                if msg.get("role") == "user":
+                    chat_history.append(HumanMessage(content=msg.get("content", "")))
+                elif msg.get("role") == "assistant":
+                    chat_history.append(AIMessage(content=msg.get("content", "")))
         
         # LangSmith config with metadata
         config = RunnableConfig(
@@ -100,7 +112,8 @@ class SimpleAgent:
                 "conversation_id": session_id,
                 "user_id": user_id,
                 "agent_type": "simple",
-                "model": "haiku"
+                "model": "haiku",
+                "history_length": len(chat_history)
             },
             tags=[
                 settings.environment if hasattr(settings, 'environment') else "development",
@@ -112,7 +125,10 @@ class SimpleAgent:
         try:
             # LangChain handles everything
             result = await self.agent_executor.ainvoke(
-                {"input": query},
+                {
+                    "input": query,
+                    "chat_history": chat_history
+                },
                 config=config
             )
             
