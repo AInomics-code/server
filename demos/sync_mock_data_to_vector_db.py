@@ -3,10 +3,11 @@
 Sync mock data from client_data database to vector database (main_db)
 This script reads data from client_data and creates embeddings for the vector search tables.
 
-Usage: python sync_mock_data_to_vector_db.py
+Usage: python sync_mock_data_to_vector_db.py [--yes]
 """
 import psycopg2
 import time
+import sys
 from utils import get_bedrock_client, get_embedding
 from config import DB_CONFIG
 
@@ -334,7 +335,14 @@ def main():
     
     try:
         # Clear existing vector tables (optional)
-        clear_choice = input("\n⚠️  Clear existing vector tables? (y/N): ").strip().lower()
+        auto_yes = '--yes' in sys.argv or '-y' in sys.argv
+        
+        if auto_yes:
+            clear_choice = 'y'
+            print("\n⚠️  Auto-clearing vector tables (--yes flag)")
+        else:
+            clear_choice = input("\n⚠️  Clear existing vector tables? (y/N): ").strip().lower()
+        
         if clear_choice == 'y':
             if not clear_vector_tables(main_conn):
                 print("❌ Failed to clear tables")

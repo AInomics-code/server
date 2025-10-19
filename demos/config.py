@@ -25,9 +25,9 @@ DB_CONFIG = {
     'password': os.environ.get('POSTGRES_PASSWORD', 'postgres123')
 }
 
-# AWS Bedrock configuration (hardcoded)
+# AWS Bedrock configuration
 AWS_REGION = os.environ.get('AWS_REGION', 'us-east-1')
-AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID')
-AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY')
-BEDROCK_MODEL_ID = 'amazon.titan-embed-text-v1'
+AWS_ACCESS_KEY_ID = os.environ.get('AWS_ACCESS_KEY_ID', 'AKIARCKPW5XENCQOSYP6')
+AWS_SECRET_ACCESS_KEY = os.environ.get('AWS_SECRET_ACCESS_KEY', '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')
+BEDROCK_MODEL_ID = 'amazon.titan-embed-text-v2:0'
 

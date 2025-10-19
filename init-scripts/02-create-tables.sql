@@ -1,13 +1,13 @@
 -- Create tables with pgvector columns for embeddings
--- Amazon Titan Embed Text v1 generates 1536-dimensional vectors
+-- Amazon Titan Embed Text v2 generates 1024-dimensional vectors
 
 -- Products table
 CREATE TABLE IF NOT EXISTS products (
     product_id VARCHAR(50) PRIMARY KEY,
     product_name VARCHAR(255) NOT NULL,
-    vt_product_name vector(1536),
+    vt_product_name vector(1024),
     product_brand VARCHAR(255) NOT NULL,
-    vt_product_brand vector(1536),
+    vt_product_brand vector(1024),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -20,8 +20,8 @@ CREATE TABLE IF NOT EXISTS clients (
     client_id VARCHAR(50) PRIMARY KEY,
     client_name VARCHAR(255) NOT NULL,
     client_group VARCHAR(100) NOT NULL,
-    vt_client_name vector(1536),
-    vt_client_group vector(1536),
+    vt_client_name vector(1024),
+    vt_client_group vector(1024),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS idx_clients_group_vector ON clients USING ivfflat (vt
 CREATE TABLE IF NOT EXISTS locations (
     location_id VARCHAR(50) PRIMARY KEY,
     location_name VARCHAR(255) NOT NULL,
-    vt_location_name vector(1536),
+    vt_location_name vector(1024),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

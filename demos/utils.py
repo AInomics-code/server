@@ -11,9 +11,9 @@ def get_bedrock_client():
     """Initialize and return Bedrock client"""
     return boto3.client(
         service_name='bedrock-runtime',
-        region_name=AWS_REGION,
-        aws_access_key_id=AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=AWS_SECRET_ACCESS_KEY
+        region_name="us-east-1",
+        aws_access_key_id="AKIARCKPW5XENCQOSYP6",
+        aws_secret_access_key="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"
     )
 
 
@@ -26,7 +26,7 @@ def get_embedding(text, bedrock_client):
         bedrock_client: Boto3 Bedrock client
         
     Returns:
-        list: Embedding vector of 1536 dimensions
+        list: Embedding vector of 1024 dimensions
     """
     try:
         body = json.dumps({
@@ -34,7 +34,7 @@ def get_embedding(text, bedrock_client):
         })
         
         response = bedrock_client.invoke_model(
-            modelId='amazon.titan-embed-text-v1',
+            modelId='amazon.titan-embed-text-v2:0',
             body=body,
             contentType='application/json',
             accept='application/json'

@@ -1,0 +1,22 @@
+Classify this query as SIMPLE or DYNAMIC:
+
+SIMPLE: Direct data lookup queries (inventory, sales, backorders, product search)
+- "¿Cuánto inventario tengo de tortillas?"
+- "Backorders de tortillas de mayo 2025"
+- "Ventas del primer trimestre"
+- "Busca producto salsa picante"
+- "Backorders de la semana pasada"
+- ANY query asking for specific data points with optional date ranges
+
+DYNAMIC: Complex analysis, comparisons, trends, predictions
+- "Compara ventas de este mes vs anterior"
+- "¿Cuál es la tendencia de backorders?"
+- "Predice inventario del próximo mes"
+- "Dame el top 10 productos con más ventas y analiza por qué"
+- "Compara backorders por región y dame insights"
+- Queries requiring multi-step reasoning or cross-analysis
+
+Query: "{query}"
+
+Response (one word only):
+
