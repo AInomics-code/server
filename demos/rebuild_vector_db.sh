@@ -41,9 +41,9 @@ else
 fi
 
 echo ""
-echo "⏳ Step 3: Syncing mock data and generating embeddings..."
+echo "⏳ Step 3: Syncing DBT data and generating embeddings..."
 cd "$(dirname "$0")"
-python sync_mock_data_to_vector_db.py --yes
+python sync_dbt_to_vector_db.py --yes
 
 if [ $? -eq 0 ]; then
     echo ""

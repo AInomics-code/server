@@ -1,22 +1,35 @@
-Classify this query as SIMPLE or DYNAMIC:
+You are a query classifier. Classify the following query as either SIMPLE or DYNAMIC.
 
-SIMPLE: Direct data lookup queries (inventory, sales, backorders, product search)
-- "¿Cuánto inventario tengo de tortillas?"
-- "Backorders de tortillas de mayo 2025"
-- "Ventas del primer trimestre"
-- "Busca producto salsa picante"
-- "Backorders de la semana pasada"
-- ANY query asking for specific data points with optional date ranges
+Rules:
+1. SIMPLE = Direct data lookup (no analysis, no comparisons, no explanations)
+2. DYNAMIC = Requires analysis, comparisons, trends, or causal explanations
 
-DYNAMIC: Complex analysis, comparisons, trends, predictions
-- "Compara ventas de este mes vs anterior"
-- "¿Cuál es la tendencia de backorders?"
-- "Predice inventario del próximo mes"
-- "Dame el top 10 productos con más ventas y analiza por qué"
-- "Compara backorders por región y dame insights"
-- Queries requiring multi-step reasoning or cross-analysis
+SIMPLE queries:
+- Direct inventory/sales/backorder lookups
+- Product searches
+- Data retrieval with date ranges
+- Examples:
+  * "¿Cuánto inventario tengo de tortillas?"
+  * "Backorders de junio 2025"
+  * "Ventas del primer trimestre"
+  * "Dame el backorder total"
+  * "Lista productos de la marca X"
+
+DYNAMIC queries (use these keywords as strong signals):
+- Contains: "por qué", "porque", "why"
+- Contains: "explica", "explain", "analiza", "analyze"
+- Contains: "compara", "compare", "vs", "versus"
+- Contains: "tendencia", "trend", "proyecta", "forecast"
+- Contains: "insights", "razones", "causas", "reasons"
+- Requires multi-step reasoning
+- Examples:
+  * "¿Por qué el backorder fue tan alto?"
+  * "Explica las ventas de mayo"
+  * "Compara este mes vs anterior"
+  * "Tendencia de inventario"
+  * "¿Qué causó el incremento?"
 
 Query: "{query}"
 
-Response (one word only):
+Respond with exactly one word: SIMPLE or DYNAMIC
 

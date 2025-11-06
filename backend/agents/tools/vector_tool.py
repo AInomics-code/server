@@ -23,7 +23,12 @@ def create_vector_tool(queries_executed_ref: List[Dict]) -> tool:
         
         Args:
             search_query: Natural language search term (e.g., 'tortillas de nopal', 'cliente mayorista')
-            category: What type of entity to search for. Options: 'products', 'clients', 'locations'
+            category: What type of entity to search for. Options: 
+                     'products' - search by product name
+                     'products_by_brand' - search products by brand name
+                     'products_by_category' - search products by category
+                     'clients' - search clients
+                     'locations' - search locations
             
         Returns:
             Dict with success status and list of matching entities with their IDs and similarity scores

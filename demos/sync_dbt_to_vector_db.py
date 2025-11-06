@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-Sync mock data from client_data database to vector database (main_db)
-This script reads data from client_data and creates embeddings for the vector search tables.
+Sync DBT-transformed data from client_data database to vector database (main_db)
+This script reads data from client_data.public (DBT materialized tables) 
+and creates embeddings for the vector search tables.
 
-Usage: python sync_mock_data_to_vector_db.py [--yes]
+Usage: python sync_dbt_to_vector_db.py [--yes]
 """
 import psycopg2
 import time
@@ -58,15 +59,15 @@ def sync_products(client_conn, main_conn, bedrock_client):
     """Sync products from client_data to main_db with embeddings"""
     try:
         print("\n" + "="*70)
-        print("📦 Syncing Products")
+        print("📦 Syncing Products (from DBT)")
         print("="*70)
         
-        # Read from client_data
+        # Read from client_data.public (DBT materialized table)
         client_cur = client_conn.cursor()
         client_cur.execute("""
-            SELECT product_id, product_name, brand
-            FROM products
-            WHERE product_state = 'Active'
+            SELECT product_id, product_name, brand, category
+            FROM public.products
+            WHERE state = true
             ORDER BY product_id
         """)
         products = client_cur.fetchall()
@@ -79,29 +80,45 @@ def sync_products(client_conn, main_conn, bedrock_client):
         synced = 0
         errors = 0
         
-        for idx, (product_id, product_name, brand) in enumerate(products, 1):
+        for idx, (product_id, product_name, brand, category) in enumerate(products, 1):
             try:
-                # Generate embeddings
-                name_embedding = get_embedding(product_name, bedrock_client)
-                brand_embedding = get_embedding(brand, bedrock_client)
+                # Validate and clean data
+                product_name = product_name.strip() if product_name else ""
+                brand = brand.strip() if brand else None
+                category = category.strip() if category else None
                 
-                if not name_embedding or not brand_embedding:
-                    print(f"  ⚠️  Skipping {product_id}: Failed to generate embeddings")
+                # Skip if product_name is empty (required field)
+                if not product_name:
+                    print(f"  ⚠️  Skipping {product_id}: Empty product name")
                     errors += 1
                     continue
                 
-                # Insert into main_db
+                # Generate embeddings (only for non-empty fields)
+                name_embedding = get_embedding(product_name, bedrock_client)
+                brand_embedding = get_embedding(brand, bedrock_client) if brand else None
+                category_embedding = get_embedding(category, bedrock_client) if category else None
+                
+                if not name_embedding:
+                    print(f"  ⚠️  Skipping {product_id}: Failed to generate name embedding")
+                    errors += 1
+                    continue
+                
+                # Insert into main_db (NULL for empty fields)
                 main_cur.execute("""
                     INSERT INTO products 
-                    (product_id, product_name, vt_product_name, product_brand, vt_product_brand)
-                    VALUES (%s, %s, %s::vector, %s, %s::vector)
+                    (product_id, product_name, vt_product_name, product_brand, vt_product_brand, 
+                     product_category, vt_product_category)
+                    VALUES (%s, %s, %s::vector, %s, %s::vector, %s, %s::vector)
                     ON CONFLICT (product_id) DO UPDATE SET
                         product_name = EXCLUDED.product_name,
                         vt_product_name = EXCLUDED.vt_product_name,
                         product_brand = EXCLUDED.product_brand,
                         vt_product_brand = EXCLUDED.vt_product_brand,
+                        product_category = EXCLUDED.product_category,
+                        vt_product_category = EXCLUDED.vt_product_category,
                         updated_at = CURRENT_TIMESTAMP
-                """, (product_id, product_name, name_embedding, brand, brand_embedding))
+                """, (product_id, product_name, name_embedding, brand, brand_embedding, 
+                      category, category_embedding))
                 
                 synced += 1
                 
@@ -134,15 +151,15 @@ def sync_clients(client_conn, main_conn, bedrock_client):
     """Sync clients from client_data to main_db with embeddings"""
     try:
         print("\n" + "="*70)
-        print("👥 Syncing Clients")
+        print("👥 Syncing Clients (from DBT)")
         print("="*70)
         
-        # Read from client_data
+        # Read from client_data.public (DBT materialized table)
         client_cur = client_conn.cursor()
         client_cur.execute("""
-            SELECT id, client_name, client_group
-            FROM clients
-            ORDER BY id
+            SELECT client_id, client_name, client_group
+            FROM public.clients
+            ORDER BY client_id
         """)
         clients = client_cur.fetchall()
         client_cur.close()
@@ -209,21 +226,20 @@ def sync_locations(client_conn, main_conn, bedrock_client):
     """Sync locations from client_data to main_db with embeddings"""
     try:
         print("\n" + "="*70)
-        print("📍 Syncing Locations")
+        print("📍 Syncing Locations (from DBT)")
         print("="*70)
         
-        # Read from client_data
+        # Read from client_data.public (DBT materialized table)
         client_cur = client_conn.cursor()
         client_cur.execute("""
-            SELECT id, location_name
-            FROM locations
-            WHERE location_state = 'Active'
-            ORDER BY id
+            SELECT location_id, location_name
+            FROM public.locations
+            ORDER BY location_id
         """)
         locations = client_cur.fetchall()
         client_cur.close()
         
-        print(f"⏳ Found {len(locations)} active locations to sync...")
+        print(f"⏳ Found {len(locations)} locations to sync...")
         
         # Insert into main_db with embeddings
         main_cur = main_conn.cursor()
@@ -310,7 +326,7 @@ def print_summary(main_conn):
 
 def main():
     """Main function to orchestrate the sync"""
-    print("\n🔄 Starting Mock Data Sync to Vector Database")
+    print("\n🔄 Starting DBT Data Sync to Vector Database")
     print("="*70)
     
     # Initialize Bedrock client
@@ -364,10 +380,8 @@ def main():
         print("="*70 + "\n")
         
         # Show example queries
-        print("💡 You can now test with:")
-        print("  python search_products_by_name.py 'electronics'")
-        print("  python search_clients_by_name.py 'restaurant'")
-        print("  python search_locations.py 'warehouse'")
+        print("💡 Vector database updated successfully!")
+        print("   You can now use the backend API for vector search")
         print()
         
     except KeyboardInterrupt:

@@ -2,83 +2,85 @@ from langchain_aws import ChatBedrock
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 from config import get_settings
-from prompts import load_prompt
-from typing import Dict, Any, List
+from prompts import load_prompt_with_date
+from typing import Dict, Any
 
 settings = get_settings()
 
 class DynamicAgent:
-    """
-    LangGraph agent for dynamic queries that need reasoning and custom SQL generation.
-    
-    Architecture:
-    - Uses Claude Sonnet via AWS Bedrock
-    - ReAct pattern (Reasoning + Acting)
-    - Tools are easily extensible
-    - Automatic retry on errors
-    """
-    
     def __init__(self):
         self.llm = self._initialize_llm()
         self.tools = []
         self.queries_executed = []
-        
-        # Load tools
         self._load_tools()
-        
-        # Create agent
-        self.agent = create_react_agent(
-            self.llm,
-            self.tools
-        )
-        
+        self.agent = create_react_agent(self.llm, self.tools)
         self.system_prompt = self._get_system_prompt()
     
     def _initialize_llm(self):
-        """Initialize Claude Sonnet via AWS Bedrock"""
         return ChatBedrock(
             model_id=settings.bedrock_model_id,
             region_name=settings.aws_region,
             credentials_profile_name=None,
             provider="anthropic",
-            model_kwargs={
-                "temperature": 0.3,
-                "max_tokens": 2000
-            }
+            model_kwargs={"temperature": 0.3, "max_tokens": 2000}
         )
     
     def _get_system_prompt(self) -> str:
-        """Load system prompt from file"""
-        return load_prompt("dynamic_agent.txt")
+        return load_prompt_with_date("dynamic_agent.txt")
     
     def _load_tools(self):
-        """Load all available tools - EASY TO EXTEND"""
         from agents.tools.sql_tool import create_sql_tool
         from agents.tools.vector_tool import create_vector_tool
+        from agents.tools.date_tool import get_current_date
+        from agents.tools.simple_sql_tools import (
+            create_inventory_tool,
+            create_sales_tool,
+            create_backorders_tool,
+            create_inventory_summary_tool,
+            create_sales_summary_tool,
+            create_backorders_summary_tool,
+            create_product_search_tool
+        )
+        from agents.tools.advanced_sql_tools import (
+            create_client_sales_analysis_tool,
+            create_budget_vs_actual_tool,
+            create_product_performance_tool,
+            create_slow_moving_products_tool,
+            create_location_performance_tool,
+            create_inventory_distribution_tool,
+            create_seller_performance_tool,
+            create_monthly_trend_tool,
+            create_order_fulfillment_rate_tool
+        )
         
-        # Add SQL tool
+        # Basic summary tools
+        self.tools.append(create_backorders_summary_tool(self.queries_executed))
+        self.tools.append(create_sales_summary_tool(self.queries_executed))
+        self.tools.append(create_inventory_summary_tool(self.queries_executed))
+        
+        # Basic detail tools
+        self.tools.append(create_inventory_tool(self.queries_executed))
+        self.tools.append(create_sales_tool(self.queries_executed))
+        self.tools.append(create_backorders_tool(self.queries_executed))
+        self.tools.append(create_product_search_tool(self.queries_executed))
+        
+        # Advanced analytical tools
+        self.tools.append(create_client_sales_analysis_tool(self.queries_executed))
+        self.tools.append(create_budget_vs_actual_tool(self.queries_executed))
+        self.tools.append(create_product_performance_tool(self.queries_executed))
+        self.tools.append(create_slow_moving_products_tool(self.queries_executed))
+        self.tools.append(create_location_performance_tool(self.queries_executed))
+        self.tools.append(create_inventory_distribution_tool(self.queries_executed))
+        self.tools.append(create_seller_performance_tool(self.queries_executed))
+        self.tools.append(create_monthly_trend_tool(self.queries_executed))
+        self.tools.append(create_order_fulfillment_rate_tool(self.queries_executed))
+        
+        # Dynamic SQL and vector search
         self.tools.append(create_sql_tool(self.queries_executed))
-        
-        # Add vector search tool
         self.tools.append(create_vector_tool(self.queries_executed))
-        
-        # FUTURE: Add more tools here
-        # self.tools.append(create_analytics_tool())
-        # self.tools.append(create_prediction_tool())
-        # self.tools.append(create_external_api_tool())
+        self.tools.append(get_current_date)
     
     async def execute(self, query: str, session_id: str, user_id: str) -> Dict[str, Any]:
-        """
-        Execute a dynamic query using LangGraph agent
-        
-        Args:
-            query: User's natural language query
-            session_id: Session identifier for conversation tracking
-            user_id: User identifier for tracking
-            
-        Returns:
-            Dict with answer, queries_executed, and metadata
-        """
         self.queries_executed = []
         
         messages = [
@@ -87,9 +89,7 @@ class DynamicAgent:
         ]
         
         config = {
-            "configurable": {
-                "thread_id": session_id
-            },
+            "configurable": {"thread_id": session_id},
             "recursion_limit": 15,
             "metadata": {
                 "conversation_id": session_id,
@@ -105,18 +105,24 @@ class DynamicAgent:
         }
         
         print(f"\n{'='*70}")
-        print(f"[DYNAMIC AGENT] Starting execution")
         print(f"[DYNAMIC AGENT] Query: {query}")
-        print(f"[DYNAMIC AGENT] Session: {session_id}")
         print(f"{'='*70}\n")
+        print("\n> Entering new AgentExecutor chain...\n")
         
         try:
-            result = await self.agent.ainvoke(
-                {"messages": messages},
-                config=config
-            )
-            
+            result = await self.agent.ainvoke({"messages": messages}, config=config)
             final_messages = result.get("messages", [])
+            
+            # Print intermediate steps (tool calls)
+            for msg in final_messages[2:]:  # Skip system and user messages
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    for tool_call in msg.tool_calls:
+                        print(f"\nInvoking: `{tool_call['name']}` with `{tool_call['args']}`")
+                elif hasattr(msg, 'content') and isinstance(msg.content, str):
+                    if msg.type == 'tool':
+                        print(f"\n{msg.content}\n")
+                    elif msg.type == 'ai' and msg.content:
+                        print(f"{msg.content}\n")
             
             if final_messages:
                 last_message = final_messages[-1]
@@ -124,9 +130,9 @@ class DynamicAgent:
             else:
                 answer = "No pude procesar tu consulta."
             
-            print(f"\n{'='*70}")
-            print(f"[DYNAMIC AGENT] Execution completed")
-            print(f"[DYNAMIC AGENT] Total tools used: {len(self.queries_executed)}")
+            print("\n> Finished chain.\n")
+            print(f"{'='*70}")
+            print(f"[DYNAMIC AGENT] Completed - {len(self.queries_executed)} tools used")
             print(f"{'='*70}\n")
             
             return {

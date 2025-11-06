@@ -55,7 +55,21 @@ class VectorSearchTool(BaseTool):
                 "vector_column": "vt_product_name",
                 "id_column": "product_id",
                 "name_column": "product_name",
-                "additional_columns": ["product_brand"]
+                "additional_columns": ["product_brand", "product_category"]
+            },
+            "products_by_brand": {
+                "table": "products",
+                "vector_column": "vt_product_brand",
+                "id_column": "product_id",
+                "name_column": "product_name",
+                "additional_columns": ["product_brand", "product_category"]
+            },
+            "products_by_category": {
+                "table": "products",
+                "vector_column": "vt_product_category",
+                "id_column": "product_id",
+                "name_column": "product_name",
+                "additional_columns": ["product_brand", "product_category"]
             },
             "clients": {
                 "table": "clients",

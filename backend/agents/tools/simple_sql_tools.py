@@ -123,12 +123,13 @@ def create_inventory_tool(queries_executed: List[Dict]):
             SELECT 
                 p.product_name,
                 p.brand,
+                p.category,
                 i.inventory_qty,
                 l.location_name,
-                l.location_type
+                l.city
             FROM inventory i
             JOIN products p ON i.product_id = p.product_id
-            JOIN locations l ON i.location_id = l.id
+            JOIN locations l ON i.location_id = l.location_id
             {where_clause}
             ORDER BY i.inventory_qty DESC
             LIMIT {top_n}
@@ -152,7 +153,7 @@ def create_inventory_tool(queries_executed: List[Dict]):
                 
                 response = f"Found {len(rows)} inventory record(s):\n\n"
                 for row in rows:
-                    response += f"- {row['product_name']} ({row['brand']}): {row['inventory_qty']} units at {row['location_name']}\n"
+                    response += f"- {row['product_name']} ({row['brand']}): {row['inventory_qty']} units at {row['location_name']} ({row['city']})\n"
                 return response
         finally:
             await pool.close()
@@ -172,7 +173,7 @@ def create_sales_tool(queries_executed: List[Dict]):
         top_n: int = 20
     ) -> str:
         """
-        Get sales data with optional filters.
+        Get sales transaction data with optional filters.
         
         Args:
             start_date: Start date in YYYY-MM-DD format (default: 30 days ago)
@@ -184,7 +185,7 @@ def create_sales_tool(queries_executed: List[Dict]):
         Returns:
             Sales records matching the criteria
         """
-        conditions = []
+        conditions = ["t.transaction_type = 'SALE'"]  # Only sales transactions
         params = []
         param_counter = 1
         
@@ -193,42 +194,47 @@ def create_sales_tool(queries_executed: List[Dict]):
         end_date_obj = parse_date(end_date)
         
         if start_date_obj:
-            conditions.append(f"s.date >= ${param_counter}")
+            conditions.append(f"t.date >= ${param_counter}")
             params.append(start_date_obj)
             param_counter += 1
         else:
-            conditions.append("s.date >= CURRENT_DATE - INTERVAL '30 days'")
+            conditions.append("t.date >= CURRENT_DATE - INTERVAL '30 days'")
         
         if end_date_obj:
-            conditions.append(f"s.date <= ${param_counter}")
+            conditions.append(f"t.date <= ${param_counter}")
             params.append(end_date_obj)
             param_counter += 1
         
         if product_id:
-            conditions.append(f"s.product_id = ${param_counter}")
+            conditions.append(f"t.product_id = ${param_counter}")
             params.append(product_id)
             param_counter += 1
         
         if client_id:
-            conditions.append(f"s.client_id = ${param_counter}")
+            conditions.append(f"t.client_id = ${param_counter}")
             params.append(client_id)
             param_counter += 1
         
-        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        where_clause = f"WHERE {' AND '.join(conditions)}"
         
         sql = f"""
             SELECT 
-                DATE(s.date) as sale_date,
+                DATE(t.date) as transaction_date,
                 p.product_name,
+                p.brand,
                 c.client_name,
-                s.quantity,
-                s.net_amount,
-                s.transaction_type
-            FROM sales s
-            JOIN products p ON s.product_id = p.product_id
-            JOIN clients c ON s.client_id = c.client_id
+                c.client_group,
+                t.quantity,
+                t.unit_price,
+                t.gross_amount,
+                t.net_amount,
+                t.discount_amount,
+                t.seller_name
+            FROM transactions t
+            JOIN products p ON t.product_id = p.product_id
+            JOIN clients c ON t.client_id = c.client_id
             {where_clause}
-            ORDER BY s.date DESC
+            ORDER BY t.date DESC
             LIMIT {top_n}
         """
         
@@ -250,9 +256,9 @@ def create_sales_tool(queries_executed: List[Dict]):
                 
                 total_amount = sum(float(row['net_amount']) for row in rows)
                 
-                response = f"Found {len(rows)} sale(s), Total: ${total_amount:,.2f}\n\n"
+                response = f"Found {len(rows)} sale(s), Total Net: ${total_amount:,.2f}\n\n"
                 for row in rows[:10]:  # Show first 10
-                    response += f"- {row['sale_date']}: {row['product_name']} → {row['client_name']}, Qty: {row['quantity']}, Amount: ${float(row['net_amount']):,.2f}\n"
+                    response += f"- {row['transaction_date']}: {row['product_name']} ({row['brand']}) → {row['client_name']}, Qty: {row['quantity']}, Net: ${float(row['net_amount']):,.2f}, Seller: {row['seller_name']}\n"
                 
                 if len(rows) > 10:
                     response += f"\n...and {len(rows) - 10} more records"
@@ -326,15 +332,24 @@ def create_backorders_tool(queries_executed: List[Dict]):
         
         sql = f"""
             SELECT 
-                p.product_name,
                 b.date,
+                b.order_id,
+                p.product_name,
+                p.brand,
+                p.category,
                 b.backorder_qty,
-                b.backorder_value_usd,
-                b.cost,
-                l.location_name
-            FROM backorders b
+                b.unit_price,
+                (b.backorder_qty * b.unit_price) as backorder_value,
+                b.order_qty,
+                b.delivery_qty,
+                l.location_name,
+                l.city,
+                c.client_name,
+                b.seller_name
+            FROM backorder b
             JOIN products p ON b.product_id = p.product_id
-            JOIN locations l ON b.location_id = l.id
+            JOIN locations l ON b.location_id = l.location_id
+            JOIN clients c ON b.client_id = c.client_id
             {where_clause}
             ORDER BY b.date DESC
             LIMIT {top_n}
@@ -357,12 +372,12 @@ def create_backorders_tool(queries_executed: List[Dict]):
                     return "No backorders found for the specified criteria"
                 
                 total_qty = sum(row['backorder_qty'] for row in rows)
-                total_value = sum(float(row['backorder_value_usd']) for row in rows)
-                total_cost = sum(float(row['cost']) for row in rows)
+                total_value = sum(float(row['backorder_value']) for row in rows)
                 
-                response = f"Found {len(rows)} backorder(s), Total Qty: {total_qty}, Total Value: ${total_value:,.2f}, Total Cost: ${total_cost:,.2f}\n\n"
+                response = f"Found {len(rows)} backorder(s), Total Qty: {total_qty}, Total Value: ${total_value:,.2f}\n\n"
                 for row in rows[:10]:
-                    response += f"- {row['date']}: {row['product_name']} at {row['location_name']}, Qty: {row['backorder_qty']}, Value: ${float(row['backorder_value_usd']):,.2f}, Cost: ${float(row['cost']):,.2f}\n"
+                    response += f"- Order #{row['order_id']} ({row['date']}): {row['product_name']} ({row['brand']}), Qty: {row['backorder_qty']}, Value: ${float(row['backorder_value']):,.2f}\n"
+                    response += f"  Client: {row['client_name']}, Location: {row['location_name']} ({row['city']}), Seller: {row['seller_name']}\n"
                 
                 if len(rows) > 10:
                     response += f"\n...and {len(rows) - 10} more records"
@@ -406,7 +421,7 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
             product_id: Specific product ID to filter (optional)
         
         Returns:
-            JSON with total_quantity, total_value_usd, record_count, top_products
+            JSON with total_quantity, total_value, record_count, top_products
         """
         conditions = []
         params = []
@@ -439,9 +454,10 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
             SELECT 
                 COUNT(*) as record_count,
                 SUM(b.backorder_qty) as total_quantity,
-                SUM(b.backorder_value_usd) as total_value_usd,
-                SUM(b.cost) as total_cost
-            FROM backorders b
+                SUM(b.backorder_qty * b.unit_price) as total_value,
+                SUM(b.order_qty) as total_ordered,
+                SUM(b.delivery_qty) as total_delivered
+            FROM backorder b
             {where_clause}
         """
         
@@ -449,13 +465,13 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
         sql_top_products = f"""
             SELECT 
                 p.product_name,
+                p.brand,
                 SUM(b.backorder_qty) as total_qty,
-                SUM(b.backorder_value_usd) as total_value,
-                SUM(b.cost) as total_cost
-            FROM backorders b
+                SUM(b.backorder_qty * b.unit_price) as total_value
+            FROM backorder b
             JOIN products p ON b.product_id = p.product_id
             {where_clause}
-            GROUP BY p.product_name
+            GROUP BY p.product_name, p.brand
             ORDER BY total_qty DESC
             LIMIT 10
         """
@@ -480,14 +496,15 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 result = {
                     "record_count": totals['record_count'],
                     "total_quantity": totals['total_quantity'] or 0,
-                    "total_value_usd": float(totals['total_value_usd'] or 0),
-                    "total_cost": float(totals['total_cost'] or 0),
+                    "total_value": float(totals['total_value'] or 0),
+                    "total_ordered": totals['total_ordered'] or 0,
+                    "total_delivered": totals['total_delivered'] or 0,
                     "top_products": [
                         {
                             "product_name": row['product_name'],
+                            "brand": row['brand'],
                             "quantity": row['total_qty'],
-                            "value_usd": float(row['total_value']),
-                            "cost": float(row['total_cost'])
+                            "value": float(row['total_value'])
                         }
                         for row in top_products
                     ]
@@ -532,7 +549,7 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         Returns:
             JSON with total_quantity, total_amount, record_count, top_products, top_clients
         """
-        conditions = []
+        conditions = ["t.transaction_type = 'SALE'"]
         params = []
         param_counter = 1
         
@@ -540,36 +557,39 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         end_date_obj = parse_date(end_date)
         
         if start_date_obj:
-            conditions.append(f"s.date >= ${param_counter}")
+            conditions.append(f"t.date >= ${param_counter}")
             params.append(start_date_obj)
             param_counter += 1
         else:
-            conditions.append("s.date >= CURRENT_DATE - INTERVAL '30 days'")
+            conditions.append("t.date >= CURRENT_DATE - INTERVAL '30 days'")
         
         if end_date_obj:
-            conditions.append(f"s.date <= ${param_counter}")
+            conditions.append(f"t.date <= ${param_counter}")
             params.append(end_date_obj)
             param_counter += 1
         
         if product_id:
-            conditions.append(f"s.product_id = ${param_counter}")
+            conditions.append(f"t.product_id = ${param_counter}")
             params.append(product_id)
             param_counter += 1
         
         if client_id:
-            conditions.append(f"s.client_id = ${param_counter}")
+            conditions.append(f"t.client_id = ${param_counter}")
             params.append(client_id)
             param_counter += 1
         
-        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        where_clause = f"WHERE {' AND '.join(conditions)}"
         
         # Get totals
         sql_totals = f"""
             SELECT 
                 COUNT(*) as record_count,
-                SUM(s.quantity) as total_quantity,
-                SUM(s.net_amount) as total_amount
-            FROM sales s
+                SUM(t.quantity) as total_quantity,
+                SUM(t.gross_amount) as total_gross,
+                SUM(t.net_amount) as total_net,
+                SUM(t.discount_amount) as total_discounts,
+                SUM(t.unit_cost * t.quantity) as total_cost
+            FROM transactions t
             {where_clause}
         """
         
@@ -577,12 +597,13 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         sql_top_products = f"""
             SELECT 
                 p.product_name,
-                SUM(s.quantity) as total_qty,
-                SUM(s.net_amount) as total_amount
-            FROM sales s
-            JOIN products p ON s.product_id = p.product_id
+                p.brand,
+                SUM(t.quantity) as total_qty,
+                SUM(t.net_amount) as total_amount
+            FROM transactions t
+            JOIN products p ON t.product_id = p.product_id
             {where_clause}
-            GROUP BY p.product_name
+            GROUP BY p.product_name, p.brand
             ORDER BY total_amount DESC
             LIMIT 10
         """
@@ -604,10 +625,14 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
                 result = {
                     "record_count": totals['record_count'],
                     "total_quantity": totals['total_quantity'] or 0,
-                    "total_amount": float(totals['total_amount'] or 0),
+                    "total_gross": float(totals['total_gross'] or 0),
+                    "total_net": float(totals['total_net'] or 0),
+                    "total_discounts": float(totals['total_discounts'] or 0),
+                    "total_cost": float(totals['total_cost'] or 0),
                     "top_products": [
                         {
                             "product_name": row['product_name'],
+                            "brand": row['brand'],
                             "quantity": row['total_qty'],
                             "amount": float(row['total_amount'])
                         }
@@ -648,7 +673,7 @@ def create_inventory_summary_tool(queries_executed: List[Dict]):
             location_id: Specific location ID to filter (optional)
         
         Returns:
-            JSON with total_quantity, total_value, location_count, top_products
+            JSON with total_quantity, location_count, top_products
         """
         conditions = []
         params = []
@@ -669,9 +694,9 @@ def create_inventory_summary_tool(queries_executed: List[Dict]):
         # Get totals
         sql_totals = f"""
             SELECT 
-                COUNT(*) as record_count,
-                SUM(i.quantity) as total_quantity,
-                SUM(i.inventory_value_usd) as total_value
+                COUNT(DISTINCT i.location_id) as location_count,
+                COUNT(DISTINCT i.product_id) as product_count,
+                SUM(i.inventory_qty) as total_quantity
             FROM inventory i
             {where_clause}
         """
@@ -680,12 +705,13 @@ def create_inventory_summary_tool(queries_executed: List[Dict]):
         sql_top_products = f"""
             SELECT 
                 p.product_name,
-                SUM(i.quantity) as total_qty,
-                SUM(i.inventory_value_usd) as total_value
+                p.brand,
+                p.category,
+                SUM(i.inventory_qty) as total_qty
             FROM inventory i
             JOIN products p ON i.product_id = p.product_id
             {where_clause}
-            GROUP BY p.product_name
+            GROUP BY p.product_name, p.brand, p.category
             ORDER BY total_qty DESC
             LIMIT 10
         """
@@ -705,14 +731,15 @@ def create_inventory_summary_tool(queries_executed: List[Dict]):
                 top_products = await conn.fetch(sql_top_products, *params)
                 
                 result = {
-                    "record_count": totals['record_count'],
+                    "location_count": totals['location_count'],
+                    "product_count": totals['product_count'],
                     "total_quantity": totals['total_quantity'] or 0,
-                    "total_value_usd": float(totals['total_value'] or 0),
                     "top_products": [
                         {
                             "product_name": row['product_name'],
-                            "quantity": row['total_qty'],
-                            "value_usd": float(row['total_value'])
+                            "brand": row['brand'],
+                            "category": row['category'],
+                            "quantity": row['total_qty']
                         }
                         for row in top_products
                     ]

@@ -26,9 +26,18 @@ def get_embedding(text, bedrock_client):
         bedrock_client: Boto3 Bedrock client
         
     Returns:
-        list: Embedding vector of 1024 dimensions
+        list: Embedding vector of 1024 dimensions, or None if error
     """
     try:
+        # Validate input
+        if not text or not isinstance(text, str):
+            return None
+        
+        # Clean and validate text
+        text = text.strip()
+        if not text:
+            return None
+        
         body = json.dumps({
             "inputText": text
         })

@@ -6,14 +6,17 @@ CREATE TABLE IF NOT EXISTS products (
     product_id VARCHAR(50) PRIMARY KEY,
     product_name VARCHAR(255) NOT NULL,
     vt_product_name vector(1024),
-    product_brand VARCHAR(255) NOT NULL,
+    product_brand VARCHAR(255),
     vt_product_brand vector(1024),
+    product_category VARCHAR(255),
+    vt_product_category vector(1024),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX IF NOT EXISTS idx_products_name_vector ON products USING ivfflat (vt_product_name vector_cosine_ops);
 CREATE INDEX IF NOT EXISTS idx_products_brand_vector ON products USING ivfflat (vt_product_brand vector_cosine_ops);
+CREATE INDEX IF NOT EXISTS idx_products_category_vector ON products USING ivfflat (vt_product_category vector_cosine_ops);
 
 -- Clients table
 CREATE TABLE IF NOT EXISTS clients (

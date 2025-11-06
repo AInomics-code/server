@@ -32,9 +32,13 @@ async def query_endpoint(request: QueryRequest):
     
     session_id = request.session_id or f"{request.user_id}_{int(time.time())}"
     
+    # Get conversation history BEFORE adding new message
+    history = await memory.get_messages(session_id)
+    
     await memory.add_message(session_id, "user", request.query)
     
-    query_type = await query_router.classify(request.query)
+    # Pass history to router for contextual classification
+    query_type = await query_router.classify(request.query, history)
     
     result = await executor.execute(
         query=request.query,
@@ -67,11 +71,15 @@ async def query_stream_endpoint(request: QueryRequest):
         
         session_id = request.session_id or f"{request.user_id}_{int(time.time())}"
         
+        # Get conversation history BEFORE adding new message
+        history = await memory.get_messages(session_id)
+        
         await memory.add_message(session_id, "user", request.query)
         
         yield f"data: {json.dumps({'type': 'status', 'message': 'Analyzing query...'})}\n\n"
         
-        query_type = await query_router.classify(request.query)
+        # Pass history to router for contextual classification
+        query_type = await query_router.classify(request.query, history)
         
         yield f"data: {json.dumps({'type': 'status', 'message': f'Using {query_type.value} method'})}\n\n"
         
@@ -98,4 +106,10 @@ async def get_session(session_id: str):
 async def clear_session(session_id: str):
     await memory.clear_session(session_id)
     return {"status": "cleared", "session_id": session_id}
+
+@router.post("/admin/clear-cache")
+async def clear_router_cache():
+    """Clear the query classification cache (admin endpoint)"""
+    query_router.clear_cache()
+    return {"message": "Router cache cleared successfully"}
 
