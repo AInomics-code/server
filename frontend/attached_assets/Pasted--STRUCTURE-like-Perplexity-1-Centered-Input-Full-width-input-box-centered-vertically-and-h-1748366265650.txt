@@ -1,0 +1,56 @@
+✅ STRUCTURE (like Perplexity)
+	1.	Centered Input:
+	•	Full-width input box, centered vertically and horizontally.
+	•	Icons for mic, attachment, language, etc., inline on the right side.
+	•	Soft inner glow on focus (white for light mode, red-tinted if branding allows).
+	2.	Floating Chat Button (Optional):
+	•	If you want the chat to persist, you can include a round floating “Ask” button bottom-right like a bubble.
+	3.	No Bubbles/Boxes:
+	•	Unlike your current version, remove:
+	•	Left user bubble.
+	•	Top logo bubble.
+	•	Shadowed cards behind input.
+	•	Keep it as sleek as Perplexity with no outline or container-style boxes.
+	4.	Animation Effects:
+	•	Microphone icon softly pulses red when active (subtle glow).
+	•	Input bar expands slightly on focus with transition (200ms ease-in-out).
+	•	Typing dots animate only when response is generating — no logo beforehand.
+
+⸻
+
+✅ DESIGN COMPONENTS TO KEEP (from your design)
+	•	🔻 Vorta Logo
+	•	Hidden by default.
+	•	Only appears inline when the assistant responds (just like “Perplexity AI” watermark).
+	•	🎙️ Red Glow Mic Button
+	•	Keep your current component but restyled with flat shadows and smaller padding.
+	•	📍 Voice | Attach | Language | Ask
+	•	Line these icons horizontally right of the input bar, with soft-hover animation.
+	•	📌 Suggestions / Prompt Buttons
+	•	Under the input field, you can include 3–4 clickable prompts (optional):
+	•	“Clientes que no realizaron pedido hoy”
+	•	“Productos sin inventario”
+	•	“Ventas por PDV vs mes pasado”
+
+⸻
+
+✅ INTERACTION FLOW
+	1.	User lands on page:
+Blank screen except for input in center, soft white background.
+	2.	User clicks input:
+	•	Inner shadow expands.
+	•	Icons fade in gently.
+	3.	User asks a question:
+	•	Vorta logo fades in beside response.
+	•	Response card appears below with:
+	•	Transparent background.
+	•	Rounded corners.
+	•	Action buttons: View SKU List | Compare Chains | View Dashboard
+
+⸻
+
+✅ BONUS - FUTURE ADDITIONS (optional)
+	•	🔔 Top-right Alert Icon
+For missed KPIs: “3 Zones Below Target” as red dot dropdown.
+	•	🧠 Smart Assist Suggestion Bubble
+When idle: “Do you want to review SKU gaps vs last week?”

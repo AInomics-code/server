@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Vorta Intelligence</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: #0f0f0f;
+      color: white;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-container {
+      position: absolute;
+      top: 40px;
+      text-align: center;
+    }
+
+    .logo-container img {
+      max-height: 50px;
+      margin: 5px 10px;
+      vertical-align: middle;
+    }
+
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .input-wrapper {
+      background-color: #1c1c1c;
+      border-radius: 14px;
+      padding: 12px;
+      width: 650px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      box-shadow: 0 0 0 1px #2a2a2a;
+    }
+
+    .input-wrapper input {
+      background: transparent;
+      border: none;
+      outline: none;
+      color: white;
+      flex-grow: 1;
+      font-size: 16px;
+    }
+
+    .input-wrapper button {
+      background-color: #f02c2c;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 8px;
+      color: white;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s ease;
+    }
+
+    .input-wrapper button:hover {
+      background-color: #e32222;
+    }
+
+    .icons {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      color: #aaa;
+    }
+
+    .icon {
+      cursor: pointer;
+      font-size: 18px;
+    }
+
+    .icon.mic.active {
+      color: #f02c2c;
+      animation: pulse 1s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(240, 44, 44, 0.4); }
+      70% { box-shadow: 0 0 0 10px rgba(240, 44, 44, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(240, 44, 44, 0); }
+    }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    <img src="/path/to/la-dona-logo.png" alt="La Dona Logo" />
+    <img src="/path/to/vorta-icon.png" alt="Vorta Logo" />
+  </div>
+
+  <div class="chat-container">
+    <div class="input-wrapper">
+      <input type="text" placeholder="Ask about KPIs or performance..." />
+      <div class="icons">
+        <span class="icon">📎</span>
+        <span class="icon">🌐</span>
+        <span class="icon mic">🎤</span>
+      </div>
+      <button>Ask</button>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,77 @@
+const express = require('express');
+const cors = require('cors');
+const { Configuration, OpenAIApi } = require('openai');
+require('dotenv').config();
+
+const app = express();
+const port = 3000;
+
+app.use(cors());
+app.use(express.json());
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+app.post('/api/chat', async (req, res) => {
+  const userMessage = req.body.message;
+
+  const markerData = [
+    {
+      name: "Chiriquí",
+      status: "At Risk",
+      sales: 52000,
+      target: 80000,
+      products: ["Vinagre Premium", "Mango Salsa"]
+    },
+    {
+      name: "Colón",
+      status: "At Risk",
+      sales: 39000,
+      target: 75000,
+      products: ["Aji Verde"]
+    },
+    {
+      name: "Panamá City",
+      status: "Stable",
+      sales: 90000,
+      target: 90000,
+      products: ["Vinagre Premium", "Aji Amarillo"]
+    }
+  ];
+
+  const fullPrompt = `You are a helpful assistant connected to a sales dashboard.
+
+Here is the core performance data:
+- Performance Score: 88
+- Sales Target Met: 82%
+- Product Opportunity: Vinagre Premium (High), Mango Salsa (Low)
+
+Here are the zone markers:
+${markerData.map(m => `
+- ${m.name}: Status = ${m.status}, Sales = ${m.sales}, Target = ${m.target}, Products = ${m.products.join(", ")}`).join("\n")}
+
+Only respond using this data. If user asks about markers, zones, or performance, reply using these facts. Don’t invent anything.
+
+Now, the user asked: "${userMessage}"`;
+
+  try {
+    const response = await openai.createChatCompletion({
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', content: 'You are a concise and factual sales assistant.' },
+        { role: 'user', content: fullPrompt },
+      ],
+    });
+
+    res.json({ reply: response.data.choices[0].message.content.trim() });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Something went wrong' });
+  }
+});
+
+app.listen(port, () => {
+  console.log(`Server running at http://localhost:${port}`);
+});

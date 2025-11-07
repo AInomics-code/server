@@ -1,0 +1,67 @@
+// Prompt: Add the final step in the onboarding sequence for VORTA.
+// This page appears right after the user selects the DB type (PostgreSQL, MySQL, etc.)
+// Purpose: collect all necessary inputs to connect VORTA to the user’s data stack.
+
+Design a new **page-level component** (call it `OnboardingDataForm.jsx`) that includes the following:
+
+1. **Overall Styling:**
+   - Maintain the same dark theme as the login and DB connector pages.
+   - Background: dark navy with a radial or angular gradient (same as previous screens).
+   - Typography: consistent with “VORTA” branding (Inter or similar), high contrast but elegant.
+   - Use animated page transitions (`framer-motion`) for a polished, enterprise feel.
+
+2. **Layout & Sections:**
+   - Page title: `Let's finalize your setup` (in bold, slightly larger than the last screen title)
+   - Subtitle: “To connect VORTA to your data, we need a few details from you or your IT team.”
+
+#### --- SECTION 1: Database Access ---
+- Title: `1. Access to Your Database (DB)` + icon (plug 🔌)
+- Explanation text in soft grey: _“We connect to a **copy** of your database, never your live production DB.”_
+- Inputs:
+  - Dropdown: `Select your database engine` (SQL Server, PostgreSQL, MySQL, etc.)
+  - Text inputs:
+    - `Host / IP`
+    - `Port`
+    - `Database Name`
+    - `Username`
+    - `Password` (type="password")
+  - Small toggle/info box: _“Not public? We’ll guide your IT team to mirror and expose a secure version.”_
+
+#### --- SECTION 2: Sales Questions ---
+- Title: `2. Your Sales Questions` + icon (question ❓)
+- Subtitle: _“What do you ask your sales team every day?”_
+- 3 textareas pre-filled with example placeholders:
+  - “Which customers stopped ordering this month?”
+  - “Where are we behind on targets?”
+  - “What SKUs aren’t moving by region?”
+- Add/remove textarea dynamically (+ button)
+
+#### --- SECTION 3: Schema & Business Logic (Optional) ---
+- Title: `3. Schema & Business Logic` + icon (brain 🧠)
+- Subtitle: _“Define your internal structure to help VORTA understand your KPIs.”_
+- Inputs:
+  - `Table Descriptions` — large textarea
+  - `Key Column Definitions` — large textarea
+  - `Formulas or Filters for KPIs` — large textarea
+  - Info tip: “E.g. Table ‘ventas’ with filter `estatus = 1` for active sales”
+
+3. **CTA / Navigation:**
+   - Sticky bottom-right `Continue to Dashboard` button
+     - Gradient: same blue gradient as Login button
+     - Style: rounded, subtle hover animation, professional feel
+   - Option to `Save & Finish Later` or `Skip for now` in the corner
+
+4. **Motion / Transition Logic:**
+   - Animate entry from right (framer-motion)
+   - Hide the previous DB-selection page smoothly (use context or state trigger)
+   - Slight fade for every section that appears sequentially (polished UX)
+
+5. **Accessibility / Usability:**
+   - Use tooltips for unclear fields
+   - Add validation for empty required fields (DB section especially)
+   - Optimize for desktop resolution (min-width: 1280px layout grid)
+   - Mobile-responsive secondary (can be simplified)
+
+---
+
+**Component structure breakdown:**

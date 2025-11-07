@@ -1,0 +1,70 @@
+Here’s the mental and operational workflow map for a Sales Analyst, adapted into English. This is designed to help the AI assistant not just answer questions, but understand the context, priorities, and logic behind each decision — making it feel like part of the team.
+
+⸻
+
+🧠 Sales Analyst – Workflow & Thinking Model
+
+⸻
+
+🕘 Start of Day (8:00–9:30 AM)
+
+Goal: Gain a clear view of current sales performance and identify any red flags.
+	1.	Open sales dashboards by chain and channel
+	•	Key metric: Sales vs Budget
+	•	Drill down: monthly → weekly → daily
+	2.	Check for underperforming chains
+	•	Compare current results vs prior periods
+	•	Focus on % to target and trend drops
+	3.	Flag chains with anomalies
+	•	If a chain is <90% of target → investigate causes
+	•	Action: mark for follow-up / notify sales team
+
+⸻
+
+🧾 Midday (9:30–12:00 PM)
+
+Goal: Diagnose the causes behind performance gaps and prepare alerts or recommendations for commercial leadership.
+	1.	Cross-check performance with other data sources
+	•	Are there out-of-stock issues? (Data: BO / Inventory)
+	•	Has SKU rotation dropped? (Data: Rotation history)
+	•	Is a competitor running a promo? (Data: Social / Dichter)
+	2.	Build reports for management
+	•	Highlight actionable insights
+	•	Explain the cause + recommended response
+	3.	Alert chain managers or sales reps
+	•	Via WhatsApp or email
+	•	With action-oriented messages:
+“Salsa 500g out of stock in Super99 David. Kraft promo active. Can you confirm restock today?”
+
+⸻
+
+📊 Afternoon (1:30–4:00 PM)
+
+Goal: Spot growth opportunities, support campaign planning, and optimize execution.
+	1.	Identify slow-moving SKUs with high inventory
+	•	Cross-reference warehouse, store, and product data
+	•	Prioritize high-margin products
+	2.	Spot activatable opportunities
+	•	Which products are trending up and could be scaled?
+	•	Which chains have low penetration but high potential?
+	3.	Suggest bundles, visibility plays, or promos
+	•	Based on past results and seasonal context
+	•	Prepares a proposal for sales or marketing teams
+
+⸻
+
+🧠 Summary of Mental Model
+
+Mental Step	Internal Thought	Typical Action
+Diagnosis	Where are we underperforming?	Analyze sales by chain/product
+Root Cause	Why is this happening?	Compare BO, inventory, rotation
+Response	What should I recommend?	Suggest restock, promo, or rep alert
+Growth	Where can we scale performance?	Search for inventory/opportunity overlaps
+Communication	Who needs to know this?	Notify managers or build reports
+
+
+⸻
+
+This mental model should be translated into a conversational AI flow that mirrors this thinking pattern — so the AI can respond, predict, and assist like a trained analyst without needing constant explanation.
+
+Would you like this turned into a visual flowchart or developer-ready prompt logic?

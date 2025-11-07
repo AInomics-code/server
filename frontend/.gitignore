@@ -1,0 +1,87 @@
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Vite specific
+.vite/
+vite.config.ts.*
+
+# Drizzle specific
+migrations/
+drizzle/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Testing
+coverage/
+.nyc_output/
+test-results/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# Temporary folders
+tmp/
+temp/
+.local/
+
+# Server files
+server/public/
+
+# Archive files
+*.tar.gz
+*.zip
+*.rar
+
+# Generated files
+generated-icon.png
+
+# Replit specific
+.replit
+
+# Package manager locks (keep only one)
+# yarn.lock
+# package-lock.json

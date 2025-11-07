@@ -1,0 +1,59 @@
+# **Examples of back and forths:**
+
+- 🔹 **User Question**
+- ✅ **AI Answer**
+    - **What’s happening** (Data insight)
+    - **Why it matters** (Y) → linked to **internal, external, or public data**
+    - **What to do** → tied directly to the Y
+- 🧠 **Developer Prompt** (backend logic)
+
+---
+
+### **🔹 1. Which chain is below budget?**
+
+✅ **AI Answer:**
+
+“**Super99** is currently at **82% of its monthly sales target**, with a **13% drop in performance** compared to the same period last month.
+
+🔎 **Why this matters:**
+
+- 🔸 **Internal Sales Data:** Sales drop driven by a -25% rotation of **Mayonnaise 400g** in Chiriquí.
+- 🔸 **Inventory/BO Data:** SKU **out-of-stock** in 4 key PDVs — last backorder was 4 days ago.
+- 🔸 **Public Signals (Social Media Monitoring):** A **Kraft sauce promotion** was launched May 2, potentially cannibalizing shelf space.
+
+✅ **What to do:**
+
+- Replenish stock in **David and Bugaba** (Inventory risk → Internal)
+- Activate a **counter-promotion** for sauces (Response to external signal)
+- Assign **Rep #14** to follow up with high-risk stores (Sales execution → Internal CRM)
+
+🧠 **Developer Prompt:**
+
+Compare actual_sales vs budget_target for current month by chain. Identify chains <90%. Pull BO history + SKU rotation data for those chains. Query social media or third-party promo logs for external pressure indicators. Return summary + 3 causes (linked to data origin) + recommended corrective action.
+
+---
+
+### **🔹 2. What product didn’t sell yesterday / this week / by store?**
+
+✅ **AI Answer:**
+
+“These products had **zero sales** despite having inventory on-hand:
+
+- **Teriyaki Sauce 300ml** → No sales yesterday in Super99 (San Miguelito, Tocumen)
+- **Lime Juice 250ml** → Zero movement in El Machetazo (La Chorrera)
+
+🔎 **Why this matters:**
+
+- 🔸 **Internal POS Data:** Sales = 0
+- 🔸 **Inventory System:** Inventory > 0 = product was present but not purchased
+- 🔸 **External Signal (Dichter):** Competitor product pushed in these PDVs last week
+
+✅ **What to do:**
+
+- Flag PDVs with product presence but no movement (shelf visibility issue)
+- Consider **bundle promos** or in-store audits for merchandising validation
+- Notify regional field rep to review product positioning
+
+🧠 **Developer Prompt:**
+
+Filter SKUs where sales = 0 and inventory > 0 by PDV and date range. Match against Dichter scanner activity or promo overlap (if available). Group and return underperforming SKUs per PDV. Include location, inventory, and suggestion.

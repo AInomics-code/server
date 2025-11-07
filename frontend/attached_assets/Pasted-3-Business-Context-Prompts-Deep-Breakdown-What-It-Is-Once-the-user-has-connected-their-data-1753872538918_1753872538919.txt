@@ -1,0 +1,76 @@
+3: Business Context Prompts — Deep Breakdown
+
+🧠 What It Is:
+
+Once the user has connected their database and reviewed the tables (via cards, as per Point 2), VORTA should ask the user to provide 3–5 key business questions they frequently ask about their data.
+
+This is a dedicated input step — not per table this time, but globally across their business. Think of it as a “semantic onboarding” for the assistant.
+
+⸻
+
+💬 Example Questions the User Might Enter:
+	•	“What are our top-performing SKUs this quarter?”
+	•	“Which stores are lagging behind in Q2?”
+	•	“Where are we losing margin and why?”
+	•	“Which campaigns drove the highest ROI last month?”
+
+These prompts give VORTA the initial intent schema — meaning, it now has:
+	•	A foundation for how users frame questions
+	•	Awareness of the core business objectives
+	•	A semantic lens to interpret future queries
+
+⸻
+
+📌 Where This Step Appears:
+	•	After Point 2 (table cards), but before landing on the main dashboard
+	•	As a full-screen or modal-style page with:
+	•	A heading: Let VORTA understand your goals
+	•	3–5 prompt input fields (optionally expandable)
+	•	Tooltip/info block on why this helps VORTA reason better
+	•	Option to skip and add later
+
+⸻
+
+🎯 Why It’s Important:
+
+1. Semantic Alignment
+
+Raw schemas don’t explain intent. By capturing user-written prompts, VORTA:
+	•	Learns real business language (“top-performing”, “underperforming”, “margin leakage”)
+	•	Avoids hallucinating irrelevant answers
+	•	Bridges SQL logic with strategic thinking
+
+2. Immediate Personalization
+
+These questions:
+	•	Seed the chat with context (via system prompt or memory)
+	•	Allow auto-generation of example prompts in dashboard
+	•	Are used to finetune search + recommendation patterns
+
+3. Trust & Stickiness
+	•	Asking “What do you care about?” signals user agency
+	•	Most BI tools skip this step — VORTA turns it into a custom setup moment
+
+⸻
+
+✅ UX Considerations:
+	•	Text inputs should include placeholder suggestions like:
+	•	“Which clients are most profitable?”
+	•	“What changed in Q3 vs Q2?”
+	•	Inputs should auto-expand for longer prompts
+	•	Let the user submit with 1 prompt minimum (but suggest 3–5)
+	•	Include a GPT-powered suggestion tool: “Need help? Generate ideas based on your schema.”
+
+⸻
+
+🪄 Optional Power Features:
+	•	Let users tag prompts with topics (e.g., [Sales], [Marketing], [Finance])
+	•	Offer a “Use this as a starter template” checkbox for each question (feeds it into the first dashboard screen)
+	•	Save to user’s org profile to carry across future sessions
+
+⸻
+
+📘 Summary:
+
+This step sets the stage for intelligent reasoning.
+You’re no longer just a query layer on top of SQL — you’re now aligned to the language of business thinking, and this allows your assistant to feel smarter, faster, and more strategic from day one.

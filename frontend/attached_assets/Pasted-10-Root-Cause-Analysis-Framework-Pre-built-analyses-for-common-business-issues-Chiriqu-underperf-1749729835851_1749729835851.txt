@@ -1,0 +1,61 @@
+10. Root Cause Analysis Framework
+Pre-built analyses for common business issues:
+
+Chiriquí underperformance: Rep productivity (high impact), competitor activity (medium), product availability (low)
+Mayo backorders: Production delays, unexpected demand spikes, inventory planning gaps
+Each analysis includes evidence, impact ratings, and specific recommendations
+11. Training Examples & Q&A Patterns
+Real conversation examples showing how the AI should respond:
+
+"Which product has the highest margin?" → Vinagre 1L at 32.7%
+"Why is Chiriquí underperforming?" → Multi-factor analysis with action items
+"What's causing Mayo delays?" → Root cause + client impact + timeline
+Pattern templates for consistent response quality
+12. Daily Briefing Intelligence
+Real-time business snapshot format:
+
+Sales achievement vs target (41% vs 46% target)
+Regional risk assessment (3 regions in red)
+Personnel alerts (7 underperforming reps)
+Inventory status (2 SKUs in backorder)
+Campaign performance (El Extra: $6,200 invested, 8.2% ROI)
+13. Complete Product Specifications
+Detailed product catalog with:
+
+67 total SKUs across 4 main categories
+Packaging specifications: Envase plástico, botella squeeze, sachets
+Target market mapping: Food Service, Retail, Institucional for each product
+Top seller indicators by category and size
+Specialized products: Mostaza Dijon, Vinagre Balsámico, seasonal items
+14. Margin Intelligence
+Category averages: Especias (52%), Aderezos (45%), Salsas (42%), Vinagres (38%)
+Top performers by margin: Vinagre Balsámico, Mostaza Dijon, Aderezo Ranch
+Distribution channel optimization by product category
+15. Supply Chain Details
+Raw material sources: India/China for spices, local suppliers for oils
+Packaging cost inflation: +5% due to petroleum prices
+Logistics status: Transport costs stable, fuel availability normal
+Infrastructure updates: Road improvements affecting distribution
+16. Competitive Intelligence Deep-Dive
+Maggi (28% share): Recent TV campaigns, aggressive discounting, strong distribution
+Knorr (22% share): New flavors, sustainable packaging focus, premium positioning
+Local brands (15% share): Growing threat in economy segment, inconsistent quality
+
+17. Economic Context Integration
+Panama-specific factors:
+
+Canal revenue impact on economy (+5.8%)
+Tourism recovery affecting food service demand (85% of pre-pandemic)
+Construction sector growth (+2.3%) affecting commercial clients
+Banking sector stability supporting credit terms
+18. Channel-Specific Intelligence
+Food Service: 92% of target, led by Mayo 1 galón
+Retail: 88% of target, led by Vinagre 1L
+Direct/Institucional: 105% of target, led by Sazón Completo
+
+19. Campaign Performance Tracking
+ROI calculations for each marketing initiative
+Regional targeting effectiveness
+Product combination success rates
+Timeline tracking for active/planned campaigns
+This creates a knowledge base of over 300+ data points across sales, products, markets, competitors, economics, and operations - enabling the AI to provide contextual responses that reference specific SKUs, client relationships, margin data, competitive pressures, and economic factors affecting Panama's food manufacturing sector.

@@ -1,0 +1,79 @@
+Complete Knowledge Base of La Doña AI System
+The knowledge base consists of several interconnected data sources that provide comprehensive business intelligence:
+
+1. Sales & Performance Data
+Sales Representatives: 10 reps across 5 regions with individual performance metrics, targets, and client counts
+Regional Performance: Central (108%), Chiriquí (74%), Oeste (76%), Colón (68%), Este (98%)
+Daily Sales Targets: Current achievement tracking, regional breakdowns, underperforming rep counts
+2. Product Catalog (Based on Official PDF)
+Four Main Categories:
+
+Salsas: Mayonesa, Ketchup, BBQ, Mostaza, Mostaza Dijon
+Vinagres: Blanco, Manzana, Balsámico, Tinto
+Aderezos: Ranch, César, Italiano, Mil Islas, Vinagreta
+Especias y Condimentos: Sazón Completo, Masquilas, Comino, Orégano, Pimienta
+Each product includes:
+
+Multiple size variations (100ml sachets to 1-gallon containers)
+SKU codes (MAYO-1GL, KET-500ML, etc.)
+Target markets (Food Service, Retail, Institucional)
+Packaging types and top seller indicators
+3. Inventory & Production Intelligence
+Current stock levels vs optimal inventory for each product
+Backorder tracking: Mayo 1 galón (42 units short), Ketchup 500ml (28 units short)
+Production bottlenecks: Packaging delays, raw material issues
+Affected clients for each backordered item
+4. Client & Channel Data
+Major Clients:
+
+Supermercados Rey (Retail, Central, $125K volume)
+El Extra (Retail, Chiriquí, $85K volume)
+Food Service Pro (Food Service, Central, $150K volume)
+6 total major clients with growth potential ratings
+Sales Channels:
+
+Food Service (highest volume)
+Retail (broad distribution)
+Direct/Institucional
+5. Market Intelligence
+Retail Partners:
+
+El Extra: 23% of retail sales, strategic partner, +15% growth
+Supermercados Rey: 18% volume, premium focus, 45-day terms
+Mini Super: 12% volume, convenience focus, 15-day terms
+Competitors:
+
+Maggi (Nestlé): 28% market share, strong brand recognition
+Knorr (Unilever): 22% market share, innovation focus
+Local brands: 15% share, price competitive
+6. Economic & Industry Context
+Panama Economic Data:
+
+GDP Growth: 3.8%
+Inflation: 2.1%
+Canal revenues up 5.8%
+Tourism recovery at 85%
+Industry Trends:
+
+Organic products: +12% growth
+Food service recovery: +8%
+B2B digitalization: +25% adoption
+Packaging costs: +5% increase
+7. Marketing & Campaign Data
+Active Campaigns:
+
+Father's Day Promotion (May 20 - June 10)
+Combo promotions (aderezo + vinagre)
+Regional pushes with ROI tracking
+8. Strategic Recommendations
+Pre-built insights:
+
+Production priorities based on backorders
+Sales rep coaching needs
+Regional focus areas
+Product combination opportunities
+9. Real-time Business Context
+Daily briefings with key metrics
+Root cause analyses for performance issues
+Training examples for common scenarios
+Supply chain status updates

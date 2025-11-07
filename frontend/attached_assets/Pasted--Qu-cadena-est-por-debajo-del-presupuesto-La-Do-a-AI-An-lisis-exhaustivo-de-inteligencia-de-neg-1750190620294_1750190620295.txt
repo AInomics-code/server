@@ -1,0 +1,36 @@
+"¿Qué cadena está por debajo del presupuesto?"
+La Doña AI
+Análisis exhaustivo de inteligencia de negocios para operaciones de La Doña utilizando métricas en tiempo real de múltiples fuentes de datos.
+
+Evaluación de Rendimiento Operacional:
+
+Métricas de Ventas:
+- Ingresos totales: $184.64 (datos consolidados)
+- Valor promedio de orden: $26 por transacción
+- Productos de alto margen: Condimento Super Xtra, Vinagre Premium, Salsa Teriyaki 300ml liderando rentabilidad
+
+Análisis de Inventario:
+- Productos con bajo stock: 0 SKUs requieren reorden inmediato
+  Niveles de inventario dentro de parámetros normales
+- Situaciones de agotamiento: 3 ubicaciones experimentando faltantes
+
+Gestión de Cuentas por Cobrar:
+- Clientes vencidos: 3 cuentas con pagos atrasados
+- Monto total vencido: $40,000 requiere atención de cobranza
+- Cliente principal vencido: Super99 - $12,500 (45 días)
+
+Rendimiento del Equipo de Ventas:
+- Representante destacado: José Luis Vargas alcanzando 97.5% del objetivo
+- Eficiencia promocional: 499.7% ROI promedio en campañas activas
+- Territorio: Santiago liderando métricas de rendimiento
+
+Evaluación de Impacto Comercial:
+Los faltantes diarios de inventario agravan las pérdidas de ingresos a través de la adquisición de clientes por parte de competidores. Los retrasos en cuentas por cobrar impiden el despliegue de capital para iniciativas de crecimiento. La empresa mantiene 0 cuentas inactivas que representan oportunidades de reactivación.
+
+Marco de Acción Estratégica:
+1. Inmediato: Abordar faltantes críticos de inventario mediante adquisición expedita
+2. Semana 1: Iniciar procedimientos de cobranza para Super99 respecto a saldo pendiente de $12,500
+3. Mes 1: Implementar metodología de capacitación de José Luis Vargas en todo el equipo de ventas para potencial aumento de ingresos mensuales de $210000
+
+Potencial de Recuperación Financiera:
+La optimización de la mezcla de productos podría generar $746 en ingresos adicionales mensuales. La cobranza acelerada tiene como objetivo recuperación de $28000. La reactivación de cuentas inactivas proporciona oportunidades de crecimiento suplementario a través del aprovechamiento de relaciones existentes.

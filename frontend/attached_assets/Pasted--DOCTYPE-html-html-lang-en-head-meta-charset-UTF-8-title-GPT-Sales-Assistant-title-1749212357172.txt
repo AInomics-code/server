@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>GPT Sales Assistant</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+      margin: 0;
+      padding: 20px;
+    }
+    #chatbox {
+      background: #fff;
+      padding: 20px;
+      max-width: 600px;
+      margin: auto;
+      height: 500px;
+      overflow-y: auto;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .message {
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+    .user { color: blue; }
+    .bot { color: green; }
+    #inputBox {
+      display: flex;
+      max-width: 600px;
+      margin: 20px auto;
+    }
+    input {
+      flex: 1;
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      padding: 10px 20px;
+      margin-left: 10px;
+      border: none;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+<div id="chatbox"></div>
+
+<div id="inputBox">
+  <input type="text" id="userInput" placeholder="Ask something..." />
+  <button onclick="sendMessage()">Send</button>
+</div>
+
+<script>
+  const chatbox = document.getElementById('chatbox');
+
+  function appendMessage(sender, text) {
+    const msg = document.createElement('div');
+    msg.className = `message ${sender}`;
+    msg.textContent = `${sender === 'user' ? 'You' : 'GPT'}: ${text}`;
+    chatbox.appendChild(msg);
+    chatbox.scrollTop = chatbox.scrollHeight;
+  }
+
+  async function sendMessage() {
+    const input = document.getElementById('userInput');
+    const message = input.value.trim();
+    if (!message) return;
+
+    appendMessage('user', message);
+    input.value = '';
+
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+
+    const data = await res.json();
+    appendMessage('bot', data.reply || 'Error from GPT');
+  }
+</script>
+
+</body>
+</html>

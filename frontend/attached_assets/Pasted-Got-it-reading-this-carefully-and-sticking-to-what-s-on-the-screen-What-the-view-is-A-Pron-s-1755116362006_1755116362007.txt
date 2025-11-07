@@ -1,0 +1,49 @@
+Got it—reading this carefully and sticking to what’s on the screen.
+
+# What the view is
+
+A “**Pronóstico vs. Ventas – AGOSTO 2025**” table for **La Doña** (Clase: *Especias Libras*; all depots). Columns shown:
+
+* **Pronóstico** (forecast)
+* **Venta-País** (actual sales)
+* **%Cumpl%** (forecast attainment)
+* **BO‑País** (backorder)
+* **Exist‑Panamá**, **Exist‑ST**, **Exist‑CH** (stock by region)
+* **Existencia País** (total country stock)
+
+# Overall performance (totals row)
+
+* **Forecast:** **489,322.67**
+* **Actual sales:** **79,819.77**
+* **Attainment:** **16.3%** (very low)
+* **Backorder total (BO‑País):** **12,684.58**
+* **Stock on hand (country):** **380,491.23**
+
+  * Panamá: **291,457.21**
+  * ST: **43,010.62**
+  * CH: **43,957.40**
+
+👉 Net: August is **far below forecast** despite **substantial inventory in-country**. The issue looks more like **allocation/timing** than absolute stock shortage.
+
+# SKUs on this screen causing backorder
+
+(Only the rows visible in the screenshot—there may be more off‑screen.)
+
+* **Salsa para Spaghetti 200 GRS / 24 UDS** → **BO‑País: 1.00**
+* **Condimento Cebolla Molida 28GR / 48 UDS** → **BO‑País: 4.00**
+* **Sazón sin Sal 30GR / 12 UDS** → **BO‑País: 6.00**
+* **Mayonesa 330 GRS Reutilizable / 24 UDS** → **BO‑País: 1.00**
+
+Pattern you can already see on these rows: **there is stock in the country, but BO still appears**, implying **regional misallocation (e.g., stock in Panamá, little/none in ST or CH where demand hit).**
+
+# What this means
+
+* **Forecast miss:** Only **16.3%** of plan achieved for the filtered set.
+* **Operational gap:** **12,684.58** of BO while **380,491.23** sits in inventory → redistribution/transfer planning and depot‑level forecasting need attention.
+* **Immediate actions:**
+
+  1. Rebalance inventory for the SKUs above (move units to the depots generating BO).
+  2. Compare depot‑level forecast vs. actual to tighten future allocations.
+  3. Add “BO with stock elsewhere” alert so transfers are triggered same‑day.
+
+If you want, I can turn this into a one‑page “BO heatmap + transfer suggestions” for August using the same columns, so ops gets a clear move list.

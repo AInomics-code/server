@@ -1,0 +1,87 @@
+const express = require('express');
+const cors = require('cors');
+const { Configuration, OpenAIApi } = require('openai');
+require('dotenv').config();
+const path = require('path');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+app.use(express.static(path.join(__dirname, '.')));
+
+const configuration = new Configuration({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+const openai = new OpenAIApi(configuration);
+
+const markerData = [
+  {
+    name: "Chiriquí",
+    status: "At Risk",
+    sales: 52000,
+    target: 80000,
+    products: ["Vinagre Premium", "Mango Salsa"]
+  },
+  {
+    name: "Colón",
+    status: "At Risk",
+    sales: 39000,
+    target: 75000,
+    products: ["Aji Verde"]
+  },
+  {
+    name: "Panamá City",
+    status: "Stable",
+    sales: 90000,
+    target: 90000,
+    products: ["Vinagre Premium", "Aji Amarillo"]
+  }
+];
+
+const dashboardData = `
+Dashboard Summary:
+- Performance Score: 88
+- Sales Target Met: 82%
+- Product Opportunities: Vinagre Premium (High), Mango Salsa (Low)
+
+Marker Zones:
+${markerData.map(m => `- ${m.name}: Status = ${m.status}, Sales = ${m.sales}, Target = ${m.target}, Products = ${m.products.join(', ')}`).join('\n')}
+`;
+
+app.post('/api/chat', async (req, res) => {
+  const userInput = req.body.message;
+
+  const messages = [
+    {
+      role: "system",
+      content: `You are La Doña AI, a sales assistant bot. You ONLY answer based on this sales dashboard:
+
+${dashboardData}
+
+If the user asks about something unrelated like React or coding, say: "Sorry, I can only help with sales dashboard information."`
+    },
+    {
+      role: "user",
+      content: userInput
+    }
+  ];
+
+  try {
+    const completion = await openai.createChatCompletion({
+      model: "gpt-4",
+      messages
+    });
+
+    const response = completion.data.choices[0].message.content.trim();
+    res.json({ reply: response });
+  } catch (error) {
+    console.error("GPT error:", error.response?.data || error.message);
+    res.status(500).json({ error: "GPT failed" });
+  }
+});
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+
+app.listen(3000, () => console.log('✅ Server running on http://localhost:3000'));

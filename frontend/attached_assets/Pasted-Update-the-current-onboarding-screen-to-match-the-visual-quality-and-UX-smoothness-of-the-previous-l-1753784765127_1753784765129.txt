@@ -1,0 +1,66 @@
+Update the current onboarding screen to match the visual quality and UX smoothness of the previous login/signup views, with a more refined, enterprise SaaS aesthetic inspired by Microsoft Copilot Studio.
+
+🎨 VISUAL POLISH:
+
+1. **Background & Theme**
+   - Restore the same gradient theme used in the login/signup pages (deep navy to blue-violet gradient).
+   - Make sure the background color flows seamlessly across the full viewport, no harsh edges.
+
+2. **VORTA Icon (Top-Left)**
+   - Increase size by ~20% (but still aligned to the text baseline of the header).
+   - Add a soft glow or floating animation on hover for elegance.
+
+3. **Header Area**
+   - Title: `Let's get you set up` – keep on the left, but match the size and spacing with login header.
+   - Font weight: medium to semi-bold (not too heavy), letter-spacing -0.5px
+   - Subtitle: subtle grey (`text-slate-400`) smaller font (~15px), below title, max width ~70%
+
+🧱 CONNECTION CARDS
+
+4. **Card Structure:**
+   - Increase corner radius slightly (to match login input fields).
+   - Add consistent padding inside cards (top/bottom: 18px, left/right: 24px)
+   - Background color: use a semi-transparent dark-blue with a soft blur (glassmorphism)
+   - Add subtle box-shadow (`shadow-[0_0_20px_rgba(0,0,0,0.25)]`) for floating depth
+   - When hovered: slight scale-up (`scale-105`) and outline highlight using Tailwind `ring` utilities
+
+5. **Icons Inside Cards:**
+   - Increase each icon size by ~15–20%
+   - Maintain vector smoothness (use `lucide-react` or similar clean icons)
+   - Left-aligned within card, beside text
+   - Label text: use `font-medium`, keep spacing tight (no extra margins)
+
+6. **Status Tag:**
+   - Use dot + “Not connected” inline
+   - Dot: Tailwind `bg-slate-400 h-2 w-2 rounded-full`
+   - Replace with green dot + “Connected” on success
+
+🧭 USER FLOW CONTROLS:
+
+7. **Footer CTA Buttons:**
+   - Left: “Skip for now” – smaller, secondary text button, subtle opacity (60%)
+   - Right: “Connect & Continue →” – full-width button with deep navy base and bright cyan edge glow
+   - Add framer-motion animation on hover (slight movement and glow effect)
+
+🧩 MICRO UX DETAILS:
+
+8. **Card Expand Interaction:**
+   - On click, card expands downward to reveal config field (`motion.div`)
+   - For REST API, show a text input: “Paste API Key…”
+   - For PostgreSQL/MySQL: “Enter DB URI…”
+   - For Excel: enable file upload button with drop zone
+
+9. **Transitions:**
+   - Use `framer-motion` to animate this screen into view from right, fading in
+   - Cards appear with staggered animation (50–100ms delay each)
+
+📐 RESPONSIVENESS:
+   - Cards stack into 1-column on mobile (<768px)
+   - Header and buttons center-align on mobile
+
+🔁 Inspiration:
+   - Follow structure + elegance of Microsoft Copilot setup screen
+   - Keep VORTA's look feeling premium, lean, and quietly powerful — **not flashy, not playful**
+
+🎯 FINAL GOAL:
+Make the onboarding screen feel like part of a modern SaaS onboarding wizard — the user should feel like they're connecting a serious business system. Maintain **calm colors, readable type, subtle depth, and clean layout**.

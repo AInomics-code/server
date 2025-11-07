@@ -1,0 +1,30 @@
+Here are some concrete ideas to elevate the AI Scenario Simulator so it feels enterprise‑grade, credible, and easy to understand:
+	1.	Unify the look and simplify the action buttons
+	•	Drop the green/purple/orange buttons. Use a single accent colour that matches your brand (e.g. the same blue used elsewhere) and vary only the button outline or icon to show “Save”, “Export PDF”, “Add Task”.
+	•	Align all buttons to the bottom right of the results area with equal height and spacing.
+	2.	Organise inputs into clear, business‑oriented sections
+	•	Instead of a generic “Adjust Variables” area, group sliders under meaningful categories:
+Demand & Pricing: Demand Growth %, Price Change %
+Promotions & Marketing: Promo Multiplier (X), Marketing Spend %
+Supply Chain: Lead Time (days), Stock Available (units)
+	•	Each slider should have a small “i” tooltip explaining what it does (e.g. “Promo Multiplier reflects the uplift from marketing campaigns; a 1.8× multiplier means demand is expected to increase by 80%”).
+	3.	Make results tell a story
+	•	On the right, show side‑by‑side Current vs. Simulated values plus a “Δ” row that highlights the change in both absolute terms and percentage (e.g. Revenue ↑ $905K (+96.3%)).
+	•	Under the KPI values, add a one‑sentence insight explaining why it changed. For example:
+	•	“Revenue increased due to higher demand and price change”
+	•	“Margin improved because price uplift outweighed promotion costs”
+	•	“Service level dropped because adjusted lead time exceeds available stock”
+	•	Add a small mini‑chart (bar or line) showing the two scenarios, so users visually grasp the impact over the selected time horizon.
+	4.	Show the formulas powering the simulation
+	•	Include a collapsible “Model Assumptions” section. When expanded, it explains (briefly, in plain language) how each variable feeds the calculations. For example:
+	•	Demand forecast = baseline units × (1 + demand growth) × promo multiplier
+	•	Price effect = baseline price × (1 + price change)
+	•	Revenue = demand forecast × price effect
+	•	Service level = min(1, Stock Available / Demand Forecast × adjustment for lead time)
+	•	This builds trust that the numbers aren’t arbitrary.
+	5.	Offer context‑aware recommendations
+	•	Below the results, add a “Recommended Actions” section that might say: “Consider increasing stock or reducing lead time to improve service level,” or “Further price increases may hurt demand beyond this threshold.” Even if it’s rule‑based for now, it shows the system thinks beyond raw numbers.
+	6.	Keep the interface calm and professional
+	•	Use consistent card sizes, align all elements, and allow breathing room between panels.
+	•	Avoid unnecessary borders; rely on subtle shadows and gradients to separate sections.
+	•	Maintain the dark blue palette and avoid sudden flashes of new colours.

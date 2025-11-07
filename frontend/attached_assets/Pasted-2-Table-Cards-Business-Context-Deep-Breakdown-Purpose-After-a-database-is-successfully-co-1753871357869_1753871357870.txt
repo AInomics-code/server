@@ -1,0 +1,56 @@
+2: Table Cards & Business Context — Deep Breakdown
+
+🧠 Purpose:
+
+After a database is successfully connected, VORTA should not leave the user with a generic “you’re in!” moment. Instead, it should immediately surface what it learned from the connection — the tables, structure, and potential for insight.
+
+This moment:
+	•	Builds trust (“VORTA actually read my data, it didn’t guess”)
+	•	Helps reduce hallucinations by grounding AI in real business semantics
+	•	Prepares the context layer that improves every single prompt going forward
+
+⸻
+
+🔍 What Happens Post-DB Connection:
+	1.	Auto-fetch all table names from the connected database.
+	2.	Render each table as a responsive card (grid layout).
+	3.	Each card should include:
+	•	🧾 Table name – ideally formatted or made user-friendly (ventas_clientes → “Client Sales”)
+	•	🧩 Editable field for column descriptions
+	•	Auto-populate column names
+	•	Let user optionally add human-readable labels or notes per column (e.g., codigo_001 → “SKU Code”)
+	•	💬 Prompt Input Section
+	•	Ask user: “What are 3 common questions you ask about this data?”
+	•	These questions will be used later to:
+	•	Train the assistant on intent
+	•	Suggest starter prompts in the dashboard
+	•	Prevent irrelevant or vague responses
+
+⸻
+
+📈 Why This Step Is Crucial:
+	•	It’s the bridge between backend schema and business meaning
+	•	You’re letting the user teach VORTA how to reason using their own context.
+	•	This dramatically improves accuracy, trust, and interpretability.
+	•	It creates an intentional moment of alignment
+	•	Instead of default GPT logic, you now operate on company-specific semantics.
+	•	e.g., cliente_id might mean different things in marketing vs. sales vs. logistics. Let the user clarify that.
+	•	Psychological benefit: The user feels in control over how their data is interpreted, reducing fear of AI hallucination or misuse.
+
+⸻
+
+✅ UX Considerations:
+	•	If many tables are returned (30+), let user deselect irrelevant ones.
+	•	Use accordion or collapsible cards for cleaner UX on smaller screens.
+	•	Add small tooltips: “Why define prompts?” → “It helps VORTA answer in your company’s language.”
+	•	Use autosave or “Save and Continue” button below the cards.
+	•	Group prompt inputs under each table with light dividers or sections to improve legibility.
+
+⸻
+
+🪄 Optional Power Features:
+	•	Let users “duplicate” prompts from one table to another.
+	•	Pre-fill questions using GPT suggestions like:
+	•	“Which rows had the highest values this month?”
+	•	“Show me anomalies in sales this quarter.”
+	•	Allow bulk export/import of prompt mappings for large schema clients.

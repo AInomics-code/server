@@ -1,0 +1,65 @@
+Revamp the current `/onboarding` screen to reflect an **enterprise-level SaaS AI product**. Prioritize premium aesthetics, high UX standards, and modern UI behavior.
+
+🎯 Theme:
+- Revert back to the **original color gradient** used in login/sign-up (deep blue → neon cyan blend)
+- Maintain **glassmorphic card containers** with very subtle transparency
+- Clean vertical rhythm and consistent grid spacing (24px padding minimum)
+
+🧠 Title:
+- Move to **top-left** beside VORTA logo icon
+- Line 1: `Let's get you set up`
+- Line 2 (subtext): `Choose how to connect your business data below. You can skip and configure this later.`
+- Font: semi-bold, slightly tighter letter-spacing, size ~30–36px, not overblown
+- Animate the header in from the left using `framer-motion`
+
+🧩 System Connect Cards:
+- Replace big blocks with **compact, interactive glass tiles**
+- Use 3-column responsive grid (auto-stack on mobile)
+- Icons must be smaller (22–26px max), outlined or line-style (not bulky filled)
+- On hover:
+  - Slight glow + scale (1.02x)
+  - Button turns into "Connect" CTA
+- On click:
+  - Expand into input field with sliding animation (`motion.div`)
+  - Use `mysql://`, `apikey:`, or file upload as placeholders
+
+💻 Sources to include:
+- PostgreSQL
+- MySQL
+- Google Sheets
+- Airtable
+- Excel/CSV
+- REST API
+
+✅ UX Details:
+- Cards should **not feel like buttons**, they should feel like **selectable modules**
+- Add subtle drop shadow + depth like Defog.ai's dashboard layout
+- Use modern icon library (`lucide-react` recommended for thin icons)
+- Small pill-tag underneath label showing `Not connected` or `Connected`
+
+🔘 Bottom CTAs:
+- Left: “Skip setup” — minimal text-button with opacity 70%
+- Right: “Connect & Continue →” — premium button with a **dark gradient base**, slight glow when hovered, not the playful light blue. Text centered.
+
+🎬 Page Transitions:
+- As soon as sign-up completes, use a **slide-and-fade** animation to route here
+- Use `AnimatePresence` and `motion.section` for a complete unmount and enter animation
+- Animate the cards’ appearance with staggered delays (100ms each)
+
+🧪 Microinteractions:
+- As user connects a source, card should “pulse” once subtly
+- Replace “Not connected” label with a green dot + “Connected”
+- If user tries to continue without selecting anything, a micro-toast warns: “You’ll be able to connect sources later from your dashboard.”
+
+🛠 Stack:
+- React (Vite or CRA)
+- TailwindCSS
+- Framer Motion
+- Optional: Zustand for temp state mgmt.
+
+🪄 Goal:
+This must look like a **cross between Defog.ai’s onboarding and Microsoft Copilot Studio**, but with VORTA’s visual identity: sharp, minimal, premium, tech-first.
+
+Deliver a production-grade interface with perfect alignment, consistent spacing, and interactive polish.
+
+Do **not reuse the old cards or layout** — design it from scratch using these specs.

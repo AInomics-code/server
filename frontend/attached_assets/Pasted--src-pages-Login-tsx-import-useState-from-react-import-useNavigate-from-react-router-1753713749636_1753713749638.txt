@@ -1,0 +1,84 @@
+// /src/pages/Login.tsx
+
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MailIcon, LockIcon } from 'lucide-react'; // install: npm install lucide-react
+import { motion } from "framer-motion";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (email === "test@vorta.ai" && password === "password") {
+      navigate("/dashboard");
+    } else {
+      setError("Invalid credentials");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#070B2E] to-[#0B1F3A] text-white px-4">
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="w-full max-w-md bg-[#0f1c3a] rounded-3xl shadow-lg p-10 border border-blue-900/40 backdrop-blur-sm"
+      >
+        <div className="mb-8 text-center">
+          <div className="flex justify-center mb-4">
+            <img src="/logo-glow.svg" alt="Vorta Logo" className="h-10" />
+          </div>
+          <h2 className="text-xl sm:text-2xl font-bold text-blue-400 tracking-wide">Your AI Copilot</h2>
+          <p className="text-md sm:text-base text-gray-400 mt-1">for smarter business decisions</p>
+          <h1 className="text-3xl sm:text-4xl mt-6 font-extrabold tracking-widest text-white">VORTA</h1>
+        </div>
+
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div className="relative">
+            <label className="block text-sm text-gray-400 mb-1">Email</label>
+            <div className="flex items-center bg-[#0a1533] rounded-xl border border-blue-600 px-3 py-2">
+              <MailIcon className="w-5 h-5 text-blue-400 mr-2" />
+              <input
+                type="email"
+                placeholder="you@business.com"
+                className="bg-transparent w-full focus:outline-none text-sm"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="relative">
+            <label className="block text-sm text-gray-400 mb-1">Password</label>
+            <div className="flex items-center bg-[#0a1533] rounded-xl border border-blue-600 px-3 py-2">
+              <LockIcon className="w-5 h-5 text-blue-400 mr-2" />
+              <input
+                type="password"
+                placeholder="••••••••"
+                className="bg-transparent w-full focus:outline-none text-sm"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {error && <p className="text-red-500 text-sm">{error}</p>}
+
+          <button
+            type="submit"
+            className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90 font-semibold transition"
+          >
+            Log In
+          </button>
+        </form>
+
+        <p className="text-xs text-center text-gray-500 mt-4">
+          Don’t have an account? <a href="/signup" className="underline text-blue-400 hover:text-blue-300">Sign up</a>
+        </p>
+      </motion.div>
+    </div>
+  );
+}

@@ -1,0 +1,609 @@
+# **Examples of back and forths:**
+
+- 🔹 **User Question**
+- ✅ **AI Answer**
+    - **What’s happening** (Data insight)
+    - **Why it matters** (Y) → linked to **internal, external, or public data**
+    - **What to do** → tied directly to the Y
+- 🧠 **Developer Prompt** (backend logic)
+
+---
+
+### **🔹 1. Which chain is below budget?**
+
+✅ **AI Answer:**
+
+“**Super99** is currently at **82% of its monthly sales target**, with a **13% drop in performance** compared to the same period last month.
+
+🔎 **Why this matters:**
+
+- 🔸 **Internal Sales Data:** Sales drop driven by a -25% rotation of **Mayonnaise 400g** in Chiriquí.
+- 🔸 **Inventory/BO Data:** SKU **out-of-stock** in 4 key PDVs — last backorder was 4 days ago.
+- 🔸 **Public Signals (Social Media Monitoring):** A **Kraft sauce promotion** was launched May 2, potentially cannibalizing shelf space.
+
+✅ **What to do:**
+
+- Replenish stock in **David and Bugaba** (Inventory risk → Internal)
+- Activate a **counter-promotion** for sauces (Response to external signal)
+- Assign **Rep #14** to follow up with high-risk stores (Sales execution → Internal CRM)
+
+🧠 **Developer Prompt:**
+
+Compare actual_sales vs budget_target for current month by chain. Identify chains <90%. Pull BO history + SKU rotation data for those chains. Query social media or third-party promo logs for external pressure indicators. Return summary + 3 causes (linked to data origin) + recommended corrective action.
+
+---
+
+### **🔹 2. What product didn’t sell yesterday / this week / by store?**
+
+✅ **AI Answer:**
+
+“These products had **zero sales** despite having inventory on-hand:
+
+- **Teriyaki Sauce 300ml** → No sales yesterday in Super99 (San Miguelito, Tocumen)
+- **Lime Juice 250ml** → Zero movement in El Machetazo (La Chorrera)
+
+🔎 **Why this matters:**
+
+- 🔸 **Internal POS Data:** Sales = 0
+- 🔸 **Inventory System:** Inventory > 0 = product was present but not purchased
+- 🔸 **External Signal (Dichter):** Competitor product pushed in these PDVs last week
+
+✅ **What to do:**
+
+- Flag PDVs with product presence but no movement (shelf visibility issue)
+- Consider **bundle promos** or in-store audits for merchandising validation
+- Notify regional field rep to review product positioning
+
+🧠 **Developer Prompt:**
+
+Filter SKUs where sales = 0 and inventory > 0 by PDV and date range. Match against Dichter scanner activity or promo overlap (if available). Group and return underperforming SKUs per PDV. Include location, inventory, and suggestion.
+
+---
+
+### **🔹 3. Which scanner promotion from last month sold the most?**
+
+✅ **AI Answer:**
+
+“In April, the **Mayonnaise 400g – 2x1 promo** had the **highest impact**:
+
+- 🔸 **+41% uplift** over baseline sales (Internal Sales History)
+- 🔸 **62% redemption rate** (Scanner data from Dichter)
+- 🔸 Best-performing chains: Super99 (Bella Vista), Riba Smith (Multiplaza)
+
+🔎 **Why this matters:**
+
+- Internal data shows baseline uplift = real revenue impact
+- External scanner data validates customer adoption
+- Location-based ROI allows targeting for replication
+
+✅ **What to do:**
+
+- Repeat this promo format in **El Machetazo**, where sales lagged
+- Apply the same mechanic to **Lemon Juice 250ml**, which has high stock
+
+🧠 **Developer Prompt:**
+
+Compare promo period sales vs average for same SKUs prior to promo. Calculate uplift %. Pull redemption % from Dichter scanner records. Rank top promos. Return SKU name, uplift, redemption, and chain impact. Suggest replication logic based on chain gaps or high-stock SKUs.
+
+---
+
+### **🔹 4. Based on investment in tongas (furniture), which store is most profitable?**
+
+✅ **AI Answer:**
+
+“**Super99 – Costa del Este** had the best ROI from tonga placement:
+
+- **Investment:** $580 (Internal marketing budget logs)
+- **Incremental sales:** $2,950 (POS uplift from baseline)
+- **ROI:** **5.1x**
+
+📉 **Lowest performer:** El Machetazo (Bethania) — ROI: 1.4x
+
+🔎 **Why this matters:**
+
+- Sales lift can justify capex on furniture
+- Internal budget vs sales data reveals which setups work
+- Poor performers might indicate bad placement or poor execution
+
+✅ **What to do:**
+
+- Replicate placement model in other **high-traffic Super99** locations
+- Audit **Bethania’s** execution and reconsider that format there
+
+🧠 **Developer Prompt:**
+
+From marketing investment logs, pull $ per store. Cross-reference with uplift in sales for the same SKU/category during the period. Calculate (Incremental Sales - Cost) / Cost as ROI. Highlight top 1 and bottom 1. Suggest expansion or correction.
+
+---
+
+### **🔹 5. Which products are growing or declining vs last month / quarter / year?**
+
+✅ **AI Answer:**
+
+Compared to April:
+
+📈 **Growing:**
+
+- **Vinegar 500ml** → +24% in total sales (Internal sales history)
+- **Chimichurri Sauce 200ml** → +19%, strong in Super99 and Riba Smith
+
+📉 **Declining:**
+
+- **BBQ Sauce 500g** → -17%, mostly in Chiriquí
+- **Mango Dressing 300ml** → -12% and rising BO count
+
+🔎 **Why this matters:**
+
+- Internal data shows demand trend
+- SKU-level performance reveals seasonal shifts or competitive pressure
+- Declining SKUs with inventory still in stock = cash drag
+
+✅ **What to do:**
+
+- Promote top performers more aggressively
+- Investigate SKU declines for root causes (BO, price, shelf placement)
+- Consider pullback on underperformers
+
+🧠 **Developer Prompt:**
+
+Compare SKU-level sales this month vs last month, quarter, or same month last year. Calculate % delta. Flag top 2 positive and negative deltas. Cross-reference BO and inventory to confirm urgency. Return recommendation per SKU.
+
+---
+
+## **Prompt: Opportunity Prediction + Scenario Comparison**
+
+### **🎯 Purpose**
+
+This feature allows the AI assistant to not only suggest high-impact actions based on current data, but also:
+
+1. **Forecast the outcome** of the recommended action (Y)
+2. **Compare it to a user-suggested action (X)** if one is proposed
+3. **Explain the difference in expected results**, so the user can make an informed decision.
+
+---
+
+### **🛠️ Developer Instructions**
+
+For **any insight or recommendation** the system gives (example: “Push BBQ Sauce in Super99”), the assistant must also:
+
+### **1.**
+
+### **Forecast the Outcome (Y)**
+
+- Estimate potential performance if the recommended action is taken
+- Example output:
+    
+    > “If we push BBQ Sauce in Super99 this week, we estimate a +11% lift in sauce category sales, based on past promo data, demand trend, and current inventory.”
+    > 
+
+### **2.**
+
+### **Handle Alternative Proposals (X)**
+
+- If the user suggests a different action (e.g., “What if I push Chimichurri instead?”), the AI must:
+    - Accept the alternate action
+    - Run the same forecast logic using current data
+    - Compare both outcomes
+- Example output:
+    
+    > “Pushing Chimichurri could lead to a +6% lift. While it has better stock availability, it has less brand pull in Super99.
+    > 
+    
+    > ✅ Recommendation: Use Chimichurri in David (low BBQ stock) and BBQ in restocked zones.”
+    > 
+
+---
+
+### **📊 Required Forecast Data Sources**
+
+To generate these projections, the system must use:
+
+- **Sales history**
+- **Promotion performance**
+- **Current stock and BO status**
+- **Client demand signals**
+- **Dichter market data (if relevant)**
+
+---
+
+### **🧠 System Prompt Enhancement**
+
+> “For every recommendation (Y), generate a forecasted impact.
+> 
+
+> If the user proposes an alternative action (X), analyze that too, compare both, and explain which is better and why — using internal data and external signals.
+> 
+
+> Always respond with:
+> 
+1. What’s happening
+2. Why it matters
+3. What to do
+4. What will likely happen if they do it
+5. What would happen if they did something else instead.
+
+---
+
+**Answers in this other format:**
+
+- ✅ The AI’s ideal **response format**
+- 🔎 The **Y (why it matters)** explained with specific data references
+- 📊 The **forecasted outcome** of the recommended action
+- ⚖️ A **comparison response** if the user suggests something else
+
+---
+
+### **6. Which products didn’t sell yesterday / this week / by store?**
+
+**Prompt:**
+
+“What products didn’t sell yesterday in Super99?”
+
+**Ideal AI Response:**
+
+> “In Super99 – Chanis, the following SKUs had
+> 
+> 
+> **zero sales yesterday**
+> 
+
+> • Mayonnaise 400g
+> 
+
+> • Chimichurri 250ml
+> 
+
+> • Fruit Punch Juice 500ml
+> 
+
+> 
+> 
+
+> 🔎 These products had sales in 6+ other stores yesterday, suggesting an execution issue in this location.
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Confirm stock levels in Super99 – Chanis and assign follow-up task to the rep.
+> 
+
+> 
+> 
+
+> 📊 Estimated impact: Recovering sales in this PDV could increase daily revenue by $220.
+> 
+
+> 
+> 
+
+> ⚖️ If you instead promote them in Super99 – Bethania (where sales were flat), the forecasted lift is only +$90/day due to slower foot traffic.”
+> 
+
+---
+
+### **7. Which scanner promotions sold the most last month?**
+
+**Prompt:**
+
+“What was the best-selling scanner promo last month?”
+
+**AI Response:**
+
+> “In April, the top-performing scanner promotion was:
+> 
+
+> •
+> 
+> 
+> *2x1 BBQ Sauce 500ml*
+> 
+
+> • Sold 3,582 units (+31% lift vs March)
+> 
+
+> 
+> 
+
+> 🔎 This spike correlates with payday (April 15) and a local BBQ campaign in Panama Oeste.
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Replicate the promotion in Veraguas and Chiriquí where growth potential is high.
+> 
+
+> 
+> 
+
+> 📊 Forecasted lift: +18% in Veraguas, +22% in Chiriquí.
+> 
+
+> 
+> 
+
+> ⚖️ If you repeat the same promo in Metro Panama City, the lift is estimated at +9% due to saturation.”
+> 
+
+---
+
+### **8. Based on Tonga/furniture investment, which PDV is most profitable?**
+
+**Prompt:**
+
+“Which PDV had the best ROI from our tonga investment?”
+
+**AI Response:**
+
+> “Super99 – Los Pueblos had the highest ROI from tonga placement in April:
+> 
+
+> • Investment: $185
+> 
+
+> • Uplift in sales: $1,460
+> 
+
+> • ROI:
+> 
+> 
+> **7.8x**
+> 
+
+> 
+> 
+
+> 🔎 High lift driven by strong foot traffic and competitive pricing on featured SKUs.
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Renew placement for May and rotate SKUs to include new launches.
+> 
+
+> 
+> 
+
+> 📊 Forecasted ROI: 6.5x if rotated properly.
+> 
+
+> 
+> 
+
+> ⚖️ If renewed as-is with same SKUs, forecasted ROI drops to 4.2x due to promo fatigue.”
+> 
+
+---
+
+### **9. Which products are declining / growing vs last month / quarter / year?**
+
+**Prompt:**
+
+“What products are declining vs last year?”
+
+**AI Response:**
+
+> “The following SKUs have seen YoY sales drops:
+> 
+
+> • Chimichurri 250ml: -21%
+> 
+
+> • Fruit Punch Juice 1L: -18%
+> 
+
+> • Garlic Paste: -15%
+> 
+
+> 
+> 
+
+> 🔎 Declines linked to:
+> 
+
+> – Declining shelf visibility in major chains
+> 
+
+> – Inventory gaps in Bocas and David
+> 
+
+> – Increased competition (e.g., Alimentos del Valle)
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Investigate chain-level promotions and rotate shelf placement.
+> 
+
+> 
+> 
+
+> 📊 Forecasted recovery: +12% within 3 weeks with visibility and stock fix.
+> 
+
+> 
+> 
+
+> ⚖️ If you instead increase social media support without retail fixes, expected lift is only +4%.”
+> 
+
+---
+
+### **10. What is the best-selling product per chain?**
+
+**Prompt:**
+
+“What’s the best-selling SKU in Riba Smith?”
+
+**AI Response:**
+
+> “Riba Smith’s top-selling product in May was:
+> 
+
+> •
+> 
+> 
+> **Mayonnaise 400g**
+> 
+
+> • Sold: 9,340 units (+14% vs April)
+> 
+
+> 
+> 
+
+> 🔎 This was driven by:
+> 
+
+> – Bundle promotion with Tuna 140g
+> 
+
+> – Feature on front tonga for 2 weeks
+> 
+
+> – High loyalty among Riba’s health-conscious segment
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Expand bundle to include 2nd SKU (e.g., Chimichurri) and extend promo to other high-performing chains.
+> 
+
+> 
+> 
+
+> 📊 Forecasted impact: +11% incremental sales in Super99 and Rey with bundle extension.
+> 
+
+> 
+> 
+
+> ⚖️ If you instead run solo promos for Chimichurri, expected lift is +6%.”
+> 
+
+---
+
+Let me know when you’re ready for the next 5.
+
+Great — here are the **next 5 questions (11–15)** answered in full, with AI prompt behavior designed to be **strategic, data-backed, and forecast-capable**, including the **WHY with data source references**, and **forecast comparisons** when alternative actions are proposed.
+
+### **11. From the national Dichter census, how many clients don’t buy from us? Show geolocation.**
+
+**Prompt:**
+
+“From Dichter’s census, which clients don’t buy from us?”
+
+**AI Response:**
+
+> “According to the national Dichter database,
+> 
+> 
+> **642 active grocery stores**
+> 
+
+> 
+> 
+
+> • 218 in Panama Metro
+> 
+
+> • 132 in Panamá Oeste
+> 
+
+> • 92 in Colón
+> 
+
+> 
+> 
+
+> 📍 51% are within 3km of a current distribution route.
+> 
+
+> 
+> 
+
+> 🔎 Data sources:
+> 
+
+> – Dichter Census (Geo DB)
+> 
+
+> – Client Sales DB (SAP)
+> 
+
+> – Route & PDV Database
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Launch a direct outreach campaign using reps from nearby zones.
+> 
+
+> 
+> 
+
+> 📊 Forecasted ROI: Activating just 10% could yield +$18,000 in monthly sales.
+> 
+
+> 
+> 
+
+> ⚖️ If you target only Panama Oeste, ROI potential is $4,400 but engagement % is higher.”
+> 
+
+---
+
+### **12. What products should be delisted due to low sales?**
+
+**Prompt:**
+
+“Which SKUs should we consider delisting?”
+
+**AI Response:**
+
+> “Based on sales and rotation data:
+> 
+
+> • Salsa Verde 120ml: <10 units/month across all chains
+> 
+
+> • Chimichurri Extra Picante 180ml: <1 unit/day in last 90 days
+> 
+
+> 
+> 
+
+> 🔎 Data Sources:
+> 
+
+> – Sales DB (SKU/PDV/channel)
+> 
+
+> – Inventory aging reports
+> 
+
+> – Chain-level rotation metrics
+> 
+
+> 
+> 
+
+> ✅ Suggested Action: Propose delisting to avoid dead stock buildup and free up shelf space.
+> 
+
+> 
+> 
+
+> 📊 Impact: Freeing up shelf slots in Super99 and El Rey could increase rotation of mid-tier SKUs by +15%.
+> 
+
+> 
+> 
+
+> ⚖️ If you keep the SKUs with added promo, forecasted lift is +3% — below threshold.”
+>

@@ -1,0 +1,62 @@
+Do not remove or rename any existing files or components. Keep the current blue/dark theme. Only add/extend.
+
+Goal: Upgrade the collaboration.html UI (spacing + visual polish) and connect comments to reports in a right‑side context panel—so users can jump from a message to the related KPI/chart/report and take action.
+
+1) Visual/spacing polish (Collaboration Hub)
+	•	Keep the left sidebar as‑is.
+	•	Wrap the main content in a centered container with max-width: 1280px; margin: 0 auto; padding: 32px 40px.
+	•	Increase vertical rhythm: use spacing tokens --gap-1:8px; --gap-2:12px; --gap-3:16px; --gap-4:24px; --gap-5:32px; --gap-6:48px.
+	•	Card style: subtle glassmorphism—background: rgba(16,24,43,.68); backdrop-filter: blur(8px); border:1px solid rgba(255,255,255,.06); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,.35).
+	•	Headings: use a slightly futuristic look but readable—tracking +1px, weight 600; accent color #4DA3FF.
+	•	Each comment becomes a thread card with: avatar circle, name + role, timestamp, body, smart chips row, and an inline quick‑actions row (buttons: Open Report, Open KPI, Create Task, Simulate). Space these elements with the tokens above.
+	•	Add a sticky sub‑header under the page title with: filters (All / Mentions / Unread), a search input (“Search messages…”), and a compact counter (“3 new”). Sticky to top of the main content.
+
+2) Smart chips inside comments
+	•	Detect simple patterns in the comment text and render chips beneath the text:
+	•	#kpi:Performance Score, #zone:Chiriquí, #product:Mango Salsa, #report:Q3 Forecast
+	•	Chips style: pill, 12px/20px, background:rgba(77,163,255,.12); border:1px solid rgba(77,163,255,.35); color:#cfe6ff;
+	•	Clicking a chip opens the Context Panel (see next).
+
+3) Right‑side Context Panel (slide‑over)
+	•	Implement a slide‑over panel from the right (width 480–560px) that does not navigate away.
+	•	Panel header shows the linked entity title + type (e.g., “Performance Score • KPI”).
+	•	Tabs inside panel: Overview, Chart, Report, Actions.
+	•	Overview: short summary text (placeholder is fine) and last 7‑day sparkline (use an existing tiny chart component or a simple canvas).
+	•	Chart: embed an existing chart component and pass the entity id (stub data is fine now).
+	•	Report: render an iframe/markdown viewer that loads a report stub by id.
+	•	Actions: buttons: Create Task, Assign To…, Add to Calendar. Calling these should emit events only (no backend required).
+	•	Add a footer bar in the panel with two CTA buttons:
+	•	Open in Visual Lab (navigates to your charts/reports page with query params prefilled)
+	•	Run Scenario (fires an event the AI Scenario Simulator page can read later, e.g., window.dispatchEvent(new CustomEvent('simulate', {detail:{ entity:'kpi', id:'performanceScore', delta:+10 } })))
+
+4) Comment → Context linkage
+	•	When a user clicks Open Report, Open KPI, or any chip, call openContextPanel({type, id}) and load the appropriate tab.
+	•	Provide minimal stub data in a data/entities.js file (or inline) to resolve ids to titles and sample time‑series.
+
+5) Composer upgrades (bottom input)
+	•	Add support for:
+	•	@mention autocompletion (front‑end only list: Elena, Miguel, Sofia, etc.).
+	•	#tag chips as described above. When user types #kpi: show a small dropdown with sample KPIs.
+	•	/ slash commands: /task, /report, /simulate. Picking one inserts a structured chip.
+	•	Keep submission local; append the new comment to the thread list.
+
+6) Flow glue (no backend yet)
+	•	Implement a lightweight event bus with window.dispatchEvent / window.addEventListener to coordinate:
+	•	open-context (payload: {type, id, tab?})
+	•	create-task (payload: {title, entity}) → for now just show a toast “Task created”.
+	•	navigate-visual-lab (payload: {query}) → change window.location to the charts page with ?entity=….
+	•	Add small toasts (bottom-right) for feedback (Task created, Assigned to John, Scenario queued).
+
+7) Futuristic micro‑interactions
+	•	Subtle hover glow on chips/buttons: box-shadow: 0 0 0 rgba(77,163,255,0); → on hover animate to 0 0 24px rgba(77,163,255,.25) over 180ms.
+	•	Slide‑over uses springy transform: translateX(100%) → 0 with 220ms cubic‑bezier(0.2, 0.8, 0.2, 1).
+	•	Avatars show an online dot (tiny cyan) when the user is “active” (mock).
+
+8) Accessibility + responsiveness
+	•	Ensure keyboard focus order works; slide‑over traps focus and closes with Esc.
+	•	On mobile, slide‑over becomes full‑screen sheet (height 90vh).
+
+Deliverables:
+	•	Updated collaboration.html (layout, sticky sub‑header, upgraded cards, composer).
+	•	New context-panel.js/css (slide‑over), plus tiny data/entities.js mock.
+	•	Non‑breaking: other pages and styles remain intact.

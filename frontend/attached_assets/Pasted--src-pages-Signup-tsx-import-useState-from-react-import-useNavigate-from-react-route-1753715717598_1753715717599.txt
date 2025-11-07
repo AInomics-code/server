@@ -1,0 +1,103 @@
+// /src/pages/Signup.tsx
+
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { MailIcon, LockIcon, UserIcon } from "lucide-react";
+
+export default function Signup() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TEMP LOGIC
+    navigate("/onboarding");
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0b0e2c] via-[#0a0f34] to-[#0a103d] px-6">
+      {/* SIGNUP CONTAINER */}
+      <div className="w-full max-w-4xl bg-white/5 rounded-3xl shadow-2xl flex overflow-hidden border border-white/10 backdrop-blur-lg">
+        
+        {/* LEFT PANE (Form) */}
+        <div className="w-full md:w-1/2 p-10 sm:p-14 bg-white/5 rounded-3xl">
+          {/* Headings */}
+          <div className="mb-8 text-left">
+            <h2 className="text-2xl font-bold text-white">Sign Up</h2>
+            <p className="text-sm text-gray-400 mt-1">Join VORTA to power your business with AI.</p>
+          </div>
+
+          {/* Social Logins */}
+          <div className="grid grid-cols-4 gap-2 mb-6">
+            {["G", "", "𝕏", "f"].map((label, idx) => (
+              <button
+                key={idx}
+                className="bg-gradient-to-br from-[#1a1f4d] to-[#11152f] border border-white/10 text-white text-lg py-2 rounded-xl hover:opacity-90 transition-all"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center my-4">
+            <div className="flex-grow h-px bg-white/10" />
+            <span className="text-xs text-gray-500 px-3">or</span>
+            <div className="flex-grow h-px bg-white/10" />
+          </div>
+
+          {/* Email + Password */}
+          <form onSubmit={handleSignup} className="space-y-4">
+            <div className="flex items-center bg-[#0a1533] border border-blue-600 px-3 py-2 rounded-xl">
+              <MailIcon className="w-5 h-5 text-blue-400 mr-2" />
+              <input
+                type="email"
+                placeholder="you@company.com"
+                className="bg-transparent w-full text-sm text-white focus:outline-none"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div className="flex items-center bg-[#0a1533] border border-blue-600 px-3 py-2 rounded-xl">
+              <LockIcon className="w-5 h-5 text-blue-400 mr-2" />
+              <input
+                type="password"
+                placeholder="Create a password"
+                className="bg-transparent w-full text-sm text-white focus:outline-none"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            <button
+              type="submit"
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-500 to-purple-500 text-white font-semibold shadow-md hover:opacity-90 transition"
+            >
+              Continue
+            </button>
+          </form>
+
+          {/* Terms */}
+          <p className="text-xs text-gray-500 text-center mt-6">
+            By proceeding, you agree to our{" "}
+            <a href="#" className="underline text-blue-300">Terms of Use</a> and{" "}
+            <a href="#" className="underline text-blue-300">Privacy Policy</a>.
+          </p>
+        </div>
+
+        {/* RIGHT PANE (Visual Gradient / Abstract) */}
+        <div className="hidden md:block w-1/2 bg-gradient-to-br from-[#0e1b55] via-[#0c2a8a] to-[#1e388d]">
+          {/* You can add an abstract logo or animated SVG here later */}
+          <div className="h-full w-full flex flex-col items-center justify-center text-white px-8">
+            <h3 className="text-4xl font-bold mb-2 text-white/90">VORTA</h3>
+            <p className="text-center text-sm text-blue-200 max-w-xs">
+              Your AI Copilot for Business Intelligence. Built for operators across LATAM & India.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

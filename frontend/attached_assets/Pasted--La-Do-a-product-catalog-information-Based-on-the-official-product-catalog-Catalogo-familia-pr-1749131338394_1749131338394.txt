@@ -1,0 +1,359 @@
+// La Doña product catalog information
+// Based on the official product catalog: Catalogo familia productos-3.194b94f6.pdf
+
+export interface ProductCategory {
+  id: string;
+  name: string;
+  description: string;
+  products: Product[];
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  description: string;
+  sizes: ProductSize[];
+  skuBase: string;
+  isMainProduct: boolean;
+  targetMarkets: string[];
+}
+
+export interface ProductSize {
+  size: string;
+  unit: string;
+  sku: string;
+  isTopSeller?: boolean;
+  packagingType?: string;
+}
+
+export const productCategories: ProductCategory[] = [
+  {
+    id: "sauces",
+    name: "Salsas",
+    description: "Línea de salsas premium para condimentar y realzar el sabor de los alimentos",
+    products: [
+      {
+        id: "mayo",
+        name: "Mayonesa",
+        description: "Mayonesa cremosa de alta calidad, elaborada con ingredientes seleccionados para realzar el sabor de tus comidas",
+        skuBase: "MAYO",
+        isMainProduct: true,
+        targetMarkets: ["Food Service", "Retail", "Institucional"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "MAYO-1GL", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "3.8", unit: "litros", sku: "MAYO-3.8L", packagingType: "Envase plástico" },
+          { size: "1", unit: "litro", sku: "MAYO-1L", packagingType: "Envase plástico" },
+          { size: "500", unit: "ml", sku: "MAYO-500ML", packagingType: "Botella squeeze" },
+          { size: "200", unit: "ml", sku: "MAYO-200ML", packagingType: "Botella squeeze" },
+          { size: "100", unit: "ml", sku: "MAYO-100ML", packagingType: "Sachet" }
+        ]
+      },
+      {
+        id: "ketchup",
+        name: "Ketchup",
+        description: "Salsa de tomate con sabor balanceado, perfecta para acompañar diferentes platillos",
+        skuBase: "KET",
+        isMainProduct: true,
+        targetMarkets: ["Food Service", "Retail", "Institucional"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "KET-1GL", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "3.8", unit: "litros", sku: "KET-3.8L", packagingType: "Envase plástico" },
+          { size: "1", unit: "litro", sku: "KET-1L", packagingType: "Botella" },
+          { size: "500", unit: "ml", sku: "KET-500ML", isTopSeller: true, packagingType: "Botella squeeze" },
+          { size: "200", unit: "ml", sku: "KET-200ML", packagingType: "Botella squeeze" },
+          { size: "100", unit: "ml", sku: "KET-100ML", packagingType: "Sachet" }
+        ]
+      },
+      {
+        id: "bbq",
+        name: "Salsa BBQ",
+        description: "Salsa barbacoa con un equilibrio perfecto entre dulce y ahumado para acompañar carnes y más",
+        skuBase: "BBQ",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "BBQ-1GL", packagingType: "Envase plástico" },
+          { size: "500", unit: "ml", sku: "BBQ-500ML", packagingType: "Botella squeeze" },
+          { size: "200", unit: "ml", sku: "BBQ-200ML", packagingType: "Botella squeeze" }
+        ]
+      },
+      {
+        id: "mustard",
+        name: "Mostaza",
+        description: "Mostaza suave y versátil, ideal para sándwiches, hot dogs y como ingrediente en diversas recetas",
+        skuBase: "MUST",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "MUST-1GL", packagingType: "Envase plástico" },
+          { size: "500", unit: "ml", sku: "MUST-500ML", packagingType: "Botella squeeze" },
+          { size: "200", unit: "ml", sku: "MUST-200ML", packagingType: "Botella squeeze" },
+          { size: "100", unit: "ml", sku: "MUST-100ML", packagingType: "Sachet" }
+        ]
+      },
+      {
+        id: "mustard-dijon",
+        name: "Mostaza Dijon",
+        description: "Mostaza premium estilo Dijon, con sabor intenso y textura fina para recetas gourmet",
+        skuBase: "DIJON",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail Gourmet"],
+        sizes: [
+          { size: "1", unit: "litro", sku: "DIJON-1L", packagingType: "Envase premium" },
+          { size: "250", unit: "ml", sku: "DIJON-250ML", packagingType: "Envase premium" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "vinegars",
+    name: "Vinagres",
+    description: "Línea completa de vinagres para cocina y mesa",
+    products: [
+      {
+        id: "vinegar-white",
+        name: "Vinagre Blanco",
+        description: "Vinagre blanco destilado, ideal para limpieza, encurtidos y recetas variadas",
+        skuBase: "VIN-B",
+        isMainProduct: true,
+        targetMarkets: ["Food Service", "Retail", "Institucional"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "VIN-B-1GL", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "750", unit: "ml", sku: "VIN-B-750ML", isTopSeller: true, packagingType: "Botella vidrio" },
+          { size: "500", unit: "ml", sku: "VIN-B-500ML", packagingType: "Botella vidrio" }
+        ]
+      },
+      {
+        id: "vinegar-apple",
+        name: "Vinagre de Manzana",
+        description: "Vinagre a base de manzana, con sabor suave y ligeramente dulce, ideal para aderezos y marinados",
+        skuBase: "VIN-M",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "VIN-M-1GL", packagingType: "Envase plástico" },
+          { size: "750", unit: "ml", sku: "VIN-M-750ML", isTopSeller: true, packagingType: "Botella vidrio" },
+          { size: "500", unit: "ml", sku: "VIN-M-500ML", packagingType: "Botella vidrio" }
+        ]
+      },
+      {
+        id: "vinegar-red-wine",
+        name: "Vinagre de Vino Tinto",
+        description: "Vinagre elaborado a partir de vino tinto, con sabor intenso para aderezos y platos gourmet",
+        skuBase: "VIN-VT",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail Gourmet"],
+        sizes: [
+          { size: "750", unit: "ml", sku: "VIN-VT-750ML", packagingType: "Botella vidrio" },
+          { size: "500", unit: "ml", sku: "VIN-VT-500ML", packagingType: "Botella vidrio" }
+        ]
+      },
+      {
+        id: "vinegar-balsamic",
+        name: "Vinagre Balsámico",
+        description: "Vinagre balsámico con sabor dulce y ácido balanceado, perfecto para ensaladas y reducciones",
+        skuBase: "VIN-BAL",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail Gourmet"],
+        sizes: [
+          { size: "750", unit: "ml", sku: "VIN-BAL-750ML", packagingType: "Botella vidrio premium" },
+          { size: "250", unit: "ml", sku: "VIN-BAL-250ML", packagingType: "Botella vidrio premium" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "dressings",
+    name: "Aderezos",
+    description: "Línea de aderezos listos para usar en ensaladas y platillos variados",
+    products: [
+      {
+        id: "dressing-ranch",
+        name: "Aderezo Ranch",
+        description: "Aderezo cremoso estilo ranch con hierbas y especias, ideal para ensaladas y dips",
+        skuBase: "ADZ-RANCH",
+        isMainProduct: true,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "ADZ-RANCH-1GL", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "350", unit: "ml", sku: "ADZ-RANCH-350ML", packagingType: "Botella" }
+        ]
+      },
+      {
+        id: "dressing-caesar",
+        name: "Aderezo César",
+        description: "Aderezo clásico para ensalada César, con notas de queso, ajo y anchoas",
+        skuBase: "ADZ-CES",
+        isMainProduct: true,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "ADZ-CES-1GL", packagingType: "Envase plástico" },
+          { size: "350", unit: "ml", sku: "ADZ-CES-350ML", packagingType: "Botella" }
+        ]
+      },
+      {
+        id: "dressing-italian",
+        name: "Aderezo Italiano",
+        description: "Aderezo ligero a base de vinagre y aceite con hierbas italianas y especias",
+        skuBase: "ADZ-ITA",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "ADZ-ITA-1GL", packagingType: "Envase plástico" },
+          { size: "350", unit: "ml", sku: "ADZ-ITA-350ML", isTopSeller: true, packagingType: "Botella" }
+        ]
+      },
+      {
+        id: "dressing-honey-mustard",
+        name: "Aderezo Miel y Mostaza",
+        description: "Aderezo dulce y cremoso a base de miel y mostaza, versátil para ensaladas y dips",
+        skuBase: "ADZ-MM",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "1", unit: "galón", sku: "ADZ-MM-1GL", packagingType: "Envase plástico" },
+          { size: "350", unit: "ml", sku: "ADZ-MM-350ML", packagingType: "Botella" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "spices",
+    name: "Especias y Condimentos",
+    description: "Línea de especias, condimentos y sazonadores para realzar el sabor de los alimentos",
+    products: [
+      {
+        id: "seasoning-complete",
+        name: "Sazón Completo",
+        description: "Mezcla de especias y hierbas para sazonar todo tipo de carnes, arroces y guisos",
+        skuBase: "SAZ-COMP",
+        isMainProduct: true,
+        targetMarkets: ["Food Service", "Retail", "Institucional"],
+        sizes: [
+          { size: "1", unit: "kg", sku: "SAZ-COMP-1KG", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "500", unit: "g", sku: "SAZ-COMP-500G", packagingType: "Envase plástico" },
+          { size: "200", unit: "g", sku: "SAZ-COMP-200G", packagingType: "Envase plástico" }
+        ]
+      },
+      {
+        id: "chicken-seasoning",
+        name: "Sazón para Pollo",
+        description: "Mezcla especializada de especias para realzar el sabor del pollo en cualquier preparación",
+        skuBase: "SAZ-POLL",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "500", unit: "g", sku: "SAZ-POLL-500G", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "200", unit: "g", sku: "SAZ-POLL-200G", packagingType: "Envase plástico" }
+        ]
+      },
+      {
+        id: "meat-seasoning",
+        name: "Sazón para Carne",
+        description: "Mezcla robusta de especias para realzar el sabor de carnes rojas en cualquier preparación",
+        skuBase: "SAZ-CARN",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "500", unit: "g", sku: "SAZ-CARN-500G", isTopSeller: true, packagingType: "Envase plástico" },
+          { size: "200", unit: "g", sku: "SAZ-CARN-200G", packagingType: "Envase plástico" }
+        ]
+      },
+      {
+        id: "adobo-seasoning",
+        name: "Adobo Criollo",
+        description: "Sazonador tradicional tipo adobo con ajo, cebolla y especias para todo tipo de platillos",
+        skuBase: "ADOBO",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "500", unit: "g", sku: "ADOBO-500G", packagingType: "Envase plástico" },
+          { size: "200", unit: "g", sku: "ADOBO-200G", packagingType: "Envase plástico" }
+        ]
+      },
+      {
+        id: "salt-garlic",
+        name: "Sal con Ajo",
+        description: "Mezcla de sal y ajo deshidratado, condimento básico para la cocina panameña",
+        skuBase: "SAL-AJO",
+        isMainProduct: false,
+        targetMarkets: ["Food Service", "Retail"],
+        sizes: [
+          { size: "500", unit: "g", sku: "SAL-AJO-500G", packagingType: "Envase plástico" },
+          { size: "200", unit: "g", sku: "SAL-AJO-200G", packagingType: "Envase plástico" }
+        ]
+      }
+    ]
+  }
+];
+
+// Top sellers by category
+export const topSellerProducts = [
+  {
+    category: "Salsas",
+    products: [
+      { name: "Mayonesa", size: "1 galón", sku: "MAYO-1GL" },
+      { name: "Ketchup", size: "500 ml", sku: "KET-500ML" },
+      { name: "Ketchup", size: "1 galón", sku: "KET-1GL" }
+    ]
+  },
+  {
+    category: "Vinagres",
+    products: [
+      { name: "Vinagre Blanco", size: "1 galón", sku: "VIN-B-1GL" },
+      { name: "Vinagre Blanco", size: "750 ml", sku: "VIN-B-750ML" },
+      { name: "Vinagre de Manzana", size: "750 ml", sku: "VIN-M-750ML" }
+    ]
+  },
+  {
+    category: "Aderezos",
+    products: [
+      { name: "Aderezo Ranch", size: "1 galón", sku: "ADZ-RANCH-1GL" },
+      { name: "Aderezo Italiano", size: "350 ml", sku: "ADZ-ITA-350ML" }
+    ]
+  },
+  {
+    category: "Especias y Condimentos",
+    products: [
+      { name: "Sazón Completo", size: "1 kg", sku: "SAZ-COMP-1KG" },
+      { name: "Sazón para Pollo", size: "500 g", sku: "SAZ-POLL-500G" },
+      { name: "Sazón para Carne", size: "500 g", sku: "SAZ-CARN-500G" }
+    ]
+  }
+];
+
+// Product margins by category (approximate)
+export const productMargins = [
+  { category: "Salsas", averageMargin: 42, topPerformer: "Mayonesa 1 galón" },
+  { category: "Vinagres", averageMargin: 38, topPerformer: "Vinagre Balsámico 250 ml" },
+  { category: "Aderezos", averageMargin: 45, topPerformer: "Aderezo Ranch 1 galón" },
+  { category: "Especias y Condimentos", averageMargin: 52, topPerformer: "Sazón Completo 1 kg" }
+];
+
+// Distribution channels by product category
+export const distributionChannels = [
+  { 
+    channel: "Food Service", 
+    topCategories: ["Salsas", "Aderezos", "Especias y Condimentos"],
+    keyClients: ["Restaurantes", "Hoteles", "Catering", "Comedores institucionales"],
+    topProducts: ["Mayonesa 1 galón", "Ketchup 1 galón", "Aderezo Ranch 1 galón", "Sazón Completo 1 kg"]
+  },
+  { 
+    channel: "Retail", 
+    topCategories: ["Salsas", "Vinagres", "Especias y Condimentos"],
+    keyClients: ["Supermercados", "Tiendas de conveniencia"],
+    topProducts: ["Mayonesa 500 ml", "Ketchup 500 ml", "Vinagre Blanco 750 ml", "Aderezo Italiano 350 ml"]
+  },
+  { 
+    channel: "Institucional", 
+    topCategories: ["Salsas", "Especias y Condimentos"],
+    keyClients: ["Escuelas", "Hospitales", "Empresas", "Entidades gubernamentales"],
+    topProducts: ["Mayonesa 1 galón", "Ketchup 1 galón", "Sazón Completo 1 kg", "Vinagre Blanco 1 galón"]
+  },
+  { 
+    channel: "Retail Gourmet", 
+    topCategories: ["Vinagres", "Aderezos"],
+    keyClients: ["Tiendas gourmet", "Delicatessen"],
+    topProducts: ["Vinagre Balsámico", "Vinagre de Vino Tinto", "Mostaza Dijon"]
+  }
+];

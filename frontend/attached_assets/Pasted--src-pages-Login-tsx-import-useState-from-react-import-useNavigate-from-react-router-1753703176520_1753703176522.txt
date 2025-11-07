@@ -1,0 +1,84 @@
+// /src/pages/Login.tsx
+
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { motion } from "framer-motion";
+
+export default function Login() {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const navigate = useNavigate();
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    // TEMP: Replace with real auth
+    if (email === "test@vorta.ai" && password === "password") {
+      navigate("/dashboard");
+    } else {
+      setError("Invalid email or password");
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex bg-gradient-to-br from-[#0a0f2c] to-[#0f1c4d] text-white">
+      {/* LEFT PANE */}
+      <div className="w-full md:w-1/2 flex flex-col justify-center px-8 md:px-20">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="max-w-md w-full"
+        >
+          <h1 className="text-3xl font-bold mb-2 tracking-tight">Welcome back to VORTA</h1>
+          <p className="text-sm text-gray-300 mb-8">Log in to access your AI Copilot and make smarter decisions in real time.</p>
+
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full px-4 py-2 rounded-xl bg-[#1c2340] border border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Password</label>
+              <input
+                type="password"
+                className="w-full px-4 py-2 rounded-xl bg-[#1c2340] border border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </div>
+
+            {error && <p className="text-red-400 text-sm">{error}</p>}
+
+            <button
+              type="submit"
+              className="w-full py-2 bg-blue-600 rounded-xl hover:bg-blue-500 transition font-medium"
+            >
+              Log in
+            </button>
+          </form>
+
+          <p className="text-sm text-gray-400 mt-6 text-center">
+            Don’t have an account?{" "}
+            <a href="/signup" className="text-blue-400 underline">Sign up</a>
+          </p>
+        </motion.div>
+      </div>
+
+      {/* RIGHT PANE */}
+      <div className="hidden md:block md:w-1/2 relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-blue-500/20 to-transparent z-10" />
+        <div className="absolute inset-0 bg-[url('/wave-blue.svg')] bg-cover bg-center opacity-20 z-0" />
+        <div className="w-full h-full backdrop-blur-[1px] bg-gradient-to-br from-blue-900/40 to-blue-800/30 flex items-center justify-center z-20 relative">
+          <h2 className="text-5xl font-bold tracking-tight text-white drop-shadow-lg">VORTA</h2>
+        </div>
+      </div>
+    </div>
+  );
+}

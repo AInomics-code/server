@@ -1,0 +1,40 @@
+5) AI Scenario Simulator page + sidebar icon
+	•	Add a new icon in the left sidebar: AI Scenario Simulator (keep icon size/hover behavior consistent).
+	•	Clicking Simulate in any card triggers navigation to this page and preselects the relevant entity via querystring or eventBus.
+	•	Page structure (enterprise, simple):
+	•	Header: “AI Scenario Simulator — Model Future Outcomes” and short subtitle.
+	•	Panel A (Select Focus): dropdowns for Entity Type (KPI / Product / Zone), Entity Name (searchable), Time Horizon (weeks/months).
+	•	Panel B (Adjust Variables): sliders/inputs depending on entity:
+	•	Demand growth %
+	•	Price change %
+	•	Promo multiplier (x)
+	•	Lead time (days)
+	•	Stock available (units)
+	•	Panel C (Results): side‑by‑side Current vs Simulated with cards: Revenue, Units, Margin, Service Level. Below: comparison chart (area/line).
+	•	Actions: Save Scenario, Export to PDF, Add as Task (emits create-task with scenario title).
+	•	All default values pulled from entities.js and kpis.js so results feel realistic.
+
+⸻
+
+6) Formulas (data/formulas.js) — pure, deterministic
+
+Implement these with clear JSDoc and unit exports. They must accept simple inputs and return numbers/series—no UI logic inside.
+	•	forecastDemand(baseSeries, growthPct) → multiplies future periods by (1 + growthPct).
+	•	priceElasticity(demand, priceChangePct, elasticity = -1.3) → new demand = demand * (1 + elasticity * priceChangePct).
+	•	promoUplift(demand, promoMultiplier) → demand * promoMultiplier.
+	•	inventoryCoverage(demandSeries, stockOnHand) → returns days/weeks of coverage.
+	•	leadTimeImpact(demandSeries, leadTimeDays) → shifts availability; quantify expected stockouts.
+	•	revenue(demandSeries, unitPrice) and margin(revenue, cogsPct) helpers.
+	•	simulateScenario(inputs) → orchestrates the above and returns { current: {metrics, series}, simulated: {metrics, series} }.
+
+Wire the Simulator page to call simulateScenario with selected entity + sliders. Use mock series from entities.js to keep the page functional now.
+
+⸻
+
+7) Data registry (data/entities.js)
+
+Provide small, realistic mock data:
+	•	KPIs: performanceScore, inventoryTurnover, etc. Each has id, title, unit, currentValue, series (array of {date, value}).
+	•	Products: mangoSalsa, premiumVinegar with baseline price, demand, cogs%.
+	•	Zones: chiriqui, colon, etc. with demand distributions.
+	•	Reports: q3Forecast, stockoutAnalysis with titles and summary strings.

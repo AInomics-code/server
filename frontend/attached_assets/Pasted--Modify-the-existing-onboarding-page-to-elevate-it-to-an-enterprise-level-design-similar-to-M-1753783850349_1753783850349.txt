@@ -1,0 +1,52 @@
+🔄 Modify the existing `/onboarding` page to elevate it to an enterprise-level design — similar to Microsoft AI Copilot, Defog, and GobbleCube.
+
+🧠 Objective:
+Make it feel intelligent, premium, and trustworthy — not startup-y or playful.
+
+🎨 Design adjustments:
+
+1. 🌌 Background & Theme:
+- Keep current deep blue gradient theme
+- Darker overlay panel on left or top for hero content
+- Add extremely subtle animated grain or grid pattern (optional)
+
+2. 🖋 Typography:
+- Use a more modern font stack like `Inter`, `Satoshi`, or `Segoe UI`
+- Update all heading typography:
+    - H1: “Let’s connect VORTA to your system” → **moved to top-left**, not center
+    - Font-size: `text-3xl md:text-5xl font-semibold tracking-tight`
+    - Subtitle: `text-md md:text-lg text-gray-400 max-w-lg`
+
+3. 🧱 System Cards:
+- Layout: 2-column on mobile → 3-column on desktop
+- Each card:
+    - Rounded-2xl
+    - Background: `bg-gradient-to-br from-[#192646] to-[#0f172a]`
+    - Box-shadow: subtle glow on hover (`hover:shadow-lg hover:shadow-blue-500/20`)
+    - Icon: larger size (`text-2xl`)
+    - When selected: outlined in `ring-2 ring-blue-400`
+    - Use enterprise iconography (`lucide-react` or `phosphor-icons`)
+
+4. 🎛 Interactivity:
+- Smooth card expansion: `framer-motion` collapsible with spring effect
+- Allow only 1 card open at a time
+
+5. ✅ Buttons:
+- Bottom CTA: Replace childish gradient with modern enterprise-style
+    - “Connect & Continue →” button:
+      - `bg-[#1e40af] hover:bg-[#1d4ed8] text-white font-medium px-6 py-2 rounded-xl shadow-lg`
+- Add faint line above CTA section: `border-t border-gray-700 pt-6`
+
+6. 📱 Responsiveness:
+- Use max-width container: `max-w-5xl mx-auto px-4`
+- All spacing padded: `gap-8`, `mt-10`, etc.
+- Typography adjusts at `md:` and `lg:` breakpoints
+
+7. ✨ Subtle polish:
+- Add icon next to heading: small VORTA atom
+- Animate page load using `framer-motion` fade-in
+- Use `motion.div` to stagger cards on entrance
+
+🎯 Final effect:
+- Feels like a step in a Microsoft Copilot wizard
+- Clean. Bold. Confident. Reliable.

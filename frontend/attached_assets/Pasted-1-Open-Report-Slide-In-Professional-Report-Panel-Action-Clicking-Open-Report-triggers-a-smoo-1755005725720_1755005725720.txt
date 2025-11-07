@@ -1,0 +1,47 @@
+1. Open Report → Slide-In Professional Report Panel
+
+Action:
+	•	Clicking Open Report triggers a smooth slide-in panel from the right side.
+	•	Panel width: ~40% of the screen, dark gradient background, slightly blurred overlay on the main page to focus attention.
+	•	Header: Report name + export/download options (PDF, Excel).
+	•	Body:
+	•	KPI snapshot (big number with trend arrow).
+	•	Mini chart (line, bar, or area depending on the KPI type).
+	•	Short executive summary paragraph (“This report highlights a 12% sales drop in Chiriquí due to seasonal shifts and distribution delays…”).
+	•	Links to “Full Report” in the main analytics area.
+	•	Close button → subtle X in top-right with smooth fade-out.
+
+⸻
+
+2. Simulate → Opens “AI Scenario Simulator” (New Left-Side Icon)
+
+Action:
+	•	Clicking Simulate doesn’t just open a modal—it activates a brand new main page in the app.
+	•	On click:
+	•	Left sidebar gets a new permanent icon called AI Scenario Simulator.
+	•	Page Title: “AI Scenario Simulator – Model Future Outcomes”.
+	•	Layout:
+	•	Step 1: Select KPI or zone/product you want to simulate (dropdowns).
+	•	Step 2: Adjust variables via sleek sliders (demand growth %, pricing change %, inventory availability, etc.).
+	•	Step 3: AI-generated scenario outputs → side-by-side comparison of “Current Projection” vs. “Simulated Outcome” with charts and % changes.
+	•	Export and Save Scenario buttons for re-use.
+
+⸻
+
+3. Open KPI → Side Info Drawer
+
+Action:
+	•	Clicking Open KPI triggers a slim info drawer from the right (like Open Report but narrower).
+	•	Drawer shows:
+	•	KPI name + definition.
+	•	Real-time value with sparkline chart.
+	•	Historical performance mini-chart.
+	•	“View in Full Dashboard” button to jump directly to the analytics section.
+
+⸻
+
+4. Professional Smoothness Upgrades
+	•	Micro-animations: Buttons slightly expand on hover; cards gently lift when hovered over.
+	•	Consistent tag sizes: Zone/Product tags are uniform width and always aligned.
+	•	Fast load: All new panels preload their content in the background when you hover over the action buttons.
+	•	Enterprise trust feel: Minimal, calm transitions with no flashy animations—everything deliberate and purposeful.

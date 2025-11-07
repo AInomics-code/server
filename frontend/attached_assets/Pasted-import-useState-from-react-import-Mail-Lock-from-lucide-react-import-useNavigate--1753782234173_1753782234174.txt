@@ -1,0 +1,108 @@
+import { useState } from "react";
+import { Mail, Lock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+
+export default function LoginCard() {
+  const [step, setStep] = useState<"email" | "password">("email");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const navigate = useNavigate();
+
+  const handleContinue = () => {
+    if (email.trim() !== "") setStep("password");
+  };
+
+  const handleCreate = () => {
+    if (password.trim() !== "") {
+      setTimeout(() => {
+        navigate("/onboarding");
+      }, 300);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <AnimatePresence mode="wait">
+        {step === "email" && (
+          <motion.div
+            key="email"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-6"
+          >
+            {/* Email Input */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Email</label>
+              <div className="flex items-center bg-[#0e1a35] border border-blue-600 px-3 py-2 rounded-xl">
+                <Mail className="w-5 h-5 text-blue-400 mr-2" />
+                <input
+                  type="email"
+                  className="bg-transparent w-full text-sm text-white focus:outline-none"
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Social Buttons (these will disappear) */}
+            <div className="grid grid-cols-4 gap-2">
+              {["G", "", "𝕏", "f"].map((icon, i) => (
+                <button
+                  key={i}
+                  className="py-2 rounded-xl border border-white/10 bg-[#0e1a35] text-white text-lg hover:opacity-90"
+                >
+                  {icon}
+                </button>
+              ))}
+            </div>
+
+            {/* Continue Button */}
+            <button
+              onClick={handleContinue}
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90 font-semibold"
+            >
+              Continue
+            </button>
+          </motion.div>
+        )}
+
+        {step === "password" && (
+          <motion.div
+            key="password"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.4 }}
+            className="space-y-6"
+          >
+            {/* Password Input */}
+            <div>
+              <label className="block text-sm text-gray-400 mb-1">Create Password</label>
+              <div className="flex items-center bg-[#0e1a35] border border-blue-600 px-3 py-2 rounded-xl">
+                <Lock className="w-5 h-5 text-blue-400 mr-2" />
+                <input
+                  type="password"
+                  className="bg-transparent w-full text-sm text-white focus:outline-none"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <button
+              onClick={handleCreate}
+              className="w-full py-2 rounded-xl bg-gradient-to-r from-blue-500 to-cyan-400 hover:opacity-90 font-semibold"
+            >
+              Create Account
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
