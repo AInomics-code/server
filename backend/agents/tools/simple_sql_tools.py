@@ -494,17 +494,17 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 top_products = await conn.fetch(sql_top_products, *params)
                 
                 result = {
-                    "record_count": totals['record_count'],
-                    "total_quantity": totals['total_quantity'] or 0,
-                    "total_value": float(totals['total_value'] or 0),
-                    "total_ordered": totals['total_ordered'] or 0,
-                    "total_delivered": totals['total_delivered'] or 0,
+                    "record_count": int(totals['record_count']) if totals['record_count'] is not None else 0,
+                    "total_quantity": int(totals['total_quantity']) if totals['total_quantity'] is not None else 0,
+                    "total_value": float(totals['total_value']) if totals['total_value'] is not None else 0.0,
+                    "total_ordered": int(totals['total_ordered']) if totals['total_ordered'] is not None else 0,
+                    "total_delivered": int(totals['total_delivered']) if totals['total_delivered'] is not None else 0,
                     "top_products": [
                         {
                             "product_name": row['product_name'],
                             "brand": row['brand'],
-                            "quantity": row['total_qty'],
-                            "value": float(row['total_value'])
+                            "quantity": int(row['total_qty']) if row['total_qty'] is not None else 0,
+                            "value": float(row['total_value']) if row['total_value'] is not None else 0.0
                         }
                         for row in top_products
                     ]
@@ -623,18 +623,18 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
                 top_products = await conn.fetch(sql_top_products, *params)
                 
                 result = {
-                    "record_count": totals['record_count'],
-                    "total_quantity": totals['total_quantity'] or 0,
-                    "total_gross": float(totals['total_gross'] or 0),
-                    "total_net": float(totals['total_net'] or 0),
-                    "total_discounts": float(totals['total_discounts'] or 0),
-                    "total_cost": float(totals['total_cost'] or 0),
+                    "record_count": int(totals['record_count']) if totals['record_count'] is not None else 0,
+                    "total_quantity": int(totals['total_quantity']) if totals['total_quantity'] is not None else 0,
+                    "total_gross": float(totals['total_gross']) if totals['total_gross'] is not None else 0.0,
+                    "total_net": float(totals['total_net']) if totals['total_net'] is not None else 0.0,
+                    "total_discounts": float(totals['total_discounts']) if totals['total_discounts'] is not None else 0.0,
+                    "total_cost": float(totals['total_cost']) if totals['total_cost'] is not None else 0.0,
                     "top_products": [
                         {
                             "product_name": row['product_name'],
                             "brand": row['brand'],
-                            "quantity": row['total_qty'],
-                            "amount": float(row['total_amount'])
+                            "quantity": int(row['total_qty']) if row['total_qty'] is not None else 0,
+                            "amount": float(row['total_amount']) if row['total_amount'] is not None else 0.0
                         }
                         for row in top_products
                     ]
@@ -731,15 +731,15 @@ def create_inventory_summary_tool(queries_executed: List[Dict]):
                 top_products = await conn.fetch(sql_top_products, *params)
                 
                 result = {
-                    "location_count": totals['location_count'],
-                    "product_count": totals['product_count'],
-                    "total_quantity": totals['total_quantity'] or 0,
+                    "location_count": int(totals['location_count']) if totals['location_count'] is not None else 0,
+                    "product_count": int(totals['product_count']) if totals['product_count'] is not None else 0,
+                    "total_quantity": int(totals['total_quantity']) if totals['total_quantity'] is not None else 0,
                     "top_products": [
                         {
                             "product_name": row['product_name'],
                             "brand": row['brand'],
                             "category": row['category'],
-                            "quantity": row['total_qty']
+                            "quantity": int(row['total_qty']) if row['total_qty'] is not None else 0
                         }
                         for row in top_products
                     ]
