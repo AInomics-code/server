@@ -2,7 +2,7 @@ from langchain_aws import ChatBedrock
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.runnables import RunnableConfig
-from langchain_core.messages import HumanMessage, AIMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from config import get_settings
 from prompts import load_prompt_with_date
 from typing import Dict, Any, List
@@ -17,8 +17,9 @@ class SimpleAgent:
         self.queries_executed = []
         self._load_tools()
         
+        # Create prompt without system message in template
+        # We'll add system message separately to avoid Bedrock issues
         prompt = ChatPromptTemplate.from_messages([
-            ("system", self._get_system_prompt()),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
             ("human", "{input}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
@@ -37,16 +38,19 @@ class SimpleAgent:
         )
     
     def _initialize_llm(self):
+        # Add system prompt to model configuration instead of chat template
+        system_prompt = load_prompt_with_date("simple_agent.txt")
         return ChatBedrock(
             model_id=settings.classifier_model_id,
             region_name=settings.aws_region,
             credentials_profile_name=None,
             provider="anthropic",
-            model_kwargs={"temperature": 0, "max_tokens": 1500}
+            model_kwargs={
+                "temperature": 0,
+                "max_tokens": 1500,
+                "system": system_prompt  # Set system prompt in model kwargs
+            }
         )
-    
-    def _get_system_prompt(self) -> str:
-        return load_prompt_with_date("simple_agent.txt")
     
     def _load_tools(self):
         from agents.tools.simple_sql_tools import (
@@ -78,11 +82,18 @@ class SimpleAgent:
         
         chat_history = []
         if conversation_history:
-            for msg in conversation_history[-10:]:
+            # Take last 10 messages and ensure they alternate user/assistant properly
+            recent_messages = conversation_history[-10:]
+            for msg in recent_messages:
                 if msg.get("role") == "user":
                     chat_history.append(HumanMessage(content=msg.get("content", "")))
                 elif msg.get("role") == "assistant":
                     chat_history.append(AIMessage(content=msg.get("content", "")))
+            
+            # AWS Bedrock requires first message to be user role
+            # If chat_history starts with assistant message, remove it
+            if chat_history and isinstance(chat_history[0], AIMessage):
+                chat_history = chat_history[1:]
         
         config = RunnableConfig(
             metadata={
