@@ -83,6 +83,79 @@ def create_product_search_tool(queries_executed: List[Dict]):
     return search_products
 
 
+def create_client_group_search_tool(queries_executed: List[Dict]):
+    """Tool to search for client groups"""
+    
+    @tool
+    async def search_client_groups(query: str) -> str:
+        """
+        Search for client groups by name to get the EXACT group name.
+        
+        **WHEN TO USE:**
+        - User mentions "grupo", "group" followed by a name
+        - Before calling get_sales_summary or get_backorders_summary with client_group
+        - Examples: "grupo Xtra", "grupo Super", "grupo Retail"
+        
+        **CRITICAL:** This tool is REQUIRED before filtering by client_group!
+        The database has exact group names that may differ from what user says.
+        
+        **WORKFLOW:**
+        1. User says: "ventas del grupo Xtra"
+        2. Call: search_client_groups(query="Xtra")
+        3. Get result: "GRUPO XTRA" (exact name)
+        4. Call: get_sales_summary(client_group="GRUPO XTRA")
+        
+        Args:
+            query: Group name or partial name to search (e.g., "Xtra", "Super", "Retail")
+        
+        Returns:
+            List of matching client groups with exact names and statistics.
+            USE THE EXACT GROUP NAME from results in subsequent queries.
+        """
+        sql = """
+            SELECT 
+                c.client_group,
+                COUNT(DISTINCT c.client_id) as client_count,
+                COUNT(DISTINCT c.city) as cities
+            FROM clients c
+            WHERE c.client_group IS NOT NULL
+                AND c.client_group ILIKE $1
+            GROUP BY c.client_group
+            ORDER BY client_count DESC
+            LIMIT 10
+        """
+        
+        # Add wildcards for partial matching
+        search_pattern = f"%{query}%"
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": [search_pattern],
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, search_pattern)
+                
+                if not rows:
+                    return f"No client groups found matching '{query}'. Try a different search term."
+                
+                response = f"Found {len(rows)} client group(s) matching '{query}':\n\n"
+                for row in rows:
+                    response += f"- Group: '{row['client_group']}' ({row['client_count']} clients, {row['cities']} cities)\n"
+                
+                response += f"\n💡 Use the exact group name (in quotes) when filtering by client_group"
+                return response
+        finally:
+            await pool.close()
+    
+    return search_client_groups
+
+
 def create_inventory_tool(queries_executed: List[Dict]):
     """Tool to query inventory levels"""
     
@@ -408,7 +481,8 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
     async def get_backorders_summary(
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        product_id: Optional[str] = None
+        product_id: Optional[str] = None,
+        client_group: Optional[str] = None
     ) -> str:
         """
         Get COMPLETE TOTAL backorder metrics (SUM of ALL records, no limits).
@@ -421,16 +495,31 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
         - "Total de backorders de junio" (wants complete aggregate)
         - "Backorder de los últimos 3 meses" (wants full totals)
         - "Resumen de backorders" (wants summary with totals)
+        - "Backorder del grupo X" (wants backorders by client group)
         
         **DO NOT USE for (use query_backorders instead):**
         - "Lista de backorders" (wants list of individual records)
         - "Muéstrame los backorders" (wants specific examples)
         - "Cuáles productos tienen backorder" (wants product names)
         
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super", "Retail"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        2. Example:
+           - User says: "backorder del grupo Xtra"
+           - Step 1: search_client_groups(query="Xtra") → returns "GRUPO XTRA"
+           - Step 2: get_backorders_summary(client_group="GRUPO XTRA")
+        
+        **IMPORTANT:**
+        - Use `client_group` ONLY with the EXACT group name from search_client_groups
+        - NEVER guess the client_group name - always search first!
+        
         Args:
             start_date: Start date in YYYY-MM-DD format (e.g., "2025-06-01")
             end_date: End date in YYYY-MM-DD format (e.g., "2025-06-30")
             product_id: Specific product ID to filter (optional)
+            client_group: EXACT client group name from search_client_groups (optional)
         
         Returns:
             JSON with total_quantity, total_value, record_count, top_products (complete totals)
@@ -459,7 +548,16 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
             params.append(product_id)
             param_counter += 1
         
+        # NEW: Support for filtering by client_group
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
         where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        
+        # Join with clients table if filtering by client_group
+        client_join = "JOIN clients c ON b.client_id = c.client_id" if client_group else ""
         
         # Get totals
         sql_totals = f"""
@@ -470,6 +568,7 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 SUM(b.order_qty) as total_ordered,
                 SUM(b.delivery_qty) as total_delivered
             FROM backorder b
+            {client_join}
             {where_clause}
         """
         
@@ -482,6 +581,7 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 SUM(b.backorder_qty * b.unit_price) as total_value
             FROM backorder b
             JOIN products p ON b.product_id = p.product_id
+            {client_join}
             {where_clause}
             GROUP BY p.product_name, p.brand
             ORDER BY total_qty DESC
@@ -542,7 +642,8 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         product_id: Optional[str] = None,
-        client_id: Optional[str] = None
+        client_id: Optional[str] = None,
+        client_group: Optional[str] = None
     ) -> str:
         """
         Get TOTAL AGGREGATED sales metrics (SUM of all records, no limits).
@@ -552,16 +653,32 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         - "¿Cuánto vendimos?" (wants aggregate)
         - "Dame las ventas de junio" (wants sum)
         - "Resumen de ventas" (wants summary)
+        - "Ventas del grupo X" (wants sales by client group)
         
         **DO NOT USE for:**
         - "Lista de ventas" → use query_sales instead
         - "Muéstrame transacciones" → use query_sales instead
         
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super", "Retail"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        2. Example:
+           - User says: "ventas del grupo Xtra"
+           - Step 1: search_client_groups(query="Xtra") → returns "GRUPO XTRA"
+           - Step 2: get_sales_summary(client_group="GRUPO XTRA")
+        
+        **IMPORTANT:**
+        - Use `client_id` for a SPECIFIC CLIENT CODE (e.g., client_id='C12345')
+        - Use `client_group` ONLY with the EXACT group name from search_client_groups
+        - NEVER guess the client_group name - always search first!
+        
         Args:
             start_date: Start date in YYYY-MM-DD format
             end_date: End date in YYYY-MM-DD format
             product_id: Specific product ID to filter (optional)
-            client_id: Specific client ID to filter (optional)
+            client_id: Specific client ID to filter by individual client (optional)
+            client_group: EXACT client group name from search_client_groups (optional)
         
         Returns:
             JSON with total_quantity, total_amount, record_count, top_products, top_clients
@@ -595,7 +712,16 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
             params.append(client_id)
             param_counter += 1
         
+        # NEW: Support for filtering by client_group
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
         where_clause = f"WHERE {' AND '.join(conditions)}"
+        
+        # Join with clients table if filtering by client_group
+        client_join = "JOIN clients c ON t.client_id = c.client_id" if client_group else ""
         
         # Get totals
         sql_totals = f"""
@@ -607,6 +733,7 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
                 SUM(t.discount_amount) as total_discounts,
                 SUM(t.unit_cost * t.quantity) as total_cost
             FROM transactions t
+            {client_join}
             {where_clause}
         """
         
@@ -619,6 +746,7 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
                 SUM(t.net_amount) as total_amount
             FROM transactions t
             JOIN products p ON t.product_id = p.product_id
+            {client_join}
             {where_clause}
             GROUP BY p.product_name, p.brand
             ORDER BY total_amount DESC
