@@ -281,27 +281,31 @@ def create_backorders_tool(queries_executed: List[Dict]):
         top_n: int = 20
     ) -> str:
         """
-        Get INDIVIDUAL backorder records (limited to top_n records).
+        Get INDIVIDUAL backorder records (limited sample, NOT for totals).
+        
+        ⚠️ WARNING: This tool shows ONLY a SAMPLE of records (top_n). The totals shown 
+        are ONLY for the sample, NOT the full database total.
         
         **USE THIS TOOL WHEN:**
-        - User asks "Lista de backorders" (wants list)
-        - "Muéstrame los backorders" (wants details)
-        - "Detalle de backorders" (wants individual records)
-        - "Cuáles son los backorders" (wants specific items)
+        - User wants to see SPECIFIC backorder records
+        - "Lista de backorders" (wants list of individual items)
+        - "Muéstrame algunos backorders" (wants examples/details)
+        - "Cuáles productos tienen backorder" (wants specific product names)
         
-        **DO NOT USE for:**
-        - "Dame el backorder" → use get_backorders_summary instead
-        - "Total de backorders" → use get_backorders_summary instead
-        - "¿Cuánto backorder?" → use get_backorders_summary instead
+        **DO NOT USE for (use get_backorders_summary instead):**
+        - "Dame el backorder" (wants TOTAL)
+        - "Total de backorders" (wants SUM)
+        - "¿Cuánto backorder hay?" (wants complete totals)
+        - "Backorder de los últimos X meses" (wants aggregated total)
         
         Args:
             start_date: Start date in YYYY-MM-DD format (e.g., "2025-06-01")
             end_date: End date in YYYY-MM-DD format (e.g., "2025-06-30")
             product_id: Specific product ID to filter (optional)
-            top_n: Number of results to return (default 20)
+            top_n: Number of sample records to return (default 20)
         
         Returns:
-            Text with list of backorder records (product, qty, value, location)
+            Text with list of sample backorder records (NOT complete totals)
         """
         conditions = []
         params = []
@@ -371,10 +375,14 @@ def create_backorders_tool(queries_executed: List[Dict]):
                 if not rows:
                     return "No backorders found for the specified criteria"
                 
-                total_qty = sum(row['backorder_qty'] for row in rows)
-                total_value = sum(float(row['backorder_value']) for row in rows)
+                # Calculate sample totals (only for these limited records)
+                sample_qty = sum(row['backorder_qty'] for row in rows)
+                sample_value = sum(float(row['backorder_value']) for row in rows)
                 
-                response = f"Found {len(rows)} backorder(s), Total Qty: {total_qty}, Total Value: ${total_value:,.2f}\n\n"
+                response = f"⚠️ SHOWING SAMPLE OF {len(rows)} RECORDS (not complete totals)\n"
+                response += f"Sample Qty: {sample_qty:,.2f}, Sample Value: ${sample_value:,.2f}\n"
+                response += f"⚠️ Use get_backorders_summary to get COMPLETE TOTALS\n\n"
+                
                 for row in rows[:10]:
                     response += f"- Order #{row['order_id']} ({row['date']}): {row['product_name']} ({row['brand']}), Qty: {row['backorder_qty']}, Value: ${float(row['backorder_value']):,.2f}\n"
                     response += f"  Client: {row['client_name']}, Location: {row['location_name']} ({row['city']}), Seller: {row['seller_name']}\n"
@@ -403,17 +411,21 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
         product_id: Optional[str] = None
     ) -> str:
         """
-        Get TOTAL AGGREGATED backorder metrics (SUM of all records, no limits).
+        Get COMPLETE TOTAL backorder metrics (SUM of ALL records, no limits).
+        
+        ✅ This tool calculates the TRUE TOTALS from the entire database.
         
         **USE THIS TOOL WHEN:**
-        - User asks "Dame el backorder" (wants total)
-        - "¿Cuánto backorder hay?" (wants quantity/value)
-        - "Total de backorders de junio" (wants aggregate)
-        - "Resumen de backorders" (wants summary)
+        - "Dame el backorder" (wants TOTAL)
+        - "¿Cuánto backorder hay?" (wants complete quantity/value)
+        - "Total de backorders de junio" (wants complete aggregate)
+        - "Backorder de los últimos 3 meses" (wants full totals)
+        - "Resumen de backorders" (wants summary with totals)
         
-        **DO NOT USE for:**
-        - "Lista de backorders" → use query_backorders instead
-        - "Muéstrame los backorders" → use query_backorders instead
+        **DO NOT USE for (use query_backorders instead):**
+        - "Lista de backorders" (wants list of individual records)
+        - "Muéstrame los backorders" (wants specific examples)
+        - "Cuáles productos tienen backorder" (wants product names)
         
         Args:
             start_date: Start date in YYYY-MM-DD format (e.g., "2025-06-01")
@@ -421,7 +433,7 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
             product_id: Specific product ID to filter (optional)
         
         Returns:
-            JSON with total_quantity, total_value, record_count, top_products
+            JSON with total_quantity, total_value, record_count, top_products (complete totals)
         """
         conditions = []
         params = []
@@ -493,24 +505,29 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 # Get top products
                 top_products = await conn.fetch(sql_top_products, *params)
                 
-                result = {
-                    "record_count": int(totals['record_count']) if totals['record_count'] is not None else 0,
-                    "total_quantity": int(totals['total_quantity']) if totals['total_quantity'] is not None else 0,
-                    "total_value": float(totals['total_value']) if totals['total_value'] is not None else 0.0,
-                    "total_ordered": int(totals['total_ordered']) if totals['total_ordered'] is not None else 0,
-                    "total_delivered": int(totals['total_delivered']) if totals['total_delivered'] is not None else 0,
-                    "top_products": [
-                        {
-                            "product_name": row['product_name'],
-                            "brand": row['brand'],
-                            "quantity": int(row['total_qty']) if row['total_qty'] is not None else 0,
-                            "value": float(row['total_value']) if row['total_value'] is not None else 0.0
-                        }
-                        for row in top_products
-                    ]
-                }
+                # Build human-readable response instead of JSON
+                record_count = int(totals['record_count']) if totals['record_count'] is not None else 0
+                total_quantity = float(totals['total_quantity']) if totals['total_quantity'] is not None else 0.0
+                total_value = float(totals['total_value']) if totals['total_value'] is not None else 0.0
+                total_ordered = float(totals['total_ordered']) if totals['total_ordered'] is not None else 0.0
+                total_delivered = float(totals['total_delivered']) if totals['total_delivered'] is not None else 0.0
                 
-                return json.dumps(result)
+                response = "✅ COMPLETE TOTALS (all records in database):\n\n"
+                response += f"📊 Records Found: {record_count:,}\n"
+                response += f"📦 Total Backorder Quantity: {total_quantity:,.2f}\n"
+                response += f"💰 Total Backorder Value: ${total_value:,.2f}\n"
+                response += f"📝 Total Ordered: {total_ordered:,.2f}\n"
+                response += f"🚚 Total Delivered: {total_delivered:,.2f}\n\n"
+                
+                if top_products:
+                    response += "🏆 Top 10 Products by Backorder Quantity:\n\n"
+                    for idx, row in enumerate(top_products, 1):
+                        qty = float(row['total_qty']) if row['total_qty'] is not None else 0.0
+                        value = float(row['total_value']) if row['total_value'] is not None else 0.0
+                        response += f"{idx}. {row['product_name']} ({row['brand']})\n"
+                        response += f"   Qty: {qty:,.2f}, Value: ${value:,.2f}\n"
+                
+                return response
         finally:
             await pool.close()
     
