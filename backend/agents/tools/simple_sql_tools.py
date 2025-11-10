@@ -896,3 +896,156 @@ def create_inventory_summary_tool(queries_executed: List[Dict]):
     
     return get_inventory_summary
 
+
+# ============================================================================
+# BUDGET TOOLS
+# ============================================================================
+
+def create_budgets_summary_tool(queries_executed: List[Dict]):
+    """Tool to get aggregated budget summary (totals, no limit)"""
+    
+    @tool
+    async def get_budgets_summary(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        customer_id: Optional[str] = None,
+        client_group: Optional[str] = None
+    ) -> str:
+        """
+        Get TOTAL AGGREGATED budget metrics (SUM of all budgets, no limits).
+        
+        **USE THIS TOOL WHEN:**
+        - User asks "¿Cuánto es el presupuesto?" (wants total budget)
+        - "Presupuesto total de septiembre" (wants budget aggregate)
+        - "Dame el presupuesto del grupo X" (wants budget by group)
+        - "Presupuesto de junio 2025" (wants budget sum)
+        
+        **DO NOT USE for:**
+        - "Lista de presupuestos" → use query_budgets instead
+        - "Muéstrame presupuestos por cliente" → use query_budgets instead
+        
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        
+        **IMPORTANT:**
+        - Use `customer_id` for a SPECIFIC CLIENT (e.g., customer_id='C12345')
+        - Use `client_group` ONLY with the EXACT group name from search_client_groups
+        - Budget dates are stored as first day of month (e.g., '2025-09-01' for September)
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (e.g., "2025-09-01")
+            end_date: End date in YYYY-MM-DD format (e.g., "2025-09-30")
+            customer_id: Specific customer ID to filter (optional)
+            client_group: EXACT client group name from search_client_groups (optional)
+        
+        Returns:
+            Text with total budget, record count, and top customers
+        """
+        conditions = []
+        params = []
+        param_counter = 1
+        
+        start_date_obj = parse_date(start_date)
+        end_date_obj = parse_date(end_date)
+        
+        if start_date_obj:
+            conditions.append(f"b.date >= ${param_counter}")
+            params.append(start_date_obj)
+            param_counter += 1
+        
+        if end_date_obj:
+            conditions.append(f"b.date <= ${param_counter}")
+            params.append(end_date_obj)
+            param_counter += 1
+        
+        if customer_id:
+            conditions.append(f"b.customer_id = ${param_counter}")
+            params.append(customer_id)
+            param_counter += 1
+        
+        # NEW: Support for filtering by client_group
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        
+        # Join with clients table if filtering by client_group
+        client_join = "JOIN clients c ON b.customer_id = c.client_id" if client_group else ""
+        
+        # Get totals
+        sql_totals = f"""
+            SELECT 
+                COUNT(*) as record_count,
+                SUM(b.budget) as total_budget,
+                COUNT(DISTINCT b.customer_id) as customer_count,
+                MIN(b.date) as earliest_date,
+                MAX(b.date) as latest_date
+            FROM budgets b
+            {client_join}
+            {where_clause}
+        """
+        
+        # Get top customers by budget
+        sql_top_customers = f"""
+            SELECT 
+                c.client_name,
+                c.client_group,
+                SUM(b.budget) as total_budget,
+                COUNT(*) as months_count
+            FROM budgets b
+            JOIN clients c ON b.customer_id = c.client_id
+            {where_clause.replace('b.customer_id', 'b.customer_id') if not client_group else where_clause}
+            GROUP BY c.client_name, c.client_group
+            ORDER BY total_budget DESC
+            LIMIT 10
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql_totals,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                # Get totals
+                totals = await conn.fetchrow(sql_totals, *params)
+                
+                # Get top customers
+                top_customers = await conn.fetch(sql_top_customers, *params)
+                
+                # Build human-readable response
+                record_count = int(totals['record_count']) if totals['record_count'] is not None else 0
+                total_budget = float(totals['total_budget']) if totals['total_budget'] is not None else 0.0
+                customer_count = int(totals['customer_count']) if totals['customer_count'] is not None else 0
+                
+                response = "✅ PRESUPUESTOS - TOTALES COMPLETOS:\n\n"
+                response += f"📊 Registros Encontrados: {record_count:,}\n"
+                response += f"💰 Presupuesto Total: ${total_budget:,.2f}\n"
+                response += f"👥 Clientes con Presupuesto: {customer_count:,}\n"
+                
+                if totals['earliest_date'] and totals['latest_date']:
+                    response += f"📅 Período: {totals['earliest_date'].strftime('%Y-%m-%d')} a {totals['latest_date'].strftime('%Y-%m-%d')}\n"
+                
+                if top_customers:
+                    response += "\n🏆 Top 10 Clientes por Presupuesto:\n\n"
+                    for idx, row in enumerate(top_customers, 1):
+                        budget = float(row['total_budget']) if row['total_budget'] is not None else 0.0
+                        months = int(row['months_count']) if row['months_count'] is not None else 0
+                        group = row['client_group'] or 'N/A'
+                        response += f"{idx}. {row['client_name']} ({group})\n"
+                        response += f"   Presupuesto: ${budget:,.2f}, Meses: {months}\n"
+                
+                return response
+        finally:
+            await pool.close()
+    
+    return get_budgets_summary
+

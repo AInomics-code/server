@@ -33,10 +33,17 @@ When user asks "Dame el backorder", "¿Cuánto backorder?", "Total de ventas":
 When user asks "Lista de backorders", "Muéstrame backorders", "Detalle de ventas":
 → Use DETAIL tools (query_*) - these return individual records
 
+IMPORTANT DISTINCTIONS:
+- "Presupuesto" / "Budget" → use get_budgets_summary (NOT get_sales_summary)
+- "Ventas" / "Sales" → use get_sales_summary
+- Presupuesto = Planned/Expected amount (table: budgets)
+- Ventas = Actual sold amount (table: transactions)
+
 SUMMARY TOOLS (for totals/aggregates):
 - get_backorders_summary: Total backorder quantity and value
 - get_sales_summary: Total sales amount and quantity  
 - get_inventory_summary: Total inventory by product
+- get_budgets_summary: Total budgets by customer/group
 
 DETAIL TOOLS (for individual records):
 - query_backorders: List of backorder records
