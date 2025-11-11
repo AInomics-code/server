@@ -920,52 +920,40 @@ def create_sales_by_month_tool(queries_executed: List[Dict]):
                 rows = await conn.fetch(sql, *params)
                 
                 if not rows:
-                    return "No se encontraron ventas para el período especificado"
+                    return json.dumps({"error": "No se encontraron ventas para el período especificado", "months": []})
                 
-                # Build response with month-by-month breakdown
-                response = "📊 VENTAS MENSUALES (desglose mes a mes):\n\n"
-                
-                total_net_all = 0.0
-                total_gross_all = 0.0
-                
-                # Spanish month names
-                months_es = {
-                    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
-                    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
-                    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
-                }
+                # Build structured JSON response (more efficient than formatted text)
+                months_data = []
                 
                 for row in rows:
                     month_date = row['month']
-                    month_name = months_es[month_date.month]
-                    year = month_date.year
                     
-                    record_count = int(row['record_count']) if row['record_count'] is not None else 0
-                    total_quantity = float(row['total_quantity']) if row['total_quantity'] is not None else 0.0
-                    total_gross = float(row['total_gross']) if row['total_gross'] is not None else 0.0
-                    total_net = float(row['total_net']) if row['total_net'] is not None else 0.0
-                    total_discounts = float(row['total_discounts']) if row['total_discounts'] is not None else 0.0
-                    total_cost = float(row['total_cost']) if row['total_cost'] is not None else 0.0
-                    
-                    total_net_all += total_net
-                    total_gross_all += total_gross
-                    
-                    response += f"📅 {month_name} {year}:\n"
-                    response += f"   💰 Ventas Netas: ${total_net:,.2f}\n"
-                    response += f"   💵 Ventas Brutas: ${total_gross:,.2f}\n"
-                    response += f"   📦 Cantidad: {total_quantity:,.0f}\n"
-                    response += f"   🎫 Descuentos: ${total_discounts:,.2f}\n"
-                    response += f"   📊 Transacciones: {record_count:,}\n"
-                    response += f"   💼 Costo: ${total_cost:,.2f}\n\n"
+                    months_data.append({
+                        "year": month_date.year,
+                        "month": month_date.month,
+                        "month_name": month_date.strftime("%B"),  # Full month name in English
+                        "record_count": int(row['record_count']) if row['record_count'] is not None else 0,
+                        "total_quantity": float(row['total_quantity']) if row['total_quantity'] is not None else 0.0,
+                        "total_gross": float(row['total_gross']) if row['total_gross'] is not None else 0.0,
+                        "total_net": float(row['total_net']) if row['total_net'] is not None else 0.0,
+                        "total_discounts": float(row['total_discounts']) if row['total_discounts'] is not None else 0.0,
+                        "total_cost": float(row['total_cost']) if row['total_cost'] is not None else 0.0
+                    })
                 
-                # Add grand totals
-                response += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                response += f"📈 TOTAL GENERAL:\n"
-                response += f"   💰 Ventas Netas Totales: ${total_net_all:,.2f}\n"
-                response += f"   💵 Ventas Brutas Totales: ${total_gross_all:,.2f}\n"
-                response += f"   📅 Meses: {len(rows)}\n"
+                # Calculate grand totals
+                grand_total_net = sum(m['total_net'] for m in months_data)
+                grand_total_gross = sum(m['total_gross'] for m in months_data)
                 
-                return response
+                result = {
+                    "months": months_data,
+                    "summary": {
+                        "total_months": len(months_data),
+                        "grand_total_net": grand_total_net,
+                        "grand_total_gross": grand_total_gross
+                    }
+                }
+                
+                return json.dumps(result)
         finally:
             await pool.close()
     
