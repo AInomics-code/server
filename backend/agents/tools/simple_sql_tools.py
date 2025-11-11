@@ -816,6 +816,15 @@ def create_sales_by_month_tool(queries_executed: List[Dict]):
         
         ⚠️ CRITICAL: Use this tool when user wants to see data for EACH MONTH SEPARATELY, not just one total.
         
+        ⚠️ PRESENTATION REQUIREMENT: When using this tool, you MUST show ALL months individually in your response.
+        DO NOT just summarize. Present like this:
+        - Enero 2025: $X,XXX,XXX.XX
+        - Febrero 2025: $X,XXX,XXX.XX
+        - Marzo 2025: $X,XXX,XXX.XX
+        ... (continue for each month in the data)
+        
+        Then show the grand total at the end.
+        
         **ALWAYS USE THIS TOOL WHEN user mentions:**
         - "mes a mes" (month by month)
         - "cada mes" (each month)
