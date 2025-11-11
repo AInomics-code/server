@@ -33,6 +33,26 @@ When user asks "Dame el backorder", "¿Cuánto backorder?", "Total de ventas":
 When user asks "Lista de backorders", "Muéstrame backorders", "Detalle de ventas":
 → Use DETAIL tools (query_*) - these return individual records
 
+⚠️ SALES TIME SERIES - CRITICAL DISTINCTION:
+
+When user wants data for EACH MONTH/PERIOD SEPARATELY:
+→ Use get_sales_by_month (returns separate totals for each month)
+
+Examples that REQUIRE get_sales_by_month:
+- "Dame las ventas mes a mes" ✅
+- "Ventas de cada mes de enero a octubre" ✅
+- "Ventas mensuales de 2025" ✅
+- "¿Cuánto vendí cada mes?" ✅
+- "Comparar ventas por mes" ✅
+
+When user wants just ONE TOTAL for a period:
+→ Use get_sales_summary (returns ONE single total)
+
+Examples that REQUIRE get_sales_summary:
+- "Total de ventas de enero a octubre" ✅
+- "¿Cuánto vendimos en el año 2025?" ✅
+- "Dame el total de ventas del trimestre" ✅
+
 IMPORTANT DISTINCTIONS:
 - "Presupuesto" / "Budget" → use get_budgets_summary (NOT get_sales_summary)
 - "Ventas" / "Sales" → use get_sales_summary
@@ -41,7 +61,8 @@ IMPORTANT DISTINCTIONS:
 
 SUMMARY TOOLS (for totals/aggregates):
 - get_backorders_summary: Total backorder quantity and value
-- get_sales_summary: Total sales amount and quantity  
+- get_sales_summary: Total sales amount for entire period (ONE TOTAL)
+- get_sales_by_month: Sales broken down by each month separately (TIME SERIES)
 - get_inventory_summary: Total inventory by product
 - get_budgets_summary: Total budgets by customer/group
 

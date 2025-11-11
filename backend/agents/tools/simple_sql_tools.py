@@ -646,16 +646,25 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         client_group: Optional[str] = None
     ) -> str:
         """
-        Get TOTAL AGGREGATED sales metrics (SUM of all records, no limits).
+        Get TOTAL AGGREGATED sales metrics for a PERIOD (ONE SINGLE TOTAL, not broken down by time).
+        
+        ⚠️ CRITICAL: This tool returns ONE TOTAL NUMBER for the entire period, NOT broken down by months/weeks/days.
         
         **USE THIS TOOL WHEN:**
-        - User asks "Total de ventas" (wants total)
-        - "¿Cuánto vendimos?" (wants aggregate)
-        - "Dame las ventas de junio" (wants sum)
-        - "Resumen de ventas" (wants summary)
-        - "Ventas del grupo X" (wants sales by client group)
+        - User asks "Total de ventas de enero a octubre" (wants ONE TOTAL for the range)
+        - "¿Cuánto vendimos en junio?" (wants ONE number for June)
+        - "Dame el total de ventas del año" (wants ONE grand total)
+        - "Resumen de ventas del trimestre" (wants ONE aggregate)
+        - "Ventas del grupo X en 2025" (wants ONE total by client group)
         
-        **DO NOT USE for:**
+        **DO NOT USE when user asks for breakdown by time periods:**
+        - "Ventas mes a mes" → use get_sales_by_month instead
+        - "Ventas de cada mes" → use get_sales_by_month instead
+        - "Comparar ventas por mes" → use get_sales_by_month instead
+        - "Ventas mensuales desde enero hasta octubre" → use get_sales_by_month instead
+        - "Dame las ventas desglosadas por mes" → use get_sales_by_month instead
+        
+        **Also DO NOT USE for:**
         - "Lista de ventas" → use query_sales instead
         - "Muéstrame transacciones" → use query_sales instead
         
@@ -790,6 +799,177 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
             await pool.close()
     
     return get_sales_summary
+
+
+def create_sales_by_month_tool(queries_executed: List[Dict]):
+    """Tool to get sales grouped by month"""
+    
+    @tool
+    async def get_sales_by_month(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        product_id: Optional[str] = None,
+        client_group: Optional[str] = None
+    ) -> str:
+        """
+        Get sales metrics GROUPED BY MONTH - returns SEPARATE totals for EACH MONTH (time series).
+        
+        ⚠️ CRITICAL: Use this tool when user wants to see data for EACH MONTH SEPARATELY, not just one total.
+        
+        **ALWAYS USE THIS TOOL WHEN user mentions:**
+        - "mes a mes" (month by month)
+        - "cada mes" (each month)
+        - "por mes" (by month)
+        - "mensuales" (monthly)
+        - "mensual" (monthly)
+        - "desglosadas por mes" (broken down by month)
+        - "comparar meses" (compare months)
+        - "de enero a octubre mes a mes"
+        - "ventas de cada uno de los meses"
+        
+        **EXAMPLES WHERE YOU MUST USE THIS TOOL:**
+        - "Dame las ventas netas totales desde enero hasta octubre del año 2025 mes a mes" ✅
+        - "Ventas mensuales de 2025" ✅
+        - "¿Cuánto vendí cada mes de enero a junio?" ✅
+        - "Comparar ventas de cada mes del trimestre" ✅
+        - "Necesito ver las ventas por mes del año" ✅
+        
+        **DO NOT USE when user wants just ONE TOTAL:**
+        - "Total de ventas de enero a octubre" → use get_sales_summary instead
+        - "¿Cuánto vendimos en el año?" → use get_sales_summary instead
+        
+        **DO NOT USE for individual transactions:**
+        - "Lista de ventas" → use query_sales instead
+        
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
+            end_date: End date in YYYY-MM-DD format (e.g., "2025-10-31")
+            product_id: Specific product ID to filter (optional)
+            client_group: EXACT client group name from search_client_groups (optional)
+        
+        Returns:
+            Text with sales metrics for each month in the date range
+        """
+        conditions = ["t.transaction_type = 'SALE'"]
+        params = []
+        param_counter = 1
+        
+        start_date_obj = parse_date(start_date)
+        end_date_obj = parse_date(end_date)
+        
+        if start_date_obj:
+            conditions.append(f"t.date >= ${param_counter}")
+            params.append(start_date_obj)
+            param_counter += 1
+        else:
+            conditions.append("t.date >= CURRENT_DATE - INTERVAL '12 months'")
+        
+        if end_date_obj:
+            conditions.append(f"t.date <= ${param_counter}")
+            params.append(end_date_obj)
+            param_counter += 1
+        
+        if product_id:
+            conditions.append(f"t.product_id = ${param_counter}")
+            params.append(product_id)
+            param_counter += 1
+        
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}"
+        
+        # Join with clients table if filtering by client_group
+        client_join = "JOIN clients c ON t.client_id = c.client_id" if client_group else ""
+        
+        # Query to get sales grouped by month
+        sql = f"""
+            SELECT 
+                DATE_TRUNC('month', t.date) as month,
+                COUNT(*) as record_count,
+                SUM(t.quantity) as total_quantity,
+                SUM(t.gross_amount) as total_gross,
+                SUM(t.net_amount) as total_net,
+                SUM(t.discount_amount) as total_discounts,
+                SUM(t.unit_cost * t.quantity) as total_cost
+            FROM transactions t
+            {client_join}
+            {where_clause}
+            GROUP BY DATE_TRUNC('month', t.date)
+            ORDER BY month ASC
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return "No se encontraron ventas para el período especificado"
+                
+                # Build response with month-by-month breakdown
+                response = "📊 VENTAS MENSUALES (desglose mes a mes):\n\n"
+                
+                total_net_all = 0.0
+                total_gross_all = 0.0
+                
+                # Spanish month names
+                months_es = {
+                    1: "Enero", 2: "Febrero", 3: "Marzo", 4: "Abril",
+                    5: "Mayo", 6: "Junio", 7: "Julio", 8: "Agosto",
+                    9: "Septiembre", 10: "Octubre", 11: "Noviembre", 12: "Diciembre"
+                }
+                
+                for row in rows:
+                    month_date = row['month']
+                    month_name = months_es[month_date.month]
+                    year = month_date.year
+                    
+                    record_count = int(row['record_count']) if row['record_count'] is not None else 0
+                    total_quantity = float(row['total_quantity']) if row['total_quantity'] is not None else 0.0
+                    total_gross = float(row['total_gross']) if row['total_gross'] is not None else 0.0
+                    total_net = float(row['total_net']) if row['total_net'] is not None else 0.0
+                    total_discounts = float(row['total_discounts']) if row['total_discounts'] is not None else 0.0
+                    total_cost = float(row['total_cost']) if row['total_cost'] is not None else 0.0
+                    
+                    total_net_all += total_net
+                    total_gross_all += total_gross
+                    
+                    response += f"📅 {month_name} {year}:\n"
+                    response += f"   💰 Ventas Netas: ${total_net:,.2f}\n"
+                    response += f"   💵 Ventas Brutas: ${total_gross:,.2f}\n"
+                    response += f"   📦 Cantidad: {total_quantity:,.0f}\n"
+                    response += f"   🎫 Descuentos: ${total_discounts:,.2f}\n"
+                    response += f"   📊 Transacciones: {record_count:,}\n"
+                    response += f"   💼 Costo: ${total_cost:,.2f}\n\n"
+                
+                # Add grand totals
+                response += f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                response += f"📈 TOTAL GENERAL:\n"
+                response += f"   💰 Ventas Netas Totales: ${total_net_all:,.2f}\n"
+                response += f"   💵 Ventas Brutas Totales: ${total_gross_all:,.2f}\n"
+                response += f"   📅 Meses: {len(rows)}\n"
+                
+                return response
+        finally:
+            await pool.close()
+    
+    return get_sales_by_month
 
 
 def create_inventory_summary_tool(queries_executed: List[Dict]):

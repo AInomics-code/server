@@ -61,6 +61,7 @@ class SimpleAgent:
             create_client_group_search_tool,
             create_inventory_summary_tool,
             create_sales_summary_tool,
+            create_sales_by_month_tool,
             create_backorders_summary_tool,
             create_budgets_summary_tool
         )
@@ -70,6 +71,7 @@ class SimpleAgent:
         self.tools.append(create_client_group_search_tool(self.queries_executed))
         self.tools.append(create_inventory_summary_tool(self.queries_executed))
         self.tools.append(create_sales_summary_tool(self.queries_executed))
+        self.tools.append(create_sales_by_month_tool(self.queries_executed))
         self.tools.append(create_backorders_summary_tool(self.queries_executed))
         self.tools.append(create_budgets_summary_tool(self.queries_executed))
         self.tools.append(create_inventory_tool(self.queries_executed))

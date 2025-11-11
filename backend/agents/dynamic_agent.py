@@ -38,6 +38,7 @@ class DynamicAgent:
             create_backorders_tool,
             create_inventory_summary_tool,
             create_sales_summary_tool,
+            create_sales_by_month_tool,
             create_backorders_summary_tool,
             create_product_search_tool
         )
@@ -56,6 +57,7 @@ class DynamicAgent:
         # Basic summary tools
         self.tools.append(create_backorders_summary_tool(self.queries_executed))
         self.tools.append(create_sales_summary_tool(self.queries_executed))
+        self.tools.append(create_sales_by_month_tool(self.queries_executed))
         self.tools.append(create_inventory_summary_tool(self.queries_executed))
         
         # Basic detail tools
