@@ -48,6 +48,19 @@ Examples that REQUIRE get_sales_by_month:
 - "¿Cuánto vendí cada mes?" ✅
 - "Comparar ventas por mes" ✅
 
+When user wants data GROUPED BY PRODUCT:
+→ Use get_sales_by_product (returns sales for ALL products, no limit by default)
+
+Examples that REQUIRE get_sales_by_product:
+- "Ventas sumarizadas por producto del mes de enero" ✅
+- "¿Qué productos se vendieron en enero?" ✅
+- "Cuáles fueron los productos más vendidos?" ✅
+- "Dame las ventas por producto" ✅
+- "Productos vendidos en este mes" ✅
+- "Todos los productos vendidos en el trimestre" ✅
+
+⚠️ This tool returns ALL products by default (complete list).
+
 When user wants just ONE TOTAL for a period:
 → Use get_sales_summary (returns ONE single total)
 
@@ -76,6 +89,7 @@ SUMMARY TOOLS (for totals/aggregates):
 - get_backorders_summary: Total backorder quantity and value
 - get_sales_summary: Total sales amount for entire period (ONE TOTAL)
 - get_sales_by_month: Sales broken down by each month separately (TIME SERIES)
+- get_sales_by_product: Sales broken down by each product separately (PRODUCT ANALYSIS)
 - get_inventory_summary: Total inventory by product
 - get_budgets_summary: Total budgets by customer/group
 

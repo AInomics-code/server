@@ -973,6 +973,159 @@ def create_sales_by_month_tool(queries_executed: List[Dict]):
     return get_sales_by_month
 
 
+def create_sales_by_product_tool(queries_executed: List[Dict]):
+    """Tool to get sales grouped by product"""
+    
+    @tool
+    async def get_sales_by_product(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        client_group: Optional[str] = None,
+        top_n: Optional[int] = None
+    ) -> str:
+        """
+        Get sales GROUPED BY PRODUCT - shows ALL products sold and their totals (NO LIMIT by default).
+        
+        ⚠️ By default, returns ALL products (no limit). Use top_n only if you want to limit results.
+        
+        **USE THIS TOOL WHEN:**
+        - "Ventas por producto" (sales by product)
+        - "Qué productos se vendieron en enero?" (which products were sold)
+        - "Ventas sumarizadas por producto" (sales summarized by product)
+        - "Cuáles fueron los productos más vendidos?" (which were the top selling products)
+        - "Dame el desglose de ventas por producto" (give me breakdown by product)
+        - "Productos vendidos en el mes de X" (products sold in month X)
+        - "Todos los productos vendidos" (all products sold)
+        
+        **DO NOT USE for:**
+        - Month by month breakdown → use get_sales_by_month
+        - Total of a period → use get_sales_summary
+        
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
+            end_date: End date in YYYY-MM-DD format (e.g., "2025-01-31")
+            client_group: EXACT client group name from search_client_groups (optional)
+            top_n: OPTIONAL - Number of top products to return. If not specified, returns ALL products.
+        
+        Returns:
+            JSON with list of ALL products (or top N if specified) and their sales metrics
+        """
+        conditions = ["t.transaction_type = 'SALE'"]
+        params = []
+        param_counter = 1
+        
+        start_date_obj = parse_date(start_date)
+        end_date_obj = parse_date(end_date)
+        
+        if start_date_obj:
+            conditions.append(f"t.date >= ${param_counter}")
+            params.append(start_date_obj)
+            param_counter += 1
+        else:
+            conditions.append("t.date >= CURRENT_DATE - INTERVAL '30 days'")
+        
+        if end_date_obj:
+            conditions.append(f"t.date <= ${param_counter}")
+            params.append(end_date_obj)
+            param_counter += 1
+        
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}"
+        
+        # Join with clients table if filtering by client_group
+        client_join = "JOIN clients c ON t.client_id = c.client_id" if client_group else ""
+        
+        # Apply LIMIT only if top_n is specified
+        limit_clause = f"LIMIT {top_n}" if top_n is not None else ""
+        
+        # Query to get sales grouped by product
+        sql = f"""
+            SELECT 
+                p.product_name,
+                p.brand,
+                p.category,
+                COUNT(DISTINCT t.client_id) as client_count,
+                SUM(t.quantity) as total_quantity,
+                SUM(t.gross_amount) as total_gross,
+                SUM(t.net_amount) as total_net,
+                SUM(t.discount_amount) as total_discounts,
+                SUM(t.unit_cost * t.quantity) as total_cost,
+                COUNT(*) as transaction_count
+            FROM transactions t
+            JOIN products p ON t.product_id = p.product_id
+            {client_join}
+            {where_clause}
+            GROUP BY p.product_name, p.brand, p.category
+            ORDER BY total_net DESC
+            {limit_clause}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({"error": "No se encontraron ventas de productos para el período especificado", "products": []})
+                
+                # Build structured JSON response
+                products_data = []
+                grand_total_net = 0.0
+                grand_total_quantity = 0.0
+                
+                for row in rows:
+                    total_net = float(row['total_net']) if row['total_net'] is not None else 0.0
+                    total_quantity = float(row['total_quantity']) if row['total_quantity'] is not None else 0.0
+                    
+                    grand_total_net += total_net
+                    grand_total_quantity += total_quantity
+                    
+                    products_data.append({
+                        "product_name": row['product_name'],
+                        "brand": row['brand'],
+                        "category": row['category'],
+                        "total_quantity": total_quantity,
+                        "total_net": total_net,
+                        "total_gross": float(row['total_gross']) if row['total_gross'] is not None else 0.0,
+                        "total_discounts": float(row['total_discounts']) if row['total_discounts'] is not None else 0.0,
+                        "total_cost": float(row['total_cost']) if row['total_cost'] is not None else 0.0,
+                        "client_count": int(row['client_count']) if row['client_count'] is not None else 0,
+                        "transaction_count": int(row['transaction_count']) if row['transaction_count'] is not None else 0
+                    })
+                
+                result = {
+                    "products": products_data,
+                    "summary": {
+                        "total_products": len(products_data),
+                        "grand_total_net": grand_total_net,
+                        "grand_total_quantity": grand_total_quantity
+                    }
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_sales_by_product
+
+
 def create_inventory_summary_tool(queries_executed: List[Dict]):
     """Tool to get aggregated inventory summary (totals, no limit)"""
     

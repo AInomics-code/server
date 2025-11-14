@@ -17,11 +17,21 @@ class DynamicAgent:
         self.system_prompt = self._get_system_prompt()
     
     def _initialize_llm(self):
+        # Configure retry strategy with exponential backoff for throttling
+        from botocore.config import Config
+        retry_config = Config(
+            retries={
+                'max_attempts': 3,  # Reduce from default 4 to 3
+                'mode': 'adaptive'  # Use adaptive retry mode for better throttling handling
+            }
+        )
+        
         return ChatBedrock(
             model_id=settings.bedrock_model_id,
             region_name=settings.aws_region,
             credentials_profile_name=None,
             provider="anthropic",
+            config=retry_config,  # Add retry configuration
             model_kwargs={"temperature": 0.3, "max_tokens": 2000}
         )
     
@@ -39,6 +49,7 @@ class DynamicAgent:
             create_inventory_summary_tool,
             create_sales_summary_tool,
             create_sales_by_month_tool,
+            create_sales_by_product_tool,
             create_backorders_summary_tool,
             create_product_search_tool
         )
@@ -58,6 +69,7 @@ class DynamicAgent:
         self.tools.append(create_backorders_summary_tool(self.queries_executed))
         self.tools.append(create_sales_summary_tool(self.queries_executed))
         self.tools.append(create_sales_by_month_tool(self.queries_executed))
+        self.tools.append(create_sales_by_product_tool(self.queries_executed))
         self.tools.append(create_inventory_summary_tool(self.queries_executed))
         
         # Basic detail tools
