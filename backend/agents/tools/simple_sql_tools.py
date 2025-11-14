@@ -988,6 +988,10 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
         
         ⚠️ By default, returns ALL products (no limit). Use top_n only if you want to limit results.
         
+        ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
+        - If user asks in Spanish → respond in Spanish
+        - If user asks in English → respond in English
+        
         **USE THIS TOOL WHEN:**
         - "Ventas por producto" (sales by product)
         - "Qué productos se vendieron en enero?" (which products were sold)
