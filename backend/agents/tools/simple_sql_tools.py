@@ -605,29 +605,36 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 # Get top products
                 top_products = await conn.fetch(sql_top_products, *params)
                 
-                # Build human-readable response instead of JSON
+                # Build structured JSON response so the agent can format it in the user's language
                 record_count = int(totals['record_count']) if totals['record_count'] is not None else 0
                 total_quantity = float(totals['total_quantity']) if totals['total_quantity'] is not None else 0.0
                 total_value = float(totals['total_value']) if totals['total_value'] is not None else 0.0
                 total_ordered = float(totals['total_ordered']) if totals['total_ordered'] is not None else 0.0
                 total_delivered = float(totals['total_delivered']) if totals['total_delivered'] is not None else 0.0
                 
-                response = "✅ COMPLETE TOTALS (all records in database):\n\n"
-                response += f"📊 Records Found: {record_count:,}\n"
-                response += f"📦 Total Backorder Quantity: {total_quantity:,.2f}\n"
-                response += f"💰 Total Backorder Value: ${total_value:,.2f}\n"
-                response += f"📝 Total Ordered: {total_ordered:,.2f}\n"
-                response += f"🚚 Total Delivered: {total_delivered:,.2f}\n\n"
-                
+                # Build top products list
+                top_products_list = []
                 if top_products:
-                    response += "🏆 Top 10 Products by Backorder Quantity:\n\n"
-                    for idx, row in enumerate(top_products, 1):
+                    for row in top_products:
                         qty = float(row['total_qty']) if row['total_qty'] is not None else 0.0
                         value = float(row['total_value']) if row['total_value'] is not None else 0.0
-                        response += f"{idx}. {row['product_name']} ({row['brand']})\n"
-                        response += f"   Qty: {qty:,.2f}, Value: ${value:,.2f}\n"
+                        top_products_list.append({
+                            "product_name": row['product_name'],
+                            "brand": row['brand'],
+                            "quantity": qty,
+                            "value": value
+                        })
                 
-                return response
+                result = {
+                    "record_count": record_count,
+                    "total_quantity": total_quantity,
+                    "total_value": total_value,
+                    "total_ordered": total_ordered,
+                    "total_delivered": total_delivered,
+                    "top_products": top_products_list
+                }
+                
+                return json.dumps(result)
         finally:
             await pool.close()
     
@@ -1359,29 +1366,38 @@ def create_budgets_summary_tool(queries_executed: List[Dict]):
                 # Get top customers
                 top_customers = await conn.fetch(sql_top_customers, *params)
                 
-                # Build human-readable response
+                # Build structured JSON response so the agent can format it in the user's language
                 record_count = int(totals['record_count']) if totals['record_count'] is not None else 0
                 total_budget = float(totals['total_budget']) if totals['total_budget'] is not None else 0.0
                 customer_count = int(totals['customer_count']) if totals['customer_count'] is not None else 0
                 
-                response = "✅ PRESUPUESTOS - TOTALES COMPLETOS:\n\n"
-                response += f"📊 Registros Encontrados: {record_count:,}\n"
-                response += f"💰 Presupuesto Total: ${total_budget:,.2f}\n"
-                response += f"👥 Clientes con Presupuesto: {customer_count:,}\n"
+                result = {
+                    "record_count": record_count,
+                    "total_budget": total_budget,
+                    "customer_count": customer_count
+                }
                 
                 if totals['earliest_date'] and totals['latest_date']:
-                    response += f"📅 Período: {totals['earliest_date'].strftime('%Y-%m-%d')} a {totals['latest_date'].strftime('%Y-%m-%d')}\n"
+                    result["earliest_date"] = totals['earliest_date'].strftime('%Y-%m-%d')
+                    result["latest_date"] = totals['latest_date'].strftime('%Y-%m-%d')
                 
+                # Build top customers list
+                top_customers_list = []
                 if top_customers:
-                    response += "\n🏆 Top 10 Clientes por Presupuesto:\n\n"
-                    for idx, row in enumerate(top_customers, 1):
+                    for row in top_customers:
                         budget = float(row['total_budget']) if row['total_budget'] is not None else 0.0
                         months = int(row['months_count']) if row['months_count'] is not None else 0
                         group = row['client_group'] or 'N/A'
-                        response += f"{idx}. {row['client_name']} ({group})\n"
-                        response += f"   Presupuesto: ${budget:,.2f}, Meses: {months}\n"
+                        top_customers_list.append({
+                            "client_name": row['client_name'],
+                            "client_group": group,
+                            "total_budget": budget,
+                            "months_count": months
+                        })
                 
-                return response
+                result["top_customers"] = top_customers_list
+                
+                return json.dumps(result)
         finally:
             await pool.close()
     
