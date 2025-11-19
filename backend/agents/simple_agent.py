@@ -148,10 +148,13 @@ class SimpleAgent:
             else:
                 answer = output
             
+            # Collect tool observations (formatted data from tools)
+            tool_observations = []
             data = None
             intermediate_steps = result.get("intermediate_steps", [])
             for action, observation in intermediate_steps:
                 if isinstance(observation, str):
+                    # Try to parse as JSON for data field
                     try:
                         import json
                         parsed = json.loads(observation)
@@ -159,9 +162,20 @@ class SimpleAgent:
                             k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost']
                         ):
                             data = parsed
-                            break
                     except:
-                        pass
+                        # If not JSON, it's formatted text - add to observations
+                        tool_observations.append(observation)
+            
+            # Build complete answer: tool observations + agent's final comment
+            complete_answer = ""
+            if tool_observations:
+                complete_answer = "\n\n".join(tool_observations)
+                if answer and answer.strip():
+                    complete_answer += "\n\n" + answer
+            else:
+                complete_answer = answer
+            
+            answer = complete_answer
             
             print(f"\n{'='*70}")
             print(f"[SIMPLE AGENT] Completed")

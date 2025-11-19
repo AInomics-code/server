@@ -127,7 +127,11 @@ class DynamicAgent:
             result = await self.agent.ainvoke({"messages": messages}, config=config)
             final_messages = result.get("messages", [])
             
-            # Print intermediate steps (tool calls)
+            # Collect tool observations and final answer
+            tool_observations = []
+            answer = ""
+            data = None
+            
             for msg in final_messages[2:]:  # Skip system and user messages
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
                     for tool_call in msg.tool_calls:
@@ -135,13 +139,29 @@ class DynamicAgent:
                 elif hasattr(msg, 'content') and isinstance(msg.content, str):
                     if msg.type == 'tool':
                         print(f"\n{msg.content}\n")
+                        # Collect tool observations (formatted data from tools)
+                        try:
+                            import json
+                            parsed = json.loads(msg.content)
+                            if isinstance(parsed, dict) and any(
+                                k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost']
+                            ):
+                                data = parsed
+                        except:
+                            # If not JSON, it's formatted text - add to observations
+                            tool_observations.append(msg.content)
                     elif msg.type == 'ai' and msg.content:
                         print(f"{msg.content}\n")
+                        # This is the final AI response
+                        answer = msg.content
             
-            if final_messages:
-                last_message = final_messages[-1]
-                answer = last_message.content if hasattr(last_message, 'content') else str(last_message)
-            else:
+            # Build complete answer: tool observations + agent's final comment
+            if tool_observations:
+                complete_answer = "\n\n".join(tool_observations)
+                if answer and answer.strip():
+                    complete_answer += "\n\n" + answer
+                answer = complete_answer
+            elif not answer:
                 answer = "No pude procesar tu consulta."
             
             print("\n> Finished chain.\n")
@@ -151,7 +171,7 @@ class DynamicAgent:
             
             return {
                 "answer": answer,
-                "data": None,
+                "data": data,
                 "source": "dynamic",
                 "queries_executed": self.queries_executed
             }
