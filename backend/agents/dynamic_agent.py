@@ -26,13 +26,24 @@ class DynamicAgent:
             }
         )
         
+        # Use explicit boto3 client to avoid LangChain issues
+        import boto3
+        bedrock_client = boto3.client(
+            'bedrock-runtime',
+            region_name=settings.aws_region,
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+            config=retry_config
+        )
+        
         return ChatBedrock(
             model_id=settings.bedrock_model_id,
-            region_name=settings.aws_region,
-            credentials_profile_name=None,
-            provider="anthropic",
-            config=retry_config,  # Add retry configuration
-            model_kwargs={"temperature": 0.3, "max_tokens": 2000}
+            client=bedrock_client,  # Pass explicit client
+            model_kwargs={
+                "temperature": 0.3,
+                "max_tokens": 2000,
+                "anthropic_version": "bedrock-2023-05-31"  # Add explicit version
+            }
         )
     
     def _get_system_prompt(self) -> str:
@@ -51,6 +62,7 @@ class DynamicAgent:
             create_sales_by_month_tool,
             create_sales_by_product_tool,
             create_backorders_summary_tool,
+            create_backorders_by_month_tool,
             create_product_search_tool
         )
         from agents.tools.advanced_sql_tools import (
@@ -67,6 +79,7 @@ class DynamicAgent:
         
         # Basic summary tools
         self.tools.append(create_backorders_summary_tool(self.queries_executed))
+        self.tools.append(create_backorders_by_month_tool(self.queries_executed))
         self.tools.append(create_sales_summary_tool(self.queries_executed))
         self.tools.append(create_sales_by_month_tool(self.queries_executed))
         self.tools.append(create_sales_by_product_tool(self.queries_executed))

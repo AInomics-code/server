@@ -50,15 +50,23 @@ class SimpleAgent:
             }
         )
         
+        # Use explicit boto3 client to avoid LangChain issues
+        import boto3
+        bedrock_client = boto3.client(
+            'bedrock-runtime',
+            region_name=settings.aws_region,
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+            config=retry_config
+        )
+        
         return ChatBedrock(
             model_id=settings.classifier_model_id,
-            region_name=settings.aws_region,
-            credentials_profile_name=None,
-            provider="anthropic",
-            config=retry_config,  # Add retry configuration
+            client=bedrock_client,  # Pass explicit client
             model_kwargs={
                 "temperature": 0,
                 "max_tokens": 1500,
+                "anthropic_version": "bedrock-2023-05-31",  # Add explicit version
                 "system": system_prompt  # Set system prompt in model kwargs
             }
         )
@@ -75,6 +83,7 @@ class SimpleAgent:
             create_sales_by_month_tool,
             create_sales_by_product_tool,
             create_backorders_summary_tool,
+            create_backorders_by_month_tool,
             create_budgets_summary_tool
         )
         
@@ -86,6 +95,7 @@ class SimpleAgent:
         self.tools.append(create_sales_by_month_tool(self.queries_executed))
         self.tools.append(create_sales_by_product_tool(self.queries_executed))
         self.tools.append(create_backorders_summary_tool(self.queries_executed))
+        self.tools.append(create_backorders_by_month_tool(self.queries_executed))
         self.tools.append(create_budgets_summary_tool(self.queries_executed))
         self.tools.append(create_inventory_tool(self.queries_executed))
         self.tools.append(create_sales_tool(self.queries_executed))

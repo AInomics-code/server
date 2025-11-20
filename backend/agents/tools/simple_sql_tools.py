@@ -641,6 +641,165 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
     return get_backorders_summary
 
 
+def create_backorders_by_month_tool(queries_executed: List[Dict]):
+    """Tool to get backorders grouped by month"""
+    
+    @tool
+    async def get_backorders_by_month(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        product_id: Optional[str] = None,
+        client_group: Optional[str] = None
+    ) -> str:
+        """
+        Get backorder metrics GROUPED BY MONTH - returns SEPARATE totals for EACH MONTH (time series).
+        
+        ⚠️ CRITICAL: Use this tool when user wants to see backorder data for EACH MONTH SEPARATELY, not just one total.
+        
+        ⚠️ PRESENTATION REQUIREMENT: When using this tool, you MUST show ALL months individually in your response.
+        DO NOT just summarize. Present EACH MONTH ON A SEPARATE LINE using bullet points or line breaks.
+        
+        **ALWAYS USE THIS TOOL WHEN user mentions:**
+        - "backorder mes a mes" (backorder month by month)
+        - "backorder cada mes" (backorder each month)
+        - "backorder por mes" (backorder by month)
+        - "backorders mensuales" (monthly backorders)
+        - "backorder mensual" (monthly backorder)
+        - "backorder desglosado por mes" (backorder broken down by month)
+        - "comparar backorders por mes" (compare backorders by month)
+        - "backorder de enero a octubre mes a mes"
+        
+        **EXAMPLES WHERE YOU MUST USE THIS TOOL:**
+        - "Dame el backorder mes a mes de este año" ✅
+        - "Backorders mensuales de 2025" ✅
+        - "¿Cuánto backorder hubo cada mes de enero a junio?" ✅
+        - "Comparar backorder de cada mes del trimestre" ✅
+        - "Necesito ver el backorder por mes del año" ✅
+        
+        **DO NOT USE when user wants just ONE TOTAL:**
+        - "Total de backorder de enero a octubre" → use get_backorders_summary instead
+        - "¿Cuánto backorder hay en el año?" → use get_backorders_summary instead
+        
+        **DO NOT USE for individual backorder records:**
+        - "Lista de backorders" → use query_backorders instead
+        
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
+            end_date: End date in YYYY-MM-DD format (e.g., "2025-12-31")
+            product_id: Specific product ID to filter (optional)
+            client_group: EXACT client group name from search_client_groups (optional)
+        
+        Returns:
+            JSON with backorder metrics for each month in the date range
+        """
+        conditions = []
+        params = []
+        param_counter = 1
+        
+        start_date_obj = parse_date(start_date)
+        end_date_obj = parse_date(end_date)
+        
+        if start_date_obj:
+            conditions.append(f"b.date >= ${param_counter}")
+            params.append(start_date_obj)
+            param_counter += 1
+        else:
+            conditions.append("b.date >= CURRENT_DATE - INTERVAL '12 months'")
+        
+        if end_date_obj:
+            conditions.append(f"b.date <= ${param_counter}")
+            params.append(end_date_obj)
+            param_counter += 1
+        
+        if product_id:
+            conditions.append(f"b.product_id = ${param_counter}")
+            params.append(product_id)
+            param_counter += 1
+        
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+        
+        # Join with clients table if filtering by client_group
+        client_join = "JOIN clients c ON b.client_id = c.client_id" if client_group else ""
+        
+        # Query to get backorders grouped by month
+        sql = f"""
+            SELECT 
+                DATE_TRUNC('month', b.date) as month,
+                COUNT(*) as record_count,
+                SUM(b.backorder_qty) as total_quantity,
+                SUM(b.backorder_qty * b.unit_price) as total_value,
+                SUM(b.order_qty) as total_ordered,
+                SUM(b.delivery_qty) as total_delivered
+            FROM backorder b
+            {client_join}
+            {where_clause}
+            GROUP BY DATE_TRUNC('month', b.date)
+            ORDER BY month ASC
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({"error": "No se encontraron backorders para el período especificado", "months": []})
+                
+                # Build structured JSON response
+                months_data = []
+                
+                for row in rows:
+                    month_date = row['month']
+                    
+                    months_data.append({
+                        "year": month_date.year,
+                        "month": month_date.month,
+                        "month_name": month_date.strftime("%B"),  # Full month name in English
+                        "record_count": int(row['record_count']) if row['record_count'] is not None else 0,
+                        "total_quantity": float(row['total_quantity']) if row['total_quantity'] is not None else 0.0,
+                        "total_value": float(row['total_value']) if row['total_value'] is not None else 0.0,
+                        "total_ordered": float(row['total_ordered']) if row['total_ordered'] is not None else 0.0,
+                        "total_delivered": float(row['total_delivered']) if row['total_delivered'] is not None else 0.0
+                    })
+                
+                # Calculate grand totals
+                grand_total_quantity = sum(m['total_quantity'] for m in months_data)
+                grand_total_value = sum(m['total_value'] for m in months_data)
+                
+                result = {
+                    "months": months_data,
+                    "summary": {
+                        "total_months": len(months_data),
+                        "grand_total_quantity": grand_total_quantity,
+                        "grand_total_value": grand_total_value
+                    }
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_backorders_by_month
+
+
 def create_sales_summary_tool(queries_executed: List[Dict]):
     """Tool to get aggregated sales summary (totals, no limit)"""
     
