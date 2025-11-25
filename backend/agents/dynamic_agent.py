@@ -61,9 +61,12 @@ class DynamicAgent:
             create_sales_summary_tool,
             create_sales_by_month_tool,
             create_sales_by_product_tool,
+            create_sales_by_client_tool,
             create_backorders_summary_tool,
             create_backorders_by_month_tool,
-            create_product_search_tool
+            create_product_search_tool,
+            create_client_search_tool,
+            create_client_group_search_tool
         )
         from agents.tools.advanced_sql_tools import (
             create_client_sales_analysis_tool,
@@ -83,6 +86,7 @@ class DynamicAgent:
         self.tools.append(create_sales_summary_tool(self.queries_executed))
         self.tools.append(create_sales_by_month_tool(self.queries_executed))
         self.tools.append(create_sales_by_product_tool(self.queries_executed))
+        self.tools.append(create_sales_by_client_tool(self.queries_executed))
         self.tools.append(create_inventory_summary_tool(self.queries_executed))
         
         # Basic detail tools
@@ -90,6 +94,8 @@ class DynamicAgent:
         self.tools.append(create_sales_tool(self.queries_executed))
         self.tools.append(create_backorders_tool(self.queries_executed))
         self.tools.append(create_product_search_tool(self.queries_executed))
+        self.tools.append(create_client_search_tool(self.queries_executed))
+        self.tools.append(create_client_group_search_tool(self.queries_executed))
         
         # Advanced analytical tools
         self.tools.append(create_client_sales_analysis_tool(self.queries_executed))

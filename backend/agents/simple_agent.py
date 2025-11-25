@@ -77,11 +77,13 @@ class SimpleAgent:
             create_sales_tool,
             create_backorders_tool,
             create_product_search_tool,
+            create_client_search_tool,
             create_client_group_search_tool,
             create_inventory_summary_tool,
             create_sales_summary_tool,
             create_sales_by_month_tool,
             create_sales_by_product_tool,
+            create_sales_by_client_tool,
             create_backorders_summary_tool,
             create_backorders_by_month_tool,
             create_budgets_summary_tool
@@ -89,11 +91,13 @@ class SimpleAgent:
         
         # Simple/fast tools only - for quick lookups
         self.tools.append(create_product_search_tool(self.queries_executed))
+        self.tools.append(create_client_search_tool(self.queries_executed))
         self.tools.append(create_client_group_search_tool(self.queries_executed))
         self.tools.append(create_inventory_summary_tool(self.queries_executed))
         self.tools.append(create_sales_summary_tool(self.queries_executed))
         self.tools.append(create_sales_by_month_tool(self.queries_executed))
         self.tools.append(create_sales_by_product_tool(self.queries_executed))
+        self.tools.append(create_sales_by_client_tool(self.queries_executed))
         self.tools.append(create_backorders_summary_tool(self.queries_executed))
         self.tools.append(create_backorders_by_month_tool(self.queries_executed))
         self.tools.append(create_budgets_summary_tool(self.queries_executed))

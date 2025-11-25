@@ -83,18 +83,126 @@ def create_product_search_tool(queries_executed: List[Dict]):
     return search_products
 
 
+def create_client_search_tool(queries_executed: List[Dict]):
+    """Tool to search for individual clients by name"""
+    
+    @tool
+    async def search_clients(query: str, top_n: int = 10) -> str:
+        """
+        Search for INDIVIDUAL CLIENTS by name to get the EXACT client_id.
+        
+        **WHEN TO USE:**
+        - User mentions a specific company/client name
+        - Before calling get_sales_summary or other tools with client_id
+        - Examples: "ventas de PRODUCTOS ALIMENTICIOS PASCUAL", "cliente Coca Cola"
+        
+        **CRITICAL:** This tool is REQUIRED before filtering by client_id!
+        The database has exact client IDs that you need to retrieve.
+        
+        **WORKFLOW:**
+        1. User says: "ventas de PRODUCTOS ALIMENTICIOS PASCUAL en octubre"
+        2. Call: search_clients(query="PRODUCTOS ALIMENTICIOS PASCUAL")
+        3. Get result JSON with client_id, client_name, client_group, city
+        4. Call: get_sales_summary(client_id="<client_id_from_step_3>")
+        5. Respond to user with ONLY the sales information, DO NOT mention the search results
+        
+        **IMPORTANT:**
+        - DO NOT mention to the user that you searched for the client
+        - DO NOT show the search results to the user
+        - Use the client_id silently and respond directly with the requested information
+        
+        **DO NOT CONFUSE WITH:**
+        - search_client_groups: Use that for GROUP names like "Grupo Xtra", "Grupo Super"
+        - search_clients: Use this for INDIVIDUAL CLIENT/COMPANY names
+        
+        Args:
+            query: Client name or partial name to search (e.g., "PASCUAL", "Coca Cola")
+            top_n: Number of results to return (default 10, max 20)
+        
+        Returns:
+            JSON with list of matching clients (client_id, name, group, city).
+            USE THE EXACT client_id from results in subsequent queries.
+            DO NOT show this search result to the user - use it silently.
+        """
+        top_n = min(max(1, top_n), 20)  # Clamp between 1-20
+        
+        sql = """
+            SELECT 
+                c.client_id,
+                c.client_name,
+                c.client_group,
+                c.city,
+                c.state,
+                c.country
+            FROM clients c
+            WHERE c.client_name ILIKE $1
+            ORDER BY c.client_name
+            LIMIT $2
+        """
+        
+        # Add wildcards for partial matching
+        search_pattern = f"%{query}%"
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": [search_pattern, top_n],
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, search_pattern, top_n)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "error": f"No clients found matching '{query}'",
+                        "clients": []
+                    })
+                
+                # Build JSON response
+                clients = []
+                for row in rows:
+                    clients.append({
+                        "client_id": row['client_id'],
+                        "client_name": row['client_name'],
+                        "client_group": row['client_group'] if row['client_group'] else None,
+                        "city": row['city'] if row['city'] else None,
+                        "state": row['state'] if row['state'] else None,
+                        "country": row['country'] if row['country'] else None
+                    })
+                
+                result = {
+                    "found": True,
+                    "total_clients": len(clients),
+                    "clients": clients
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return search_clients
+
+
 def create_client_group_search_tool(queries_executed: List[Dict]):
     """Tool to search for client groups"""
     
     @tool
     async def search_client_groups(query: str) -> str:
         """
-        Search for client groups by name to get the EXACT group name.
+        Search for CLIENT GROUPS by name to get the EXACT group name.
         
         **WHEN TO USE:**
         - User mentions "grupo", "group" followed by a name
         - Before calling get_sales_summary or get_backorders_summary with client_group
         - Examples: "grupo Xtra", "grupo Super", "grupo Retail"
+        
+        **DO NOT USE for individual client/company names:**
+        - For specific companies like "PRODUCTOS ALIMENTICIOS PASCUAL" → use search_clients instead
         
         **CRITICAL:** This tool is REQUIRED before filtering by client_group!
         The database has exact group names that may differ from what user says.
@@ -102,15 +210,22 @@ def create_client_group_search_tool(queries_executed: List[Dict]):
         **WORKFLOW:**
         1. User says: "ventas del grupo Xtra"
         2. Call: search_client_groups(query="Xtra")
-        3. Get result: "GRUPO XTRA" (exact name)
+        3. Get result JSON with "GRUPO XTRA" (exact name)
         4. Call: get_sales_summary(client_group="GRUPO XTRA")
+        5. Respond to user with ONLY the sales information, DO NOT mention the search results
+        
+        **IMPORTANT:**
+        - DO NOT mention to the user that you searched for the group
+        - DO NOT show the search results to the user
+        - Use the exact group name silently and respond directly with the requested information
         
         Args:
             query: Group name or partial name to search (e.g., "Xtra", "Super", "Retail")
         
         Returns:
-            List of matching client groups with exact names and statistics.
+            JSON with list of matching client groups with exact names and statistics.
             USE THE EXACT GROUP NAME from results in subsequent queries.
+            DO NOT show this search result to the user - use it silently.
         """
         sql = """
             SELECT 
@@ -142,14 +257,28 @@ def create_client_group_search_tool(queries_executed: List[Dict]):
                 rows = await conn.fetch(sql, search_pattern)
                 
                 if not rows:
-                    return f"No client groups found matching '{query}'. Try a different search term."
+                    return json.dumps({
+                        "found": False,
+                        "error": f"No client groups found matching '{query}'",
+                        "groups": []
+                    })
                 
-                response = f"Found {len(rows)} client group(s) matching '{query}':\n\n"
+                # Build JSON response
+                groups = []
                 for row in rows:
-                    response += f"- Group: '{row['client_group']}' ({row['client_count']} clients, {row['cities']} cities)\n"
+                    groups.append({
+                        "client_group": row['client_group'],
+                        "client_count": int(row['client_count']),
+                        "cities": int(row['cities'])
+                    })
                 
-                response += f"\n💡 Use the exact group name (in quotes) when filtering by client_group"
-                return response
+                result = {
+                    "found": True,
+                    "total_groups": len(groups),
+                    "groups": groups
+                }
+                
+                return json.dumps(result)
         finally:
             await pool.close()
     
@@ -1137,6 +1266,167 @@ def create_sales_by_month_tool(queries_executed: List[Dict]):
             await pool.close()
     
     return get_sales_by_month
+
+
+def create_sales_by_client_tool(queries_executed: List[Dict]):
+    """Tool to get sales grouped by client"""
+    
+    @tool
+    async def get_sales_by_client(
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        client_group: Optional[str] = None,
+        top_n: Optional[int] = None
+    ) -> str:
+        """
+        Get sales GROUPED BY CLIENT - shows top clients by sales amount (NO LIMIT by default).
+        
+        ⚠️ By default, returns top 10 clients. Use top_n to get more or fewer.
+        
+        ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
+        - If user asks in Spanish → respond in Spanish
+        - If user asks in English → respond in English
+        
+        **USE THIS TOOL WHEN:**
+        - "Clientes con mayor venta" (clients with highest sales)
+        - "Top clientes por ventas" (top clients by sales)
+        - "Quiénes son los clientes que más compran?" (who are the clients that buy most)
+        - "Mejores clientes del mes" (best clients of the month)
+        - "Dame los 5 clientes con más ventas" (give me 5 clients with most sales)
+        - "¿Cuáles clientes compraron más en octubre?" (which clients bought most in October)
+        - "Ranking de clientes por venta" (ranking of clients by sales)
+        
+        **DO NOT USE for:**
+        - Product breakdown → use get_sales_by_product
+        - Month by month breakdown → use get_sales_by_month
+        - Total of a period → use get_sales_summary
+        
+        **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
+        1. If user mentions a group name (e.g., "Xtra", "Super"):
+           → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
+           → THEN use the exact name returned in client_group parameter
+        
+        Args:
+            start_date: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
+            end_date: End date in YYYY-MM-DD format (e.g., "2025-01-31")
+            client_group: EXACT client group name from search_client_groups (optional)
+            top_n: Number of top clients to return (default 10)
+        
+        Returns:
+            JSON with list of clients and their sales metrics, ordered by sales amount
+        """
+        conditions = ["t.transaction_type = 'SALE'"]
+        params = []
+        param_counter = 1
+        
+        start_date_obj = parse_date(start_date)
+        end_date_obj = parse_date(end_date)
+        
+        if start_date_obj:
+            conditions.append(f"t.date >= ${param_counter}")
+            params.append(start_date_obj)
+            param_counter += 1
+        else:
+            conditions.append("t.date >= CURRENT_DATE - INTERVAL '30 days'")
+        
+        if end_date_obj:
+            conditions.append(f"t.date <= ${param_counter}")
+            params.append(end_date_obj)
+            param_counter += 1
+        
+        if client_group:
+            conditions.append(f"c.client_group = ${param_counter}")
+            params.append(client_group)
+            param_counter += 1
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}"
+        
+        # Join with clients table
+        client_join = "JOIN clients c ON t.client_id = c.client_id"
+        
+        # Default top_n to 10 if not specified
+        if top_n is None:
+            top_n = 10
+        
+        # Apply LIMIT
+        limit_clause = f"LIMIT {top_n}"
+        
+        # Query to get sales grouped by client
+        sql = f"""
+            SELECT 
+                c.client_name,
+                c.client_group,
+                c.city,
+                SUM(t.quantity) as total_quantity,
+                SUM(t.gross_amount) as total_gross,
+                SUM(t.net_amount) as total_net,
+                SUM(t.discount_amount) as total_discounts,
+                SUM(t.unit_cost * t.quantity) as total_cost,
+                COUNT(*) as transaction_count,
+                COUNT(DISTINCT t.product_id) as product_count
+            FROM transactions t
+            {client_join}
+            {where_clause}
+            GROUP BY c.client_name, c.client_group, c.city
+            ORDER BY total_net DESC
+            {limit_clause}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({"error": "No se encontraron ventas de clientes para el período especificado", "clients": []})
+                
+                # Build structured JSON response
+                clients_data = []
+                grand_total_net = 0.0
+                grand_total_quantity = 0.0
+                
+                for row in rows:
+                    total_net = float(row['total_net']) if row['total_net'] is not None else 0.0
+                    total_quantity = float(row['total_quantity']) if row['total_quantity'] is not None else 0.0
+                    
+                    grand_total_net += total_net
+                    grand_total_quantity += total_quantity
+                    
+                    clients_data.append({
+                        "client_name": row['client_name'],
+                        "client_group": row['client_group'] if row['client_group'] else 'N/A',
+                        "city": row['city'] if row['city'] else 'N/A',
+                        "total_quantity": total_quantity,
+                        "total_net": total_net,
+                        "total_gross": float(row['total_gross']) if row['total_gross'] is not None else 0.0,
+                        "total_discounts": float(row['total_discounts']) if row['total_discounts'] is not None else 0.0,
+                        "total_cost": float(row['total_cost']) if row['total_cost'] is not None else 0.0,
+                        "transaction_count": int(row['transaction_count']) if row['transaction_count'] is not None else 0,
+                        "product_count": int(row['product_count']) if row['product_count'] is not None else 0
+                    })
+                
+                result = {
+                    "clients": clients_data,
+                    "summary": {
+                        "total_clients": len(clients_data),
+                        "grand_total_net": grand_total_net,
+                        "grand_total_quantity": grand_total_quantity
+                    }
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_sales_by_client
 
 
 def create_sales_by_product_tool(queries_executed: List[Dict]):
