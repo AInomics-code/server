@@ -544,8 +544,7 @@ def create_backorders_tool(queries_executed: List[Dict]):
                 p.brand,
                 p.category,
                 b.backorder_qty,
-                b.unit_price,
-                (b.backorder_qty * b.unit_price) as backorder_value,
+                b.total as backorder_value,
                 b.order_qty,
                 b.delivery_qty,
                 l.location_name,
@@ -693,7 +692,7 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
             SELECT 
                 COUNT(*) as record_count,
                 SUM(b.backorder_qty) as total_quantity,
-                SUM(b.backorder_qty * b.unit_price) as total_value,
+                SUM(b.total) as total_value,
                 SUM(b.order_qty) as total_ordered,
                 SUM(b.delivery_qty) as total_delivered
             FROM backorder b
@@ -707,7 +706,7 @@ def create_backorders_summary_tool(queries_executed: List[Dict]):
                 p.product_name,
                 p.brand,
                 SUM(b.backorder_qty) as total_qty,
-                SUM(b.backorder_qty * b.unit_price) as total_value
+                SUM(b.total) as total_value
             FROM backorder b
             JOIN products p ON b.product_id = p.product_id
             {client_join}
@@ -866,7 +865,7 @@ def create_backorders_by_month_tool(queries_executed: List[Dict]):
                 DATE_TRUNC('month', b.date) as month,
                 COUNT(*) as record_count,
                 SUM(b.backorder_qty) as total_quantity,
-                SUM(b.backorder_qty * b.unit_price) as total_value,
+                SUM(b.total) as total_value,
                 SUM(b.order_qty) as total_ordered,
                 SUM(b.delivery_qty) as total_delivered
             FROM backorder b
