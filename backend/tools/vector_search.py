@@ -138,16 +138,31 @@ class VectorSearchTool(BaseTool):
         except Exception as e:
             return self.format_error(str(e))
     
-    async def search_product(self, query: str, limit: int = 1) -> Optional[str]:
+    async def search_product(self, query: str, limit: int = 1) -> Dict[str, Any]:
         print(f"[VECTOR_SEARCH] Searching for product: '{query}', limit: {limit}")
         result = await self.execute(query, category="products", limit=limit)
         print(f"[VECTOR_SEARCH] Result: {result}")
+        
         if result.get("success") and result.get("data"):
-            product_id = result["data"][0]["id"]
-            print(f"[VECTOR_SEARCH] Found product_id: {product_id}")
-            return product_id
+            # Transform result to expected format
+            products = []
+            for item in result["data"]:
+                product = {
+                    "product_id": item["id"],
+                    "product_name": item["name"],
+                    "similarity": item.get("similarity")
+                }
+                # additional contains [brand, category]
+                if item.get("additional") and len(item["additional"]) >= 2:
+                    product["brand"] = item["additional"][0]
+                    product["category"] = item["additional"][1]
+                products.append(product)
+            
+            print(f"[VECTOR_SEARCH] Found {len(products)} product(s)")
+            return {"success": True, "data": products}
+        
         print(f"[VECTOR_SEARCH] No product found")
-        return None
+        return {"success": False, "data": []}
     
     async def search_client(self, query: str) -> Optional[str]:
         result = await self.execute(query, category="clients", limit=1)
