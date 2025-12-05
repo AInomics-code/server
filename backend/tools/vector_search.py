@@ -138,9 +138,9 @@ class VectorSearchTool(BaseTool):
         except Exception as e:
             return self.format_error(str(e))
     
-    async def search_product(self, query: str) -> Optional[str]:
+    async def search_product(self, query: str, limit: int = 1) -> Optional[str]:
         print(f"[VECTOR_SEARCH] Searching for product: '{query}'")
-        result = await self.execute(query, category="products", limit=1)
+        result = await self.execute(query, category="products", limit=limit)
         print(f"[VECTOR_SEARCH] Result: {result}")
         if result.get("success") and result.get("data"):
             product_id = result["data"][0]["id"]
