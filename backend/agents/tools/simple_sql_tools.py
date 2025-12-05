@@ -44,13 +44,13 @@ def create_product_search_tool(queries_executed: List[Dict]):
     """Tool to search products by name using vector similarity"""
     
     @tool
-    async def search_products(query: str, top_n: int = 5) -> str:
+    async def search_products(query: str, top_n: int = 1) -> str:
         """
         Search for products by name or description using semantic search.
         
         Args:
             query: Product name or description to search for (e.g. "tortillas de nopal", "salsa picante")
-            top_n: Number of results to return (default 5, max 20)
+            top_n: Number of results to return (default 1, max 20). Use 1 for specific product searches.
         
         Returns:
             List of matching products with their IDs, names, brands, and categories
