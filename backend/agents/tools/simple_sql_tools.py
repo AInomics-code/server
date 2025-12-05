@@ -60,7 +60,7 @@ def create_product_search_tool(queries_executed: List[Dict]):
         top_n = min(max(1, top_n), 20)  # Clamp between 1-20
         
         vector_tool = VectorSearchTool()
-        result = await vector_tool.search_product(query, top_n)
+        result = await vector_tool.execute(query, category="products", limit=top_n)
         
         queries_executed.append({
             "type": "vector_search",
