@@ -8,6 +8,16 @@ RUN apt-get update && apt-get install -y \
     openssl \
     && rm -rf /var/lib/apt/lists/*
 
+# Generate SSL certificates during build
+RUN mkdir -p /etc/postgresql/ssl \
+    && openssl req -new -x509 -days 365 -nodes -text \
+        -out /etc/postgresql/ssl/server.crt \
+        -keyout /etc/postgresql/ssl/server.key \
+        -subj "/CN=postgres" \
+    && chmod 600 /etc/postgresql/ssl/server.key \
+    && chmod 644 /etc/postgresql/ssl/server.crt \
+    && chown -R postgres:postgres /etc/postgresql/ssl
+
 # Keep the original entrypoint
 ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["postgres"]
