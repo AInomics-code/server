@@ -1,10 +1,11 @@
 FROM pgvector/pgvector:pg16
 
-# Install TDS Foreign Data Wrapper and dependencies
+# Install TDS Foreign Data Wrapper, SSL tools and dependencies
 RUN apt-get update && apt-get install -y \
     postgresql-16-tds-fdw \
     freetds-dev \
     freetds-bin \
+    openssl \
     && rm -rf /var/lib/apt/lists/*
 
 # Keep the original entrypoint

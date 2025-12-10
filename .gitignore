@@ -39,3 +39,7 @@ Thumbs.db
 *.log
 logs/
 
+# Large model files and data
+*.pkl
+demos/.ipynb_checkpoints/
+
