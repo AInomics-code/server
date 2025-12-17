@@ -1034,7 +1034,13 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
                 SUM(t.gross_amount) as total_gross,
                 SUM(t.net_amount) as total_net,
                 SUM(t.discount_amount) as total_discounts,
-                SUM(t.unit_cost * t.quantity) as total_cost
+                SUM(t.unit_cost * t.quantity) as total_cost,
+                SUM(t.net_amount - (t.unit_cost * t.quantity)) as total_profit,
+                CASE 
+                    WHEN SUM(t.unit_cost * t.quantity) > 0 
+                    THEN ((SUM(t.net_amount - (t.unit_cost * t.quantity)) / SUM(t.unit_cost * t.quantity)) * 100)
+                    ELSE 0
+                END as profit_margin_pct
             FROM transactions t
             {client_join}
             {where_clause}
@@ -1077,6 +1083,8 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
                     "total_net": float(totals['total_net']) if totals['total_net'] is not None else 0.0,
                     "total_discounts": float(totals['total_discounts']) if totals['total_discounts'] is not None else 0.0,
                     "total_cost": float(totals['total_cost']) if totals['total_cost'] is not None else 0.0,
+                    "total_profit": float(totals['total_profit']) if totals['total_profit'] is not None else 0.0,
+                    "profit_margin_pct": float(totals['profit_margin_pct']) if totals['profit_margin_pct'] is not None else 0.0,
                     "top_products": [
                         {
                             "product_name": row['product_name'],
@@ -1275,6 +1283,7 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         client_group: Optional[str] = None,
+        product_id: Optional[str] = None,
         top_n: Optional[int] = None
     ) -> str:
         """
@@ -1294,6 +1303,7 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
         - "Dame los 5 clientes con más ventas" (give me 5 clients with most sales)
         - "¿Cuáles clientes compraron más en octubre?" (which clients bought most in October)
         - "Ranking de clientes por venta" (ranking of clients by sales)
+        - "Top 25 clientes que más compran producto X" (top 25 clients buying product X) → use product_id
         
         **DO NOT USE for:**
         - Product breakdown → use get_sales_by_product
@@ -1305,10 +1315,16 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
            → FIRST call search_client_groups(query="Xtra") to get the EXACT group name
            → THEN use the exact name returned in client_group parameter
         
+        **CRITICAL WORKFLOW FOR PRODUCTS:**
+        1. If user mentions a product name:
+           → FIRST call search_products(query="product name") to get the product_id
+           → THEN use the product_id in this tool
+        
         Args:
             start_date: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
             end_date: End date in YYYY-MM-DD format (e.g., "2025-01-31")
             client_group: EXACT client group name from search_client_groups (optional)
+            product_id: Specific product ID to filter - shows clients buying this product (optional)
             top_n: Number of top clients to return (default 10)
         
         Returns:
@@ -1338,6 +1354,11 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
             params.append(client_group)
             param_counter += 1
         
+        if product_id:
+            conditions.append(f"t.product_id = ${param_counter}")
+            params.append(product_id)
+            param_counter += 1
+        
         where_clause = f"WHERE {' AND '.join(conditions)}"
         
         # Join with clients table
@@ -1361,6 +1382,12 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
                 SUM(t.net_amount) as total_net,
                 SUM(t.discount_amount) as total_discounts,
                 SUM(t.unit_cost * t.quantity) as total_cost,
+                SUM(t.net_amount - (t.unit_cost * t.quantity)) as total_profit,
+                CASE 
+                    WHEN SUM(t.unit_cost * t.quantity) > 0 
+                    THEN ((SUM(t.net_amount - (t.unit_cost * t.quantity)) / SUM(t.unit_cost * t.quantity)) * 100)
+                    ELSE 0
+                END as profit_margin_pct,
                 COUNT(*) as transaction_count,
                 COUNT(DISTINCT t.product_id) as product_count
             FROM transactions t
@@ -1391,13 +1418,16 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
                 clients_data = []
                 grand_total_net = 0.0
                 grand_total_quantity = 0.0
+                grand_total_profit = 0.0
                 
                 for row in rows:
                     total_net = float(row['total_net']) if row['total_net'] is not None else 0.0
                     total_quantity = float(row['total_quantity']) if row['total_quantity'] is not None else 0.0
+                    total_profit = float(row['total_profit']) if row['total_profit'] is not None else 0.0
                     
                     grand_total_net += total_net
                     grand_total_quantity += total_quantity
+                    grand_total_profit += total_profit
                     
                     clients_data.append({
                         "client_name": row['client_name'],
@@ -1408,6 +1438,8 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
                         "total_gross": float(row['total_gross']) if row['total_gross'] is not None else 0.0,
                         "total_discounts": float(row['total_discounts']) if row['total_discounts'] is not None else 0.0,
                         "total_cost": float(row['total_cost']) if row['total_cost'] is not None else 0.0,
+                        "total_profit": total_profit,
+                        "profit_margin_pct": float(row['profit_margin_pct']) if row['profit_margin_pct'] is not None else 0.0,
                         "transaction_count": int(row['transaction_count']) if row['transaction_count'] is not None else 0,
                         "product_count": int(row['product_count']) if row['product_count'] is not None else 0
                     })
@@ -1417,7 +1449,8 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
                     "summary": {
                         "total_clients": len(clients_data),
                         "grand_total_net": grand_total_net,
-                        "grand_total_quantity": grand_total_quantity
+                        "grand_total_quantity": grand_total_quantity,
+                        "grand_total_profit": grand_total_profit
                     }
                 }
                 
@@ -1436,10 +1469,13 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
         client_group: Optional[str] = None,
+        location_id: Optional[str] = None,
+        outsourced_only: Optional[bool] = None,
+        group_by: Optional[str] = "product",
         top_n: Optional[int] = None
     ) -> str:
         """
-        Get sales GROUPED BY PRODUCT - shows ALL products sold and their totals (NO LIMIT by default).
+        Get sales GROUPED BY PRODUCT/CATEGORY - shows ALL products sold and their totals (NO LIMIT by default).
         
         ⚠️ By default, returns ALL products (no limit). Use top_n only if you want to limit results.
         
@@ -1455,6 +1491,9 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
         - "Dame el desglose de ventas por producto" (give me breakdown by product)
         - "Productos vendidos en el mes de X" (products sold in month X)
         - "Todos los productos vendidos" (all products sold)
+        - "Ventas de maquilas" (sales of outsourced products) → use outsourced_only=True
+        - "Ventas por categoría" (sales by category) → use group_by="category"
+        - "Ventas en bodega X" (sales at warehouse X) → use location_id
         
         **DO NOT USE for:**
         - Month by month breakdown → use get_sales_by_month
@@ -1469,10 +1508,13 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
             start_date: Start date in YYYY-MM-DD format (e.g., "2025-01-01")
             end_date: End date in YYYY-MM-DD format (e.g., "2025-01-31")
             client_group: EXACT client group name from search_client_groups (optional)
+            location_id: Filter sales from specific warehouse/location (optional)
+            outsourced_only: If True, only show outsourced/maquila products (optional)
+            group_by: Group results by "product" (default), "category", or "subcategory"
             top_n: OPTIONAL - Number of top products to return. If not specified, returns ALL products.
         
         Returns:
-            JSON with list of ALL products (or top N if specified) and their sales metrics
+            JSON with list of ALL products (or top N if specified) and their sales metrics including profitability
         """
         conditions = ["t.transaction_type = 'SALE'"]
         params = []
@@ -1498,32 +1540,59 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
             params.append(client_group)
             param_counter += 1
         
+        if location_id:
+            conditions.append(f"b.location_id = ${param_counter}")
+            params.append(location_id)
+            param_counter += 1
+        
+        if outsourced_only is not None:
+            conditions.append(f"p.outsourced = {outsourced_only}")
+        
         where_clause = f"WHERE {' AND '.join(conditions)}"
         
         # Join with clients table if filtering by client_group
         client_join = "JOIN clients c ON t.client_id = c.client_id" if client_group else ""
         
+        # Join with backorder for location filter if needed
+        location_join = "LEFT JOIN backorder b ON t.product_id = b.product_id AND t.client_id = b.client_id" if location_id else ""
+        
         # Apply LIMIT only if top_n is specified
         limit_clause = f"LIMIT {top_n}" if top_n is not None else ""
         
-        # Query to get sales grouped by product
+        # Determine GROUP BY clause based on group_by parameter
+        if group_by == "category":
+            group_cols = "p.category"
+            select_cols = "p.category as group_name, 'category' as group_type"
+        elif group_by == "subcategory":
+            group_cols = "p.category, p.subcategory"
+            select_cols = "p.category, p.subcategory as group_name, 'subcategory' as group_type"
+        else:  # default: product
+            group_cols = "p.product_name, p.brand, p.category"
+            select_cols = "p.product_name, p.brand, p.category"
+        
+        # Query to get sales grouped by product/category
         sql = f"""
             SELECT 
-                p.product_name,
-                p.brand,
-                p.category,
+                {select_cols},
                 COUNT(DISTINCT t.client_id) as client_count,
                 SUM(t.quantity) as total_quantity,
                 SUM(t.gross_amount) as total_gross,
                 SUM(t.net_amount) as total_net,
                 SUM(t.discount_amount) as total_discounts,
                 SUM(t.unit_cost * t.quantity) as total_cost,
+                SUM(t.net_amount - (t.unit_cost * t.quantity)) as total_profit,
+                CASE 
+                    WHEN SUM(t.unit_cost * t.quantity) > 0 
+                    THEN ((SUM(t.net_amount - (t.unit_cost * t.quantity)) / SUM(t.unit_cost * t.quantity)) * 100)
+                    ELSE 0
+                END as profit_margin_pct,
                 COUNT(*) as transaction_count
             FROM transactions t
             JOIN products p ON t.product_id = p.product_id
             {client_join}
+            {location_join}
             {where_clause}
-            GROUP BY p.product_name, p.brand, p.category
+            GROUP BY {group_cols}
             ORDER BY total_net DESC
             {limit_clause}
         """
@@ -1548,33 +1617,52 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
                 products_data = []
                 grand_total_net = 0.0
                 grand_total_quantity = 0.0
+                grand_total_profit = 0.0
                 
                 for row in rows:
                     total_net = float(row['total_net']) if row['total_net'] is not None else 0.0
                     total_quantity = float(row['total_quantity']) if row['total_quantity'] is not None else 0.0
+                    total_profit = float(row['total_profit']) if row['total_profit'] is not None else 0.0
                     
                     grand_total_net += total_net
                     grand_total_quantity += total_quantity
+                    grand_total_profit += total_profit
                     
-                    products_data.append({
-                        "product_name": row['product_name'],
-                        "brand": row['brand'],
-                        "category": row['category'],
+                    item = {
                         "total_quantity": total_quantity,
                         "total_net": total_net,
                         "total_gross": float(row['total_gross']) if row['total_gross'] is not None else 0.0,
                         "total_discounts": float(row['total_discounts']) if row['total_discounts'] is not None else 0.0,
                         "total_cost": float(row['total_cost']) if row['total_cost'] is not None else 0.0,
+                        "total_profit": total_profit,
+                        "profit_margin_pct": float(row['profit_margin_pct']) if row['profit_margin_pct'] is not None else 0.0,
                         "client_count": int(row['client_count']) if row['client_count'] is not None else 0,
                         "transaction_count": int(row['transaction_count']) if row['transaction_count'] is not None else 0
-                    })
+                    }
+                    
+                    # Add grouping-specific fields
+                    if group_by == "category":
+                        item["category"] = row['group_name']
+                        item["group_type"] = "category"
+                    elif group_by == "subcategory":
+                        item["category"] = row['category']
+                        item["subcategory"] = row['group_name']
+                        item["group_type"] = "subcategory"
+                    else:
+                        item["product_name"] = row['product_name']
+                        item["brand"] = row['brand']
+                        item["category"] = row['category']
+                    
+                    products_data.append(item)
                 
                 result = {
                     "products": products_data,
                     "summary": {
                         "total_products": len(products_data),
                         "grand_total_net": grand_total_net,
-                        "grand_total_quantity": grand_total_quantity
+                        "grand_total_quantity": grand_total_quantity,
+                        "grand_total_profit": grand_total_profit,
+                        "group_by": group_by
                     }
                 }
                 
@@ -1850,4 +1938,1208 @@ def create_budgets_summary_tool(queries_executed: List[Dict]):
             await pool.close()
     
     return get_budgets_summary
+
+
+# ============================================================================
+# NEW ANALYTICAL TOOLS - Growth, Inactive Clients, Product Launch
+# ============================================================================
+
+def create_product_first_sale_tool(queries_executed: List[Dict]):
+    """Tool to find when a product was first sold"""
+    
+    @tool
+    async def get_product_first_sale(
+        product_id: str
+    ) -> str:
+        """
+        Find when a product was first sold (launch date).
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Cuándo arrancó la venta de producto X?" (when did product X start selling)
+        - "Primera venta de producto" (first sale of product)
+        - "Fecha de lanzamiento de producto" (product launch date)
+        
+        **WORKFLOW:**
+        1. If user mentions product name: search_products(query="name") first to get product_id
+        2. Then call this tool with the product_id
+        
+        Args:
+            product_id: Product ID (required) - get from search_products first
+        
+        Returns:
+            JSON with first sale information including date, client, seller, and days since launch
+        """
+        sql = """
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.brand,
+                p.category,
+                t.date as first_sale_date,
+                t.client_id,
+                c.client_name as first_client_name,
+                c.client_group as first_client_group,
+                t.seller_name as first_seller_name,
+                t.quantity as first_sale_quantity,
+                t.net_amount as first_sale_amount,
+                EXTRACT(DAY FROM (CURRENT_DATE - t.date)) as days_since_launch
+            FROM products p
+            JOIN transactions t ON p.product_id = t.product_id
+            JOIN clients c ON t.client_id = c.client_id
+            WHERE p.product_id = $1
+                AND t.transaction_type = 'SALE'
+            ORDER BY t.date ASC
+            LIMIT 1
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": [product_id],
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                row = await conn.fetchrow(sql, product_id)
+                
+                if not row:
+                    return json.dumps({
+                        "found": False,
+                        "error": f"No se encontraron ventas para el producto {product_id}",
+                        "product_id": product_id
+                    })
+                
+                result = {
+                    "found": True,
+                    "product_id": row['product_id'],
+                    "product_name": row['product_name'],
+                    "brand": row['brand'],
+                    "category": row['category'],
+                    "first_sale_date": row['first_sale_date'].strftime('%Y-%m-%d'),
+                    "first_client_id": row['client_id'],
+                    "first_client_name": row['first_client_name'],
+                    "first_client_group": row['first_client_group'],
+                    "first_seller_name": row['first_seller_name'],
+                    "first_sale_quantity": float(row['first_sale_quantity']),
+                    "first_sale_amount": float(row['first_sale_amount']),
+                    "days_since_launch": int(row['days_since_launch']) if row['days_since_launch'] else 0
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_product_first_sale
+
+
+def create_inactive_clients_tool(queries_executed: List[Dict]):
+    """Tool to identify clients with no recent sales"""
+    
+    @tool
+    async def get_inactive_clients(
+        days_threshold: int = 90,
+        top_n: int = 50
+    ) -> str:
+        """
+        Identify clients with no sales in the last N days.
+        
+        **USE THIS TOOL WHEN:**
+        - "Clientes con más de X meses sin venta" (clients with +X months without sales)
+        - "Clientes inactivos" (inactive clients)
+        - "Clientes que dejaron de comprar" (clients that stopped buying)
+        - "Detalle los clientes con más de 3 meses sin venta y quién es su vendedor"
+        
+        Args:
+            days_threshold: Days without sales to consider inactive (default 90 days)
+            top_n: Number of results to return (default 50)
+        
+        Returns:
+            JSON with list of inactive clients including last sale date, seller, and historical sales
+        """
+        sql = f"""
+            WITH last_sales AS (
+                SELECT 
+                    c.client_id,
+                    c.client_name,
+                    c.client_group,
+                    c.city,
+                    MAX(t.date) as last_sale_date,
+                    MAX(t.seller_name) as last_seller_name,
+                    SUM(t.net_amount) as total_historical_sales,
+                    COUNT(*) as total_transactions
+                FROM clients c
+                LEFT JOIN transactions t ON c.client_id = t.client_id
+                    AND t.transaction_type = 'SALE'
+                GROUP BY c.client_id, c.client_name, c.client_group, c.city
+            )
+            SELECT 
+                client_id,
+                client_name,
+                client_group,
+                city,
+                last_sale_date,
+                last_seller_name,
+                COALESCE(EXTRACT(DAY FROM (CURRENT_DATE - last_sale_date)), 9999) as days_since_last_sale,
+                total_historical_sales,
+                total_transactions
+            FROM last_sales
+            WHERE COALESCE(EXTRACT(DAY FROM (CURRENT_DATE - last_sale_date)), 9999) > {days_threshold}
+            ORDER BY days_since_last_sale DESC, total_historical_sales DESC
+            LIMIT {top_n}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": [],
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": f"No se encontraron clientes inactivos con más de {days_threshold} días sin ventas",
+                        "clients": []
+                    })
+                
+                clients = []
+                for row in rows:
+                    days = int(row['days_since_last_sale']) if row['days_since_last_sale'] < 9999 else None
+                    clients.append({
+                        "client_id": row['client_id'],
+                        "client_name": row['client_name'],
+                        "client_group": row['client_group'] if row['client_group'] else 'N/A',
+                        "city": row['city'] if row['city'] else 'N/A',
+                        "last_sale_date": row['last_sale_date'].strftime('%Y-%m-%d') if row['last_sale_date'] else 'Never',
+                        "days_since_last_sale": days if days else 'Never sold',
+                        "last_seller_name": row['last_seller_name'] if row['last_seller_name'] else 'N/A',
+                        "total_historical_sales": float(row['total_historical_sales']) if row['total_historical_sales'] else 0.0,
+                        "total_transactions": int(row['total_transactions']) if row['total_transactions'] else 0
+                    })
+                
+                result = {
+                    "found": True,
+                    "threshold_days": days_threshold,
+                    "total_inactive_clients": len(clients),
+                    "clients": clients
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_inactive_clients
+
+
+def create_product_growth_analysis_tool(queries_executed: List[Dict]):
+    """Tool to analyze product sales growth/decline trends"""
+    
+    @tool
+    async def get_product_growth_analysis(
+        product_id: Optional[str] = None,
+        category: Optional[str] = None,
+        periods_back: int = 12,
+        top_n: int = 20
+    ) -> str:
+        """
+        Analyze sales growth/decline trends for products over time.
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Qué productos están creciendo/decreciendo?" (which products are growing/declining)
+        - "Productos con crecimiento vs mes/año pasado" (products with growth vs last month/year)
+        - "¿Cuáles son los productos que vienen decreciendo en los últimos 2 años?"
+        - "Dame la venta x Clases e indícame cuáles vienen decreciendo"
+        
+        **WORKFLOW:**
+        1. If user mentions product name: search_products first
+        2. If user mentions category: use category parameter
+        
+        Args:
+            product_id: Specific product ID to analyze (optional)
+            category: Product category to analyze (optional)
+            periods_back: Number of months to analyze (default 12)
+            top_n: Number of products to return if no product_id specified (default 20)
+        
+        Returns:
+            JSON with products, their trend (growing/declining/stable), and growth rate
+        """
+        conditions = ["t.transaction_type = 'SALE'"]
+        params = []
+        param_counter = 1
+        
+        if product_id:
+            conditions.append(f"p.product_id = ${param_counter}")
+            params.append(product_id)
+            param_counter += 1
+        
+        if category:
+            conditions.append(f"p.category = ${param_counter}")
+            params.append(category)
+            param_counter += 1
+        
+        where_clause = f"WHERE {' AND '.join(conditions)}"
+        
+        # Calculate growth by comparing recent period vs previous period
+        sql = f"""
+            WITH monthly_sales AS (
+                SELECT 
+                    p.product_id,
+                    p.product_name,
+                    p.brand,
+                    p.category,
+                    DATE_TRUNC('month', t.date) as month,
+                    SUM(t.net_amount) as monthly_sales
+                FROM transactions t
+                JOIN products p ON t.product_id = p.product_id
+                {where_clause}
+                    AND t.date >= CURRENT_DATE - INTERVAL '{periods_back} months'
+                GROUP BY p.product_id, p.product_name, p.brand, p.category, DATE_TRUNC('month', t.date)
+            ),
+            recent_sales AS (
+                SELECT 
+                    product_id,
+                    product_name,
+                    brand,
+                    category,
+                    AVG(monthly_sales) as avg_recent_sales
+                FROM monthly_sales
+                WHERE month >= CURRENT_DATE - INTERVAL '3 months'
+                GROUP BY product_id, product_name, brand, category
+            ),
+            previous_sales AS (
+                SELECT 
+                    product_id,
+                    AVG(monthly_sales) as avg_previous_sales
+                FROM monthly_sales
+                WHERE month < CURRENT_DATE - INTERVAL '3 months'
+                    AND month >= CURRENT_DATE - INTERVAL '6 months'
+                GROUP BY product_id
+            )
+            SELECT 
+                r.product_id,
+                r.product_name,
+                r.brand,
+                r.category,
+                r.avg_recent_sales,
+                COALESCE(p.avg_previous_sales, 0) as avg_previous_sales,
+                CASE 
+                    WHEN COALESCE(p.avg_previous_sales, 0) > 0 
+                    THEN ((r.avg_recent_sales - p.avg_previous_sales) / p.avg_previous_sales * 100)
+                    ELSE 0
+                END as growth_rate_pct,
+                CASE 
+                    WHEN COALESCE(p.avg_previous_sales, 0) = 0 THEN 'new'
+                    WHEN ((r.avg_recent_sales - p.avg_previous_sales) / p.avg_previous_sales * 100) > 10 THEN 'growing'
+                    WHEN ((r.avg_recent_sales - p.avg_previous_sales) / p.avg_previous_sales * 100) < -10 THEN 'declining'
+                    ELSE 'stable'
+                END as trend
+            FROM recent_sales r
+            LEFT JOIN previous_sales p ON r.product_id = p.product_id
+            ORDER BY growth_rate_pct DESC
+            LIMIT {top_n}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": "No se encontraron datos de crecimiento para los productos especificados",
+                        "products": []
+                    })
+                
+                products = []
+                for row in rows:
+                    products.append({
+                        "product_id": row['product_id'],
+                        "product_name": row['product_name'],
+                        "brand": row['brand'],
+                        "category": row['category'],
+                        "avg_recent_sales": float(row['avg_recent_sales']),
+                        "avg_previous_sales": float(row['avg_previous_sales']),
+                        "growth_rate_pct": float(row['growth_rate_pct']),
+                        "trend": row['trend'],
+                        "recommendation": "keep" if row['trend'] in ['growing', 'stable'] else "watch" if row['growth_rate_pct'] > -30 else "consider_discontinue"
+                    })
+                
+                result = {
+                    "found": True,
+                    "periods_analyzed": periods_back,
+                    "total_products": len(products),
+                    "products": products
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_product_growth_analysis
+
+
+def create_sales_comparison_tool(queries_executed: List[Dict]):
+    """Tool to compare sales with previous year"""
+    
+    @tool
+    async def get_sales_comparison(
+        start_date: str,
+        end_date: str,
+        client_group: Optional[str] = None,
+        product_id: Optional[str] = None
+    ) -> str:
+        """
+        Compare sales with the same period in the previous year.
+        
+        **USE THIS TOOL WHEN:**
+        - "Crecimiento en ventas vs el año pasado" (growth vs last year)
+        - "Comparar ventas con el año anterior" (compare sales with previous year)
+        - "¿Cómo va el crecimiento vs el año pasado por cadena?"
+        - "Crecimiento productos maquilas vs año pasado"
+        
+        **WORKFLOW:**
+        If user mentions client group: search_client_groups first to get exact name
+        
+        Args:
+            start_date: Start date for current period (YYYY-MM-DD)
+            end_date: End date for current period (YYYY-MM-DD)
+            client_group: EXACT client group name from search_client_groups (optional)
+            product_id: Specific product to compare (optional)
+        
+        Returns:
+            JSON with current period sales, previous year sales, and growth percentage
+        """
+        conditions_current = ["t.transaction_type = 'SALE'"]
+        conditions_previous = ["t.transaction_type = 'SALE'"]
+        params_current = []
+        params_previous = []
+        param_counter = 1
+        
+        start_date_obj = parse_date(start_date)
+        end_date_obj = parse_date(end_date)
+        
+        if not start_date_obj or not end_date_obj:
+            return json.dumps({"error": "Invalid date format. Use YYYY-MM-DD"})
+        
+        # Calculate previous year dates
+        from datetime import timedelta
+        previous_start = start_date_obj.replace(year=start_date_obj.year - 1)
+        previous_end = end_date_obj.replace(year=end_date_obj.year - 1)
+        
+        # Current period
+        conditions_current.append(f"t.date >= ${param_counter}")
+        params_current.append(start_date_obj)
+        param_counter += 1
+        conditions_current.append(f"t.date <= ${param_counter}")
+        params_current.append(end_date_obj)
+        param_counter += 1
+        
+        # Previous period
+        param_counter_prev = 1
+        conditions_previous.append(f"t.date >= ${param_counter_prev}")
+        params_previous.append(previous_start)
+        param_counter_prev += 1
+        conditions_previous.append(f"t.date <= ${param_counter_prev}")
+        params_previous.append(previous_end)
+        param_counter_prev += 1
+        
+        # Apply filters
+        if client_group:
+            conditions_current.append(f"c.client_group = ${param_counter}")
+            params_current.append(client_group)
+            conditions_previous.append(f"c.client_group = ${param_counter_prev}")
+            params_previous.append(client_group)
+            param_counter += 1
+            param_counter_prev += 1
+        
+        if product_id:
+            conditions_current.append(f"t.product_id = ${param_counter}")
+            params_current.append(product_id)
+            conditions_previous.append(f"t.product_id = ${param_counter_prev}")
+            params_previous.append(product_id)
+        
+        client_join = "JOIN clients c ON t.client_id = c.client_id" if client_group else ""
+        
+        where_current = f"WHERE {' AND '.join(conditions_current)}"
+        where_previous = f"WHERE {' AND '.join(conditions_previous)}"
+        
+        # Query for current period
+        sql_current = f"""
+            SELECT 
+                SUM(t.net_amount) as total_sales,
+                SUM(t.quantity) as total_quantity,
+                COUNT(*) as transaction_count
+            FROM transactions t
+            {client_join}
+            {where_current}
+        """
+        
+        # Query for previous period
+        sql_previous = f"""
+            SELECT 
+                SUM(t.net_amount) as total_sales,
+                SUM(t.quantity) as total_quantity,
+                COUNT(*) as transaction_count
+            FROM transactions t
+            {client_join}
+            {where_previous}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": f"CURRENT: {sql_current} | PREVIOUS: {sql_previous}",
+            "params": params_current + params_previous,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                current = await conn.fetchrow(sql_current, *params_current)
+                previous = await conn.fetchrow(sql_previous, *params_previous)
+                
+                current_sales = float(current['total_sales']) if current['total_sales'] else 0.0
+                previous_sales = float(previous['total_sales']) if previous['total_sales'] else 0.0
+                
+                growth_pct = 0.0
+                if previous_sales > 0:
+                    growth_pct = ((current_sales - previous_sales) / previous_sales) * 100
+                
+                result = {
+                    "current_period": {
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "total_sales": current_sales,
+                        "total_quantity": float(current['total_quantity']) if current['total_quantity'] else 0.0,
+                        "transaction_count": int(current['transaction_count']) if current['transaction_count'] else 0
+                    },
+                    "previous_year": {
+                        "start_date": previous_start.strftime('%Y-%m-%d'),
+                        "end_date": previous_end.strftime('%Y-%m-%d'),
+                        "total_sales": previous_sales,
+                        "total_quantity": float(previous['total_quantity']) if previous['total_quantity'] else 0.0,
+                        "transaction_count": int(previous['transaction_count']) if previous['transaction_count'] else 0
+                    },
+                    "comparison": {
+                        "sales_difference": current_sales - previous_sales,
+                        "growth_rate_pct": growth_pct,
+                        "trend": "growing" if growth_pct > 0 else "declining" if growth_pct < 0 else "stable"
+                    }
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_sales_comparison
+
+
+def create_budget_performance_tool(queries_executed: List[Dict]):
+    """Tool to analyze budget vs actual sales performance by client or client group"""
+    
+    @tool
+    async def get_budget_performance(
+        year: int,
+        month: int,
+        group_by: str = "client",
+        filter_status: Optional[str] = None,
+        client_group: Optional[str] = None,
+        top_n: int = 50
+    ) -> str:
+        """
+        Analyze budget vs actual sales performance for a specific month.
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Qué clientes están por debajo del presupuesto?" (which clients are below budget)
+        - "¿Qué cadenas están por debajo del presupuesto?" (which chains are below budget)
+        - "Clientes que cumplen/no cumplen presupuesto" (clients meeting/not meeting budget)
+        - "Dame los clientes por encima del presupuesto" (clients above budget)
+        
+        **CRITICAL WORKFLOW:**
+        1. If user asks about "este mes" (this month) → use current year and month
+        2. If user mentions client group name → search_client_groups first
+        
+        Args:
+            year: Year to analyze (e.g., 2025)
+            month: Month to analyze (1-12)
+            group_by: Group results by "client" (individual clients) or "group" (client groups)
+            filter_status: Filter results - "below_budget", "above_budget", or None for all
+            client_group: EXACT client group name to filter (optional)
+            top_n: Number of results to return (default 50)
+        
+        Returns:
+            JSON with clients/groups, their budget, actual sales, variance, and achievement %
+        """
+        params = []
+        param_counter = 1
+        
+        # Calculate date range
+        # First day of the month
+        date_start = f"DATE '{year}-{month:02d}-01'"
+        # First day of next month
+        if month == 12:
+            date_end = f"DATE '{year + 1}-01-01'"
+        else:
+            date_end = f"DATE '{year}-{month + 1:02d}-01'"
+        
+        # Optional client group filter for the final SELECT
+        group_filter = ""
+        if client_group:
+            group_filter = f"WHERE c.client_group = ${param_counter}"
+            params.append(client_group)
+            param_counter += 1
+        
+        # Determine grouping and output columns
+        if group_by == "group":
+            # For client_group aggregation
+            sql = f"""
+                WITH budgets_by_group AS (
+                    SELECT
+                        c.client_group,
+                        SUM(b.budget) AS budget
+                    FROM budgets b
+                    JOIN clients c ON c.client_id = b.client_id
+                    WHERE b.date >= {date_start}
+                      AND b.date < {date_end}
+                    GROUP BY c.client_group
+                ),
+                sales_by_group AS (
+                    SELECT
+                        c.client_group,
+                        SUM(t.net_amount) AS sales
+                    FROM transactions t
+                    JOIN clients c ON c.client_id = t.client_id
+                    WHERE t.date >= {date_start}
+                      AND t.date < {date_end}
+                    GROUP BY c.client_group
+                )
+                SELECT
+                    COALESCE(b.client_group, s.client_group) as name,
+                    COALESCE(b.budget, 0) as budget,
+                    COALESCE(s.sales, 0) as actual_sales,
+                    COALESCE(b.budget, 0) - COALESCE(s.sales, 0) as variance,
+                    CASE 
+                        WHEN COALESCE(b.budget, 0) > 0 
+                        THEN (COALESCE(s.sales, 0) / COALESCE(b.budget, 0) * 100)
+                        ELSE 0
+                    END as achievement_pct,
+                    CASE 
+                        WHEN COALESCE(b.budget, 0) > COALESCE(s.sales, 0) THEN 'below_budget'
+                        WHEN COALESCE(b.budget, 0) < COALESCE(s.sales, 0) THEN 'above_budget'
+                        ELSE 'on_budget'
+                    END as status
+                FROM budgets_by_group b
+                FULL OUTER JOIN sales_by_group s ON s.client_group = b.client_group
+                {group_filter}
+                {"WHERE COALESCE(b.budget, 0) > COALESCE(s.sales, 0)" if filter_status == "below_budget" else ""}
+                {"WHERE COALESCE(b.budget, 0) <= COALESCE(s.sales, 0)" if filter_status == "above_budget" else ""}
+                ORDER BY variance DESC
+                LIMIT {top_n}
+            """
+        else:  # client
+            sql = f"""
+                WITH budgets_by_name AS (
+                    SELECT
+                        c.client_name,
+                        SUM(b.budget) AS budget
+                    FROM budgets b
+                    JOIN clients c ON c.client_id = b.client_id
+                    WHERE b.date >= {date_start}
+                      AND b.date < {date_end}
+                    GROUP BY c.client_name
+                ),
+                sales_by_name AS (
+                    SELECT
+                        c.client_name,
+                        SUM(t.net_amount) AS sales
+                    FROM transactions t
+                    JOIN clients c ON c.client_id = t.client_id
+                    WHERE t.date >= {date_start}
+                      AND t.date < {date_end}
+                    GROUP BY c.client_name
+                )
+                SELECT
+                    COALESCE(b.client_name, s.client_name) AS name,
+                    COALESCE(b.budget, 0) AS budget,
+                    COALESCE(s.sales, 0) AS actual_sales,
+                    COALESCE(b.budget, 0) - COALESCE(s.sales, 0) AS variance,
+                    CASE 
+                        WHEN COALESCE(b.budget, 0) > 0 
+                        THEN (COALESCE(s.sales, 0) / COALESCE(b.budget, 0) * 100)
+                        ELSE 0
+                    END as achievement_pct,
+                    CASE 
+                        WHEN COALESCE(b.budget, 0) > COALESCE(s.sales, 0) THEN 'below_budget'
+                        WHEN COALESCE(b.budget, 0) < COALESCE(s.sales, 0) THEN 'above_budget'
+                        ELSE 'on_budget'
+                    END as status
+                FROM budgets_by_name b
+                FULL OUTER JOIN sales_by_name s ON s.client_name = b.client_name
+                {group_filter}
+                {"WHERE COALESCE(b.budget, 0) > COALESCE(s.sales, 0)" if filter_status == "below_budget" else ""}
+                {"WHERE COALESCE(b.budget, 0) <= COALESCE(s.sales, 0)" if filter_status == "above_budget" else ""}
+                ORDER BY variance DESC
+                LIMIT {top_n}
+            """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": f"No se encontraron datos de presupuesto para {year}-{month:02d}",
+                        "results": []
+                    })
+                
+                results = []
+                for row in rows:
+                    item = {
+                        "budget": float(row['budget']),
+                        "actual_sales": float(row['actual_sales']),
+                        "variance": float(row['variance']),
+                        "achievement_pct": float(row['achievement_pct']),
+                        "status": row['status']
+                    }
+                    
+                    if group_by == "group":
+                        item["client_group"] = row['name']
+                    else:
+                        item["client_name"] = row['name']
+                    
+                    results.append(item)
+                
+                result = {
+                    "found": True,
+                    "period": f"{year}-{month:02d}",
+                    "group_by": group_by,
+                    "filter_status": filter_status or "all",
+                    "total_results": len(results),
+                    "results": results
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_budget_performance
+
+
+def create_discontinuation_candidates_tool(queries_executed: List[Dict]):
+    """Tool to identify products that could be discontinued"""
+    
+    @tool
+    async def get_discontinuation_candidates(
+        sales_threshold: float = 1000.0,
+        months_lookback: int = 6,
+        top_n: int = 50
+    ) -> str:
+        """
+        Identify products with low sales that could be discontinued.
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Qué productos sugieres descatalogar por poca venta?"
+        - "Productos con baja venta para descatalogar"
+        - "Productos candidatos a descontinuar"
+        - "Dime los productos que llevan 3 o más meses sin venta"
+        
+        Logic:
+        - Low average monthly sales (below threshold)
+        - Analyzed over last N months
+        - Considers inventory levels and backorders
+        
+        Args:
+            sales_threshold: Minimum avg monthly sales to keep product (default $1000)
+            months_lookback: Number of months to analyze (default 6)
+            top_n: Number of candidates to return (default 50)
+        
+        Returns:
+            JSON with list of products recommended for discontinuation with scores
+        """
+        sql = f"""
+            WITH product_sales AS (
+                SELECT 
+                    p.product_id,
+                    p.product_name,
+                    p.brand,
+                    p.category,
+                    p.subcategory,
+                    COUNT(DISTINCT DATE_TRUNC('month', t.date)) as months_with_sales,
+                    SUM(t.net_amount) as total_sales,
+                    SUM(t.net_amount) / NULLIF(COUNT(DISTINCT DATE_TRUNC('month', t.date)), 0) as avg_monthly_sales,
+                    MAX(t.date) as last_sale_date,
+                    EXTRACT(DAY FROM (CURRENT_DATE - MAX(t.date))) as days_since_last_sale
+                FROM products p
+                LEFT JOIN transactions t ON p.product_id = t.product_id
+                    AND t.transaction_type = 'SALE'
+                    AND t.date >= CURRENT_DATE - INTERVAL '{months_lookback} months'
+                GROUP BY p.product_id, p.product_name, p.brand, p.category, p.subcategory
+            ),
+            product_inventory AS (
+                SELECT 
+                    product_id,
+                    SUM(inventory_qty) as total_inventory
+                FROM inventory
+                GROUP BY product_id
+            ),
+            product_backorders AS (
+                SELECT 
+                    product_id,
+                    COUNT(*) as backorder_count,
+                    SUM(backorder_qty) as total_backorder_qty
+                FROM backorder
+                WHERE date >= CURRENT_DATE - INTERVAL '3 months'
+                GROUP BY product_id
+            )
+            SELECT 
+                ps.product_id,
+                ps.product_name,
+                ps.brand,
+                ps.category,
+                ps.subcategory,
+                ps.months_with_sales,
+                COALESCE(ps.total_sales, 0) as total_sales,
+                COALESCE(ps.avg_monthly_sales, 0) as avg_monthly_sales,
+                ps.last_sale_date,
+                COALESCE(ps.days_since_last_sale, 9999) as days_since_last_sale,
+                COALESCE(pi.total_inventory, 0) as current_inventory,
+                COALESCE(pb.backorder_count, 0) as recent_backorders,
+                CASE 
+                    WHEN COALESCE(ps.avg_monthly_sales, 0) < {sales_threshold * 0.25} THEN 'high_priority'
+                    WHEN COALESCE(ps.avg_monthly_sales, 0) < {sales_threshold * 0.5} THEN 'medium_priority'
+                    ELSE 'low_priority'
+                END as discontinuation_priority
+            FROM product_sales ps
+            LEFT JOIN product_inventory pi ON ps.product_id = pi.product_id
+            LEFT JOIN product_backorders pb ON ps.product_id = pb.product_id
+            WHERE COALESCE(ps.avg_monthly_sales, 0) < {sales_threshold}
+                AND COALESCE(pb.backorder_count, 0) = 0
+            ORDER BY ps.avg_monthly_sales ASC, ps.days_since_last_sale DESC
+            LIMIT {top_n}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": [],
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": f"No se encontraron productos con ventas menores a ${sales_threshold} mensuales",
+                        "candidates": []
+                    })
+                
+                candidates = []
+                for row in rows:
+                    candidates.append({
+                        "product_id": row['product_id'],
+                        "product_name": row['product_name'],
+                        "brand": row['brand'],
+                        "category": row['category'],
+                        "subcategory": row['subcategory'],
+                        "months_with_sales": int(row['months_with_sales']) if row['months_with_sales'] else 0,
+                        "total_sales": float(row['total_sales']),
+                        "avg_monthly_sales": float(row['avg_monthly_sales']),
+                        "last_sale_date": row['last_sale_date'].strftime('%Y-%m-%d') if row['last_sale_date'] else 'Never',
+                        "days_since_last_sale": int(row['days_since_last_sale']) if row['days_since_last_sale'] < 9999 else 'Never',
+                        "current_inventory": int(row['current_inventory']),
+                        "recent_backorders": int(row['recent_backorders']),
+                        "discontinuation_priority": row['discontinuation_priority']
+                    })
+                
+                result = {
+                    "found": True,
+                    "criteria": {
+                        "sales_threshold": sales_threshold,
+                        "months_analyzed": months_lookback
+                    },
+                    "total_candidates": len(candidates),
+                    "candidates": candidates
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_discontinuation_candidates
+
+
+def create_products_not_sold_tool(queries_executed: List[Dict]):
+    """Tool to identify products that had ZERO sales in a specific period"""
+    
+    @tool
+    async def get_products_not_sold(
+        start_date: str,
+        end_date: str,
+        location_id: Optional[str] = None,
+        top_n: int = 100
+    ) -> str:
+        """
+        Identify products that had ZERO sales in a specific time period.
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Qué productos no se vendieron en octubre?"
+        - "Productos sin venta en el último trimestre"
+        - "Dame productos que no se vendieron este mes"
+        - "Productos con inventario pero sin ventas en [periodo]"
+        - "Productos en el depósito X que no se vendieron"
+        
+        **IMPORTANT:** This finds products with ZERO sales. For products with LOW sales,
+        use get_discontinuation_candidates instead.
+        
+        Args:
+            start_date: Start date for period (format: YYYY-MM-DD)
+            end_date: End date for period (format: YYYY-MM-DD)
+            location_id: Optional - specific location/warehouse (if None, shows all locations)
+            top_n: Number of results to return (default 100)
+        
+        Returns:
+            JSON with list of products that had no sales in the period, with inventory info
+        """
+        params = []
+        param_counter = 1
+        
+        # Build WHERE clause for location filter
+        location_filter = ""
+        if location_id:
+            location_filter = f"AND i.location_id = ${param_counter}"
+            params.append(location_id)
+            param_counter += 1
+        
+        sql = f"""
+            SELECT 
+                p.product_id,
+                p.product_name,
+                p.brand,
+                p.category,
+                p.subcategory,
+                p.state,
+                p.outsourced,
+                COALESCE(SUM(i.inventory_qty), 0) as total_inventory,
+                COUNT(DISTINCT i.location_id) as locations_count,
+                STRING_AGG(DISTINCT i.location_id, ', ') as location_ids
+            FROM products p
+            LEFT JOIN inventory i ON p.product_id = i.product_id {location_filter}
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM transactions t
+                WHERE t.product_id = p.product_id
+                  AND t.transaction_type = 'SALE'
+                  AND t.date >= ${param_counter}
+                  AND t.date < ${param_counter + 1}
+            )
+              AND p.state = true
+            GROUP BY p.product_id, p.product_name, p.brand, p.category, p.subcategory, p.state, p.outsourced
+            HAVING COALESCE(SUM(i.inventory_qty), 0) > 0
+            ORDER BY total_inventory DESC
+            LIMIT ${param_counter + 2}
+        """
+        
+        # Convert strings to date objects for PostgreSQL
+        from datetime import datetime
+        start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+        end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        
+        params.extend([start_date_obj, end_date_obj, top_n])
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    location_msg = f" en location {location_id}" if location_id else ""
+                    return json.dumps({
+                        "found": False,
+                        "message": f"No se encontraron productos sin venta en el periodo{location_msg}",
+                        "products": []
+                    })
+                
+                products = []
+                for row in rows:
+                    products.append({
+                        "product_id": row['product_id'],
+                        "product_name": row['product_name'],
+                        "brand": row['brand'] if row['brand'] else 'N/A',
+                        "category": row['category'] if row['category'] else 'N/A',
+                        "subcategory": row['subcategory'] if row['subcategory'] else 'N/A',
+                        "state": "ACTIVO" if row['state'] else "INACTIVO",
+                        "outsourced": "SI" if row['outsourced'] else "NO",
+                        "total_inventory": int(row['total_inventory']),
+                        "locations_count": int(row['locations_count']),
+                        "location_ids": row['location_ids'] if row['location_ids'] else 'N/A'
+                    })
+                
+                location_info = f" en location {location_id}" if location_id else " en todas las locations"
+                
+                result = {
+                    "found": True,
+                    "period": {
+                        "start_date": start_date,
+                        "end_date": end_date
+                    },
+                    "location_filter": location_id if location_id else "all",
+                    "total_products": len(products),
+                    "products": products,
+                    "summary": f"Se encontraron {len(products)} productos sin ventas{location_info} en el periodo"
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_products_not_sold
+
+
+def create_product_period_comparison_tool(queries_executed: List[Dict]):
+    """Tool to compare product sales between two periods"""
+    
+    @tool
+    async def get_product_period_comparison(
+        current_start_date: str,
+        current_end_date: str,
+        comparison_start_date: str,
+        comparison_end_date: str,
+        category: Optional[str] = None,
+        product_id: Optional[str] = None,
+        filter_trend: Optional[str] = None,
+        top_n: int = 50
+    ) -> str:
+        """
+        Compare product sales between two time periods to identify growth or decline.
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Qué productos están creciendo/decreciendo vs [periodo]?"
+        - "Productos con crecimiento vs mes/trimestre/año pasado"
+        - "Comparar ventas de productos entre periodos"
+        - "¿Cuáles productos vienen decreciendo?"
+        
+        **IMPORTANT:** Agent calculates the dates. Examples:
+        - "vs mes pasado" → current: 2025-12-01 to 2025-12-31, comparison: 2025-11-01 to 2025-11-30
+        - "vs trimestre pasado" → current: Q4 2025, comparison: Q3 2025
+        - "vs año pasado" → current: 2025-12-01 to 2025-12-31, comparison: 2024-12-01 to 2024-12-31
+        
+        Args:
+            current_start_date: Start date of current period (YYYY-MM-DD)
+            current_end_date: End date of current period (YYYY-MM-DD)
+            comparison_start_date: Start date of comparison period (YYYY-MM-DD)
+            comparison_end_date: End date of comparison period (YYYY-MM-DD)
+            category: Filter by product category (optional)
+            product_id: Filter by specific product (optional)
+            filter_trend: 'growing', 'declining', or None for all (optional)
+            top_n: Number of products to return (default 50)
+        
+        Returns:
+            JSON with products, sales in both periods, and growth/decline metrics
+        """
+        from datetime import datetime
+        
+        # Convert strings to date objects
+        try:
+            current_start = datetime.strptime(current_start_date, '%Y-%m-%d').date()
+            current_end = datetime.strptime(current_end_date, '%Y-%m-%d').date()
+            comparison_start = datetime.strptime(comparison_start_date, '%Y-%m-%d').date()
+            comparison_end = datetime.strptime(comparison_end_date, '%Y-%m-%d').date()
+        except ValueError as e:
+            return json.dumps({"error": f"Invalid date format: {str(e)}. Use YYYY-MM-DD"})
+        
+        # Build base params list
+        params = [current_start, current_end, comparison_start, comparison_end]
+        param_counter = 5
+        
+        # Build filters for WHERE clause
+        filters = []
+        if category:
+            filters.append(f"p.category = ${param_counter}")
+            params.append(category)
+            param_counter += 1
+        
+        if product_id:
+            filters.append(f"p.product_id = ${param_counter}")
+            params.append(product_id)
+            param_counter += 1
+        
+        filter_clause = f"AND {' AND '.join(filters)}" if filters else ""
+        
+        # Save positions for filter_trend and top_n
+        filter_trend_param = param_counter
+        top_n_param = param_counter + 1
+        
+        # Add to params list
+        params.append(filter_trend)
+        params.append(top_n)
+        
+        sql = f"""
+            WITH current_sales AS (
+                SELECT 
+                    p.product_id,
+                    p.product_name,
+                    p.brand,
+                    p.category,
+                    p.subcategory,
+                    SUM(t.net_amount) as sales,
+                    SUM(t.quantity) as quantity
+                FROM transactions t
+                JOIN products p ON t.product_id = p.product_id
+                WHERE t.transaction_type = 'SALE'
+                  AND t.date >= $1
+                  AND t.date <= $2
+                  {filter_clause}
+                GROUP BY p.product_id, p.product_name, p.brand, p.category, p.subcategory
+            ),
+            comparison_sales AS (
+                SELECT 
+                    p.product_id,
+                    SUM(t.net_amount) as sales,
+                    SUM(t.quantity) as quantity
+                FROM transactions t
+                JOIN products p ON t.product_id = p.product_id
+                WHERE t.transaction_type = 'SALE'
+                  AND t.date >= $3
+                  AND t.date <= $4
+                  {filter_clause}
+                GROUP BY p.product_id
+            )
+            SELECT 
+                c.product_id,
+                c.product_name,
+                c.brand,
+                c.category,
+                c.subcategory,
+                c.sales as current_sales,
+                c.quantity as current_quantity,
+                COALESCE(cmp.sales, 0) as comparison_sales,
+                COALESCE(cmp.quantity, 0) as comparison_quantity,
+                c.sales - COALESCE(cmp.sales, 0) as sales_difference,
+                CASE 
+                    WHEN COALESCE(cmp.sales, 0) > 0 
+                    THEN ((c.sales - cmp.sales) / cmp.sales * 100)
+                    ELSE 0
+                END as growth_rate_pct,
+                CASE 
+                    WHEN COALESCE(cmp.sales, 0) = 0 THEN 'new'
+                    WHEN ((c.sales - cmp.sales) / cmp.sales * 100) > 5 THEN 'growing'
+                    WHEN ((c.sales - cmp.sales) / cmp.sales * 100) < -5 THEN 'declining'
+                    ELSE 'stable'
+                END as trend
+            FROM current_sales c
+            LEFT JOIN comparison_sales cmp ON c.product_id = cmp.product_id
+            WHERE (${filter_trend_param}::text IS NULL OR 
+                   CASE 
+                       WHEN COALESCE(cmp.sales, 0) = 0 THEN 'new'
+                       WHEN ((c.sales - cmp.sales) / cmp.sales * 100) > 5 THEN 'growing'
+                       WHEN ((c.sales - cmp.sales) / cmp.sales * 100) < -5 THEN 'declining'
+                       ELSE 'stable'
+                   END = ${filter_trend_param}::text)
+            ORDER BY growth_rate_pct DESC
+            LIMIT ${top_n_param}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": "No se encontraron productos para comparar en los periodos especificados",
+                        "products": []
+                    })
+                
+                products = []
+                for row in rows:
+                    products.append({
+                        "product_id": row['product_id'],
+                        "product_name": row['product_name'],
+                        "brand": row['brand'] if row['brand'] else 'N/A',
+                        "category": row['category'] if row['category'] else 'N/A',
+                        "subcategory": row['subcategory'] if row['subcategory'] else 'N/A',
+                        "current_period": {
+                            "sales": float(row['current_sales']),
+                            "quantity": float(row['current_quantity'])
+                        },
+                        "comparison_period": {
+                            "sales": float(row['comparison_sales']),
+                            "quantity": float(row['comparison_quantity'])
+                        },
+                        "sales_difference": float(row['sales_difference']),
+                        "growth_rate_pct": float(row['growth_rate_pct']),
+                        "trend": row['trend']
+                    })
+                
+                result = {
+                    "found": True,
+                    "current_period": {
+                        "start_date": current_start_date,
+                        "end_date": current_end_date
+                    },
+                    "comparison_period": {
+                        "start_date": comparison_start_date,
+                        "end_date": comparison_end_date
+                    },
+                    "filter_trend": filter_trend if filter_trend else "all",
+                    "total_products": len(products),
+                    "products": products
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_product_period_comparison
 

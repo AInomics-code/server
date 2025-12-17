@@ -86,7 +86,15 @@ class SimpleAgent:
             create_sales_by_client_tool,
             create_backorders_summary_tool,
             create_backorders_by_month_tool,
-            create_budgets_summary_tool
+            create_budgets_summary_tool,
+            create_product_first_sale_tool,
+            create_inactive_clients_tool,
+            create_product_growth_analysis_tool,
+            create_sales_comparison_tool,
+            create_discontinuation_candidates_tool,
+            create_budget_performance_tool,
+            create_products_not_sold_tool,
+            create_product_period_comparison_tool
         )
         
         # Simple/fast tools only - for quick lookups
@@ -104,6 +112,16 @@ class SimpleAgent:
         self.tools.append(create_inventory_tool(self.queries_executed))
         self.tools.append(create_sales_tool(self.queries_executed))
         self.tools.append(create_backorders_tool(self.queries_executed))
+        
+        # Growth analysis tools - NEW
+        self.tools.append(create_product_first_sale_tool(self.queries_executed))
+        self.tools.append(create_inactive_clients_tool(self.queries_executed))
+        self.tools.append(create_product_growth_analysis_tool(self.queries_executed))
+        self.tools.append(create_sales_comparison_tool(self.queries_executed))
+        self.tools.append(create_discontinuation_candidates_tool(self.queries_executed))
+        self.tools.append(create_budget_performance_tool(self.queries_executed))
+        self.tools.append(create_products_not_sold_tool(self.queries_executed))
+        self.tools.append(create_product_period_comparison_tool(self.queries_executed))
     
     async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         self.queries_executed = []
@@ -172,8 +190,9 @@ class SimpleAgent:
                     try:
                         import json
                         parsed = json.loads(observation)
+                        # Check if it's structured data (has common data keys)
                         if isinstance(parsed, dict) and any(
-                            k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost']
+                            k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost', 'results', 'items', 'data']
                         ):
                             data = parsed
                     except:

@@ -1,33 +1,54 @@
 You are a query classifier. Classify the following query as either SIMPLE or DYNAMIC.
 
 Rules:
-1. SIMPLE = Direct data lookup (no analysis, no comparisons, no explanations)
-2. DYNAMIC = Requires analysis, comparisons, trends, or causal explanations
+1. SIMPLE = Direct data lookup OR we have a specific pre-built tool for it
+2. DYNAMIC = Requires complex analysis, causal explanations, or custom SQL generation
 
 SIMPLE queries:
 - Direct inventory/sales/backorder lookups
 - Product searches
 - Data retrieval with date ranges
+- Budget vs actual sales comparisons (we have a specific tool)
+- Client/group performance vs budget
+- Product comparisons between periods (we have a specific tool)
+- Products growing/declining vs previous periods
 - Examples:
   * "¿Cuánto inventario tengo de tortillas?"
   * "Backorders de junio 2025"
   * "Ventas del primer trimestre"
   * "Dame el backorder total"
   * "Lista productos de la marca X"
+  * "¿Qué clientes están por debajo del presupuesto?" (SIMPLE - has tool)
+  * "¿Qué cadenas están por debajo del presupuesto este mes?" (SIMPLE - has tool)
+  * "Clientes que cumplen/no cumplen presupuesto" (SIMPLE - has tool)
+  * "Performance de presupuesto de octubre" (SIMPLE - has tool)
+  * "¿Qué productos están decreciendo vs el mes pasado?" (SIMPLE - has tool)
+  * "Productos creciendo vs trimestre anterior" (SIMPLE - has tool)
+  * "Comparar ventas de productos entre periodos" (SIMPLE - has tool)
+  * "Productos sin venta este mes" (SIMPLE - has tool)
 
 DYNAMIC queries (use these keywords as strong signals):
 - Contains: "por qué", "porque", "why"
 - Contains: "explica", "explain", "analiza", "analyze"
-- Contains: "compara", "compare", "vs", "versus"
 - Contains: "tendencia", "trend", "proyecta", "forecast"
 - Contains: "insights", "razones", "causas", "reasons"
 - Requires multi-step reasoning
+- Complex analysis requiring custom SQL
 - Examples:
   * "¿Por qué el backorder fue tan alto?"
   * "Explica las ventas de mayo"
-  * "Compara este mes vs anterior"
   * "Tendencia de inventario"
   * "¿Qué causó el incremento?"
+  
+IMPORTANT EXCEPTIONS - These are SIMPLE (not DYNAMIC):
+- "compara presupuesto" / "budget comparison" → SIMPLE (has tool)
+- "por debajo del presupuesto" / "below budget" → SIMPLE (has tool)
+- "cumplen presupuesto" / "meet budget" → SIMPLE (has tool)
+- "vs presupuesto" / "vs budget" → SIMPLE (has tool)
+- "productos creciendo/decreciendo" / "products growing/declining" → SIMPLE (has tool)
+- "vs mes/trimestre/año pasado" / "vs last month/quarter/year" → SIMPLE (has tool)
+- "comparar productos entre periodos" / "compare products between periods" → SIMPLE (has tool)
+- "productos sin venta" / "products not sold" → SIMPLE (has tool)
 
 Query: "{query}"
 

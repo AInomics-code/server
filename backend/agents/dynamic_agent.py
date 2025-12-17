@@ -66,7 +66,15 @@ class DynamicAgent:
             create_backorders_by_month_tool,
             create_product_search_tool,
             create_client_search_tool,
-            create_client_group_search_tool
+            create_client_group_search_tool,
+            create_product_first_sale_tool,
+            create_inactive_clients_tool,
+            create_product_growth_analysis_tool,
+            create_sales_comparison_tool,
+            create_discontinuation_candidates_tool,
+            create_budget_performance_tool,
+            create_products_not_sold_tool,
+            create_product_period_comparison_tool
         )
         from agents.tools.advanced_sql_tools import (
             create_client_sales_analysis_tool,
@@ -107,6 +115,16 @@ class DynamicAgent:
         self.tools.append(create_seller_performance_tool(self.queries_executed))
         self.tools.append(create_monthly_trend_tool(self.queries_executed))
         self.tools.append(create_order_fulfillment_rate_tool(self.queries_executed))
+        
+        # Growth analysis tools - NEW
+        self.tools.append(create_product_first_sale_tool(self.queries_executed))
+        self.tools.append(create_inactive_clients_tool(self.queries_executed))
+        self.tools.append(create_product_growth_analysis_tool(self.queries_executed))
+        self.tools.append(create_sales_comparison_tool(self.queries_executed))
+        self.tools.append(create_discontinuation_candidates_tool(self.queries_executed))
+        self.tools.append(create_budget_performance_tool(self.queries_executed))
+        self.tools.append(create_products_not_sold_tool(self.queries_executed))
+        self.tools.append(create_product_period_comparison_tool(self.queries_executed))
         
         # Dynamic SQL and vector search
         self.tools.append(create_sql_tool(self.queries_executed))
@@ -162,8 +180,9 @@ class DynamicAgent:
                         try:
                             import json
                             parsed = json.loads(msg.content)
+                            # Check if it's structured data (has common data keys)
                             if isinstance(parsed, dict) and any(
-                                k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost']
+                                k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost', 'results', 'items', 'data']
                             ):
                                 data = parsed
                         except:

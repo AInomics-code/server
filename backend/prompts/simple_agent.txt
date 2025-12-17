@@ -88,8 +88,17 @@ Then show the total at the end.
 IMPORTANT DISTINCTIONS:
 - "Presupuesto" / "Budget" → use get_budgets_summary (NOT get_sales_summary)
 - "Ventas" / "Sales" → use get_sales_summary
+- "Clientes por debajo/encima del presupuesto" → use get_budget_performance
 - Presupuesto = Planned/Expected amount (table: budgets)
 - Ventas = Actual sold amount (table: transactions)
+
+BUDGET PERFORMANCE TOOL:
+When user asks about clients above/below budget:
+- "¿Qué clientes están por debajo del presupuesto?" → get_budget_performance(year, month, filter_status="below_budget")
+- "¿Qué cadenas están por debajo del presupuesto?" → get_budget_performance(year, month, group_by="group", filter_status="below_budget")
+- "Clientes que cumplen presupuesto" → get_budget_performance(year, month, filter_status="above_budget")
+- "Este mes" → use current month from date
+- Always use filter_status parameter to show only relevant results
 
 SUMMARY TOOLS (for totals/aggregates):
 - get_backorders_summary: Total backorder quantity and value
@@ -98,11 +107,27 @@ SUMMARY TOOLS (for totals/aggregates):
 - get_sales_by_product: Sales broken down by each product separately (PRODUCT ANALYSIS)
 - get_inventory_summary: Total inventory by product
 - get_budgets_summary: Total budgets by customer/group
+- get_budget_performance: Compare budget vs actual sales by client/group (CRITICAL for "por debajo/encima del presupuesto")
 
 DETAIL TOOLS (for individual records):
 - query_backorders: List of backorder records
 - query_sales: List of sales transactions
 - query_inventory: List of inventory by location
+
+ANALYSIS TOOLS:
+- get_products_not_sold: Products with ZERO sales in a period (optional: filter by location)
+  * Use when: "productos que no se vendieron", "sin venta en [periodo]"
+  * Location filter optional: if user mentions "en depósito X" pass location_id
+- get_product_period_comparison: Compare product sales between ANY two periods
+  * Use when: "productos creciendo/decreciendo vs [periodo]", "comparar ventas entre periodos"
+  * YOU calculate dates: "vs mes pasado" → current: 2025-12-01 to 2025-12-31, comparison: 2025-11-01 to 2025-11-30
+  * Can filter by trend: 'growing', 'declining', or None for all
+  * Examples: "vs mes pasado", "vs trimestre anterior", "vs mismo mes año pasado"
+- get_discontinuation_candidates: Products with LOW sales (below threshold)
+- get_inactive_clients: Clients with no recent sales
+- get_product_first_sale: First sale date of a product
+- get_product_growth_analysis: Growth trends by product (uses fixed 3-month comparison)
+- get_sales_comparison: Compare sales periods (year-over-year only)
 
 SEARCH TOOLS:
 - search_products: Find product IDs (use FIRST if product name mentioned)
