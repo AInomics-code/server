@@ -26,6 +26,13 @@ SIMPLE queries:
   * "Productos creciendo vs trimestre anterior" (SIMPLE - has tool)
   * "Comparar ventas de productos entre periodos" (SIMPLE - has tool)
   * "Productos sin venta este mes" (SIMPLE - has tool)
+  * "¿Qué productos sugieres descatalogar?" (SIMPLE - has tool)
+  * "Productos con baja venta para descatalogar" (SIMPLE - has tool)
+  * "Productos candidatos a descontinuar" (SIMPLE - has tool)
+  * "Clientes más rentables" (SIMPLE - has tool)
+  * "Clientes con mejor margen" (SIMPLE - has tool)
+  * "Performance de clientes en [periodo]" (SIMPLE - has tool)
+  * "Clientes que compran poco por día" (SIMPLE - has tool)
 
 DYNAMIC queries (use these keywords as strong signals):
 - Contains: "por qué", "porque", "why"
@@ -49,6 +56,12 @@ IMPORTANT EXCEPTIONS - These are SIMPLE (not DYNAMIC):
 - "vs mes/trimestre/año pasado" / "vs last month/quarter/year" → SIMPLE (has tool)
 - "comparar productos entre periodos" / "compare products between periods" → SIMPLE (has tool)
 - "productos sin venta" / "products not sold" → SIMPLE (has tool)
+- "descatalogar" / "discontinue" / "descontinuar" → SIMPLE (has tool)
+- "productos con baja venta" / "low sales products" → SIMPLE (has tool)
+- "clientes rentables" / "profitable clients" → SIMPLE (has tool)
+- "clientes con mejor/peor margen" / "clients with margin" → SIMPLE (has tool)
+- "performance de clientes" / "client performance" → SIMPLE (has tool)
+- "clientes frecuentes" / "frequent clients" → SIMPLE (has tool)
 
 Query: "{query}"
 

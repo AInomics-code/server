@@ -2059,50 +2059,61 @@ def create_inactive_clients_tool(queries_executed: List[Dict]):
         Returns:
             JSON with list of inactive clients including last sale date, seller, and historical sales
         """
-        sql = f"""
-            WITH last_sales AS (
-                SELECT 
-                    c.client_id,
-                    c.client_name,
-                    c.client_group,
-                    c.city,
-                    MAX(t.date) as last_sale_date,
-                    MAX(t.seller_name) as last_seller_name,
-                    SUM(t.net_amount) as total_historical_sales,
-                    COUNT(*) as total_transactions
-                FROM clients c
-                LEFT JOIN transactions t ON c.client_id = t.client_id
-                    AND t.transaction_type = 'SALE'
-                GROUP BY c.client_id, c.client_name, c.client_group, c.city
+        from datetime import datetime, timedelta
+        
+        # Calculate threshold date
+        threshold_date = datetime.now().date() - timedelta(days=days_threshold)
+        
+        sql = """
+            WITH last_sale AS (
+                SELECT
+                    client_id,
+                    MAX(date) AS last_sale_date
+                FROM transactions
+                WHERE transaction_type = 'SALE'
+                GROUP BY client_id
+            ),
+            sales_agg AS (
+                SELECT
+                    client_id,
+                    SUM(net_amount) AS total_historical_sales,
+                    COUNT(*) AS total_transactions
+                FROM transactions
+                WHERE transaction_type = 'SALE'
+                GROUP BY client_id
             )
-            SELECT 
-                client_id,
-                client_name,
-                client_group,
-                city,
-                last_sale_date,
-                last_seller_name,
-                COALESCE(EXTRACT(DAY FROM (CURRENT_DATE - last_sale_date)), 9999) as days_since_last_sale,
-                total_historical_sales,
-                total_transactions
-            FROM last_sales
-            WHERE COALESCE(EXTRACT(DAY FROM (CURRENT_DATE - last_sale_date)), 9999) > {days_threshold}
-            ORDER BY days_since_last_sale DESC, total_historical_sales DESC
-            LIMIT {top_n}
+            SELECT
+                c.client_id,
+                c.client_name,
+                c.client_group,
+                c.city,
+                ls.last_sale_date,
+                COALESCE(sa.total_historical_sales, 0) AS total_historical_sales,
+                COALESCE(sa.total_transactions, 0) AS total_transactions
+            FROM clients c
+            LEFT JOIN last_sale ls ON ls.client_id = c.client_id
+            LEFT JOIN sales_agg sa ON sa.client_id = c.client_id
+            WHERE ls.last_sale_date < $1
+               OR ls.last_sale_date IS NULL
+            ORDER BY ls.last_sale_date ASC NULLS FIRST,
+                     total_historical_sales DESC
+            LIMIT $2
         """
+        
+        params = [threshold_date, top_n]
         
         queries_executed.append({
             "type": "sql",
             "database": "client_data",
             "query": sql,
-            "params": [],
+            "params": params,
             "source": "simple_agent_tool"
         })
         
         pool = await get_client_db_pool()
         try:
             async with pool.acquire() as conn:
-                rows = await conn.fetch(sql)
+                rows = await conn.fetch(sql, *params)
                 
                 if not rows:
                     return json.dumps({
@@ -2112,18 +2123,24 @@ def create_inactive_clients_tool(queries_executed: List[Dict]):
                     })
                 
                 clients = []
+                current_date = datetime.now().date()
+                
                 for row in rows:
-                    days = int(row['days_since_last_sale']) if row['days_since_last_sale'] < 9999 else None
+                    # Calculate days_since_last_sale
+                    if row['last_sale_date']:
+                        days_diff = (current_date - row['last_sale_date']).days
+                    else:
+                        days_diff = None
+                    
                     clients.append({
                         "client_id": row['client_id'],
                         "client_name": row['client_name'],
                         "client_group": row['client_group'] if row['client_group'] else 'N/A',
                         "city": row['city'] if row['city'] else 'N/A',
                         "last_sale_date": row['last_sale_date'].strftime('%Y-%m-%d') if row['last_sale_date'] else 'Never',
-                        "days_since_last_sale": days if days else 'Never sold',
-                        "last_seller_name": row['last_seller_name'] if row['last_seller_name'] else 'N/A',
-                        "total_historical_sales": float(row['total_historical_sales']) if row['total_historical_sales'] else 0.0,
-                        "total_transactions": int(row['total_transactions']) if row['total_transactions'] else 0
+                        "days_since_last_sale": days_diff if days_diff is not None else 'Never sold',
+                        "total_historical_sales": float(row['total_historical_sales']),
+                        "total_transactions": int(row['total_transactions'])
                     })
                 
                 result = {
@@ -3142,4 +3159,249 @@ def create_product_period_comparison_tool(queries_executed: List[Dict]):
             await pool.close()
     
     return get_product_period_comparison
+
+
+def create_client_performance_analysis_tool(queries_executed: List[Dict]):
+    """Tool to analyze client performance with profitability and frequency metrics"""
+    
+    @tool
+    async def get_client_performance_analysis(
+        start_date: str,
+        end_date: str,
+        location_id: Optional[str] = None,
+        client_group: Optional[str] = None,
+        min_frequency: Optional[int] = None,
+        max_daily_avg: Optional[float] = None,
+        min_daily_avg: Optional[float] = None,
+        sort_by: str = "profit",
+        order: str = "desc",
+        top_n: int = 50
+    ) -> str:
+        """
+        Comprehensive client performance analysis including profitability, sales, and frequency.
+        
+        **USE THIS TOOL WHEN:**
+        - "Clientes más/menos rentables" (most/least profitable clients)
+        - "Clientes con mejor/peor margen" (clients with best/worst margin)
+        - "Clientes que compran poco pero gasto bajo" (clients buying frequently but low amounts)
+        - "Clientes semanales que compran por debajo de X dólares por día"
+        - "Top clientes por ventas/ganancia/frecuencia"
+        - "Performance de clientes en [periodo/location]"
+        
+        Args:
+            start_date: Start date (YYYY-MM-DD)
+            end_date: End date (YYYY-MM-DD)
+            location_id: Optional location filter
+            client_group: Optional client group filter
+            min_frequency: Minimum purchases per week (optional)
+            max_daily_avg: Maximum daily average sales (optional)
+            min_daily_avg: Minimum daily average sales (optional)
+            sort_by: "profit", "sales", "margin_pct", "frequency" (default: profit)
+            order: "asc" or "desc" (default: desc)
+            top_n: Number of results (default 50)
+        
+        Returns:
+            JSON with client performance metrics including profitability, frequency, and segmentation
+        """
+        from datetime import datetime
+        
+        # Convert strings to date objects
+        try:
+            start_date_obj = datetime.strptime(start_date, '%Y-%m-%d').date()
+            end_date_obj = datetime.strptime(end_date, '%Y-%m-%d').date()
+        except ValueError as e:
+            return json.dumps({"error": f"Invalid date format: {str(e)}. Use YYYY-MM-DD"})
+        
+        # Build params
+        params = [start_date_obj, end_date_obj, location_id, client_group, 
+                  min_frequency, max_daily_avg, min_daily_avg, sort_by, order, top_n]
+        
+        sql = """
+            WITH date_range AS (
+                SELECT 
+                    $1::DATE as start_date,
+                    $2::DATE as end_date,
+                    ($2::DATE - $1::DATE) as total_days,
+                    CEIL(($2::DATE - $1::DATE) / 7.0) as total_weeks
+            ),
+            client_sales AS (
+                SELECT 
+                    c.client_id,
+                    c.client_name,
+                    c.client_group,
+                    c.city,
+                    
+                    COUNT(DISTINCT t.date) as purchase_days,
+                    COUNT(DISTINCT DATE_TRUNC('week', t.date)) as purchase_weeks,
+                    COUNT(*) as total_transactions,
+                    
+                    SUM(t.net_amount) as total_sales,
+                    SUM(t.total_cost) as total_cost,
+                    SUM(t.net_amount - t.total_cost) as total_profit,
+                    
+                    AVG(t.net_amount) as avg_transaction_value,
+                    SUM(t.net_amount) / NULLIF(COUNT(DISTINCT t.date), 0) as avg_daily_sales,
+                    SUM(t.net_amount) / NULLIF(COUNT(DISTINCT DATE_TRUNC('week', t.date)), 0) as avg_weekly_sales
+                    
+                FROM clients c
+                INNER JOIN transactions t ON c.client_id = t.client_id
+                WHERE t.transaction_type = 'SALE'
+                  AND t.date >= $1::DATE
+                  AND t.date <= $2::DATE
+                  AND ($3::TEXT IS NULL OR t.location_id = $3)
+                  AND ($4::TEXT IS NULL OR c.client_group = $4)
+                GROUP BY c.client_id, c.client_name, c.client_group, c.city
+            )
+            SELECT 
+                cs.client_id,
+                cs.client_name,
+                cs.client_group,
+                cs.city,
+                
+                cs.purchase_days,
+                cs.purchase_weeks,
+                dr.total_days,
+                dr.total_weeks,
+                
+                ROUND((cs.purchase_days::NUMERIC / NULLIF(dr.total_days, 0)), 3) as purchase_frequency_pct,
+                ROUND((cs.purchase_weeks::NUMERIC / NULLIF(dr.total_weeks, 0)), 3) as weekly_purchase_rate,
+                
+                cs.total_transactions,
+                cs.total_sales,
+                cs.total_cost,
+                cs.total_profit,
+                
+                CASE 
+                    WHEN cs.total_sales > 0 
+                    THEN ROUND((cs.total_profit / cs.total_sales * 100), 2)
+                    ELSE 0
+                END as profit_margin_pct,
+                
+                ROUND(cs.avg_transaction_value, 2) as avg_transaction_value,
+                ROUND(cs.avg_daily_sales, 2) as avg_daily_sales,
+                ROUND(cs.avg_weekly_sales, 2) as avg_weekly_sales,
+                
+                CASE 
+                    WHEN cs.total_profit / NULLIF(cs.total_sales, 0) > 0.30 THEN 'high_margin'
+                    WHEN cs.total_profit / NULLIF(cs.total_sales, 0) > 0.15 THEN 'medium_margin'
+                    ELSE 'low_margin'
+                END as margin_category,
+                
+                CASE 
+                    WHEN cs.purchase_weeks::NUMERIC / NULLIF(dr.total_weeks, 0) >= 0.75 THEN 'very_frequent'
+                    WHEN cs.purchase_weeks::NUMERIC / NULLIF(dr.total_weeks, 0) >= 0.5 THEN 'frequent'
+                    WHEN cs.purchase_weeks::NUMERIC / NULLIF(dr.total_weeks, 0) >= 0.25 THEN 'occasional'
+                    ELSE 'rare'
+                END as frequency_category,
+                
+                CASE 
+                    WHEN cs.total_sales > 50000 THEN 'vip'
+                    WHEN cs.total_sales > 20000 THEN 'premium'
+                    WHEN cs.total_sales > 5000 THEN 'standard'
+                    ELSE 'low_value'
+                END as value_segment
+
+            FROM client_sales cs
+            CROSS JOIN date_range dr
+
+            WHERE 1=1
+                AND ($5::INT IS NULL OR cs.purchase_weeks >= $5)
+                AND ($6::NUMERIC IS NULL OR cs.avg_daily_sales <= $6)
+                AND ($7::NUMERIC IS NULL OR cs.avg_daily_sales >= $7)
+
+            ORDER BY 
+                CASE 
+                    WHEN $8 = 'profit' THEN cs.total_profit
+                    WHEN $8 = 'sales' THEN cs.total_sales
+                    WHEN $8 = 'margin_pct' THEN cs.total_profit / NULLIF(cs.total_sales, 0)
+                    WHEN $8 = 'frequency' THEN cs.purchase_weeks::NUMERIC
+                    ELSE cs.total_profit
+                END * CASE WHEN $9 = 'desc' THEN -1 ELSE 1 END
+
+            LIMIT $10
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": "No se encontraron clientes en el periodo especificado",
+                        "clients": []
+                    })
+                
+                clients = []
+                for row in rows:
+                    clients.append({
+                        "client_id": row['client_id'],
+                        "client_name": row['client_name'],
+                        "client_group": row['client_group'] if row['client_group'] else 'N/A',
+                        "city": row['city'] if row['city'] else 'N/A',
+                        "frequency": {
+                            "purchase_days": int(row['purchase_days']),
+                            "purchase_weeks": int(row['purchase_weeks']),
+                            "total_days": int(row['total_days']),
+                            "total_weeks": int(row['total_weeks']),
+                            "purchase_frequency_pct": float(row['purchase_frequency_pct']),
+                            "weekly_purchase_rate": float(row['weekly_purchase_rate']),
+                            "category": row['frequency_category']
+                        },
+                        "financial": {
+                            "total_transactions": int(row['total_transactions']),
+                            "total_sales": float(row['total_sales']),
+                            "total_cost": float(row['total_cost']),
+                            "total_profit": float(row['total_profit']),
+                            "profit_margin_pct": float(row['profit_margin_pct']),
+                            "margin_category": row['margin_category']
+                        },
+                        "averages": {
+                            "avg_transaction_value": float(row['avg_transaction_value']),
+                            "avg_daily_sales": float(row['avg_daily_sales']),
+                            "avg_weekly_sales": float(row['avg_weekly_sales'])
+                        },
+                        "value_segment": row['value_segment']
+                    })
+                
+                total_days = int(rows[0]['total_days']) if rows else 0
+                total_weeks = int(rows[0]['total_weeks']) if rows else 0
+                
+                result = {
+                    "found": True,
+                    "period": {
+                        "start_date": start_date,
+                        "end_date": end_date,
+                        "total_days": total_days,
+                        "total_weeks": total_weeks
+                    },
+                    "filters_applied": {
+                        "location_id": location_id,
+                        "client_group": client_group,
+                        "min_frequency": min_frequency,
+                        "max_daily_avg": max_daily_avg,
+                        "min_daily_avg": min_daily_avg
+                    },
+                    "sort": {
+                        "by": sort_by,
+                        "order": order
+                    },
+                    "total_clients": len(clients),
+                    "clients": clients
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_client_performance_analysis
 

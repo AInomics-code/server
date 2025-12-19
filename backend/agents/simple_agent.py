@@ -94,7 +94,8 @@ class SimpleAgent:
             create_discontinuation_candidates_tool,
             create_budget_performance_tool,
             create_products_not_sold_tool,
-            create_product_period_comparison_tool
+            create_product_period_comparison_tool,
+            create_client_performance_analysis_tool
         )
         
         # Simple/fast tools only - for quick lookups
@@ -122,6 +123,7 @@ class SimpleAgent:
         self.tools.append(create_budget_performance_tool(self.queries_executed))
         self.tools.append(create_products_not_sold_tool(self.queries_executed))
         self.tools.append(create_product_period_comparison_tool(self.queries_executed))
+        self.tools.append(create_client_performance_analysis_tool(self.queries_executed))
     
     async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         self.queries_executed = []

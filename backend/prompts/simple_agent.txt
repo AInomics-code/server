@@ -123,7 +123,18 @@ ANALYSIS TOOLS:
   * YOU calculate dates: "vs mes pasado" → current: 2025-12-01 to 2025-12-31, comparison: 2025-11-01 to 2025-11-30
   * Can filter by trend: 'growing', 'declining', or None for all
   * Examples: "vs mes pasado", "vs trimestre anterior", "vs mismo mes año pasado"
-- get_discontinuation_candidates: Products with LOW sales (below threshold)
+- get_discontinuation_candidates: Products recommended for discontinuation
+  * Use when: "productos para descatalogar", "baja venta", "descontinuar"
+  * Analyzes last N months (default 6), considers inventory & backorders
+  * Params: sales_threshold (default $1000/month), months_lookback (default 6)
+  * Excludes products with recent backorders (indicates demand)
+- get_client_performance_analysis: Comprehensive client performance with profitability
+  * Use when: "clientes más/menos rentables", "mejor/peor margen", "performance de clientes"
+  * Use when: "clientes frecuentes que compran poco", "clientes semanales por debajo de X"
+  * Calculates: profit, margin %, frequency, daily/weekly averages
+  * Filters: location, client_group, min_frequency, max/min_daily_avg
+  * Sort by: profit, sales, margin_pct, frequency
+  * Examples: "clientes más rentables", "clientes con mejor margen en octubre", "clientes que compran <$10/día"
 - get_inactive_clients: Clients with no recent sales
 - get_product_first_sale: First sale date of a product
 - get_product_growth_analysis: Growth trends by product (uses fixed 3-month comparison)
