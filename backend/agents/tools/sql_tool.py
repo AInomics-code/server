@@ -28,7 +28,7 @@ def create_sql_tool(queries_executed_ref: List[Dict]) -> tool:
         - transactions (date, transaction_type, product_id, unit_price, quantity, unit_cost, gross_amount, net_amount, discount_amount, client_id, seller_name)
         - clients (client_id, client_name, client_group, country, state, district, city)
         - backorder (date, order_id, location_id, client_id, seller_name, product_id, expected_delivery_date, actual_delivery_date, days_delayed, order_qty, delivery_qty, backorder_qty, unit_price)
-        - budgets (date, budget, customer_id)
+        - budgets (date, budget, client_id, client_code, client_name)
         
         IMPORTANT:
         - Always use JOINs to get readable names (not just IDs)

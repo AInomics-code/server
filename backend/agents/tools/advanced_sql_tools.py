@@ -178,7 +178,7 @@ def create_budget_vs_actual_tool(queries_executed: List[Dict]):
         param_counter = 1
         
         if customer_id:
-            conditions.append(f"b.customer_id = ${param_counter}")
+            conditions.append(f"b.client_id = ${param_counter}")
             params.append(customer_id)
             param_counter += 1
         
@@ -190,11 +190,12 @@ def create_budget_vs_actual_tool(queries_executed: List[Dict]):
         
         where_clause = f"WHERE {' AND '.join(conditions[1:])}" if len(conditions) > 1 else ""
         
+        # Updated query to use budgets table with client_name directly
         sql = f"""
             SELECT 
                 b.date,
-                b.customer_id,
-                c.client_name,
+                b.client_id,
+                b.client_name,
                 c.client_group,
                 b.budget,
                 COALESCE(SUM(t.net_amount), 0) as actual_sales,
@@ -204,12 +205,12 @@ def create_budget_vs_actual_tool(queries_executed: List[Dict]):
                     ELSE 0 
                 END as achievement_pct
             FROM budgets b
-            LEFT JOIN clients c ON b.customer_id = c.client_id
-            LEFT JOIN transactions t ON t.client_id = b.customer_id 
+            LEFT JOIN clients c ON b.client_id = c.client_id
+            LEFT JOIN transactions t ON t.client_id = b.client_id 
                 AND DATE_TRUNC('month', t.date) = b.date
                 AND t.transaction_type = 'SALE'
             {where_clause}
-            GROUP BY b.date, b.customer_id, c.client_name, c.client_group, b.budget
+            GROUP BY b.date, b.client_id, b.client_name, c.client_group, b.budget
             ORDER BY b.date DESC
         """
         
@@ -233,7 +234,7 @@ def create_budget_vs_actual_tool(queries_executed: List[Dict]):
                     "records": [
                         {
                             "month": row['date'].strftime('%Y-%m'),
-                            "customer_id": row['customer_id'],
+                            "client_id": row['client_id'],
                             "client_name": row['client_name'],
                             "client_group": row['client_group'],
                             "budget": float(row['budget']),
