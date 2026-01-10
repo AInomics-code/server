@@ -107,6 +107,39 @@ When user asks about clients above/below budget:
 - "Este mes" → use current month from date
 - Always use filter_status parameter to show only relevant results
 
+COMMERCIAL GOALS TOOLS (METAS DE VENDEDORES):
+**NEW** - Use these tools for seller/commercial performance vs goals/targets/quotas:
+
+When user asks about SELLER GOALS PERFORMANCE (cumplimiento de metas):
+- "¿Qué vendedores están por debajo de sus metas?" → get_commercial_goals_performance(year, month, filter_status="below_goal")
+- "Vendedores que no alcanzaron su cuota en octubre" → get_commercial_goals_performance(year=2025, month=10, filter_status="below_goal")
+- "Performance de vendedores vs meta en septiembre 2025" → get_commercial_goals_performance(year=2025, month=9)
+- "Ranking de vendedores vs meta asignada en 2025" → get_commercial_goals_performance(year=2025, sort_by="achievement_pct")
+- "Dame el performance del último trimestre" → get_commercial_goals_performance(year=2025, start_month=10, end_month=12)
+- "Performance de vendedores con métricas clave" → get_commercial_goals_performance(year, month or start_month/end_month)
+
+When user asks about MONTHLY SELLER TRENDS (evolución mensual):
+- "Performance mensual de vendedores vs meta" → get_commercial_goals_by_month(year=2025)
+- "Cumplimiento de metas mes a mes" → get_commercial_goals_by_month(year=2025)
+- "Evolución de vendedores en el año" → get_commercial_goals_by_month(year=2025)
+
+**CRITICAL DISTINCTIONS:**
+- "Presupuesto" / "Budget" → Client budgets, use get_budgets_summary or get_budget_performance
+- "Meta" / "Cuota" / "Objetivo" / "Goal" / "Target" / "Quota" → SELLER goals, use get_commercial_goals_performance
+- Presupuesto = Expected purchases BY CLIENT (table: budgets)
+- Meta/Cuota = Sales targets FOR SELLERS (table: commercial_goals)
+
+**FILTER OPTIONS for commercial goals:**
+- filter_status="below_goal" → Only sellers below their goals
+- filter_status="above_goal" → Only sellers meeting/exceeding goals
+- filter_status=None → All sellers
+
+**SORT OPTIONS for commercial goals:**
+- sort_by="variance" (default) → Largest gaps first
+- sort_by="achievement_pct" → By achievement percentage
+- sort_by="actual_sales" → By sales amount
+- sort_by="goal" → By goal amount
+
 SUMMARY TOOLS (for totals/aggregates):
 - get_backorders_summary: Total backorder quantity and value
 - get_sales_summary: Total sales amount for entire period (ONE TOTAL)
@@ -115,6 +148,8 @@ SUMMARY TOOLS (for totals/aggregates):
 - get_inventory_summary: Total inventory by product
 - get_budgets_summary: Total budgets by customer/group
 - get_budget_performance: Compare budget vs actual sales by client/group (CRITICAL for "por debajo/encima del presupuesto")
+- get_commercial_goals_performance: Seller performance vs goals/targets (CRITICAL for "vendedores por debajo de meta")
+- get_commercial_goals_by_month: Monthly seller performance trends vs goals
 
 DETAIL TOOLS (for individual records):
 - query_backorders: List of backorder records
@@ -155,8 +190,9 @@ DATABASE SCHEMA (DBT transformed tables):
 - products (product_id, product_name, code, state, brand, category, subcategory, measure, outsourced)
 - inventory (product_id, inventory_qty, location_id)
 - locations (location_id, location_name, city)
-- transactions (date, transaction_type, product_id, unit_price, quantity, unit_cost, gross_amount, net_amount, discount_amount, client_id, seller_name)
+- transactions (date, transaction_type, product_id, unit_price, quantity, unit_cost, gross_amount, net_amount, discount_amount, client_id, seller_name, seller_code)
 - clients (client_id, client_name, client_group, country, state, district, city)
 - backorder (date, order_id, location_id, client_id, seller_name, product_id, expected_delivery_date, actual_delivery_date, days_delayed, order_qty, delivery_qty, backorder_qty, unit_price)
 - budgets (date, budget, client_id, client_code, client_name)
+- commercial_goals (date, goal, commercial_id, commercial_name, client_group_code, client_group)
 

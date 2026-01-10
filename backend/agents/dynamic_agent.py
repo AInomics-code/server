@@ -75,7 +75,9 @@ class DynamicAgent:
             create_budget_performance_tool,
             create_products_not_sold_tool,
             create_product_period_comparison_tool,
-            create_client_performance_analysis_tool
+            create_client_performance_analysis_tool,
+            create_commercial_goals_performance_tool,
+            create_commercial_goals_by_month_tool
         )
         from agents.tools.advanced_sql_tools import (
             create_client_sales_analysis_tool,
@@ -127,6 +129,10 @@ class DynamicAgent:
         self.tools.append(create_products_not_sold_tool(self.queries_executed))
         self.tools.append(create_product_period_comparison_tool(self.queries_executed))
         self.tools.append(create_client_performance_analysis_tool(self.queries_executed))
+        
+        # Commercial goals analysis tools - NEW
+        self.tools.append(create_commercial_goals_performance_tool(self.queries_executed))
+        self.tools.append(create_commercial_goals_by_month_tool(self.queries_executed))
         
         # Dynamic SQL and vector search
         self.tools.append(create_sql_tool(self.queries_executed))

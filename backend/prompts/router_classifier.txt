@@ -10,6 +10,7 @@ SIMPLE queries:
 - Data retrieval with date ranges
 - Budget vs actual sales comparisons (we have a specific tool)
 - Client/group performance vs budget
+- Seller/commercial performance vs goals/targets/quotas (we have specific tools)
 - Product comparisons between periods (we have a specific tool)
 - Products growing/declining vs previous periods
 - Examples:
@@ -22,6 +23,12 @@ SIMPLE queries:
   * "¿Qué cadenas están por debajo del presupuesto este mes?" (SIMPLE - has tool)
   * "Clientes que cumplen/no cumplen presupuesto" (SIMPLE - has tool)
   * "Performance de presupuesto de octubre" (SIMPLE - has tool)
+  * "¿Qué vendedores están por debajo de sus metas?" (SIMPLE - has tool)
+  * "Vendedores que no alcanzaron su cuota/meta" (SIMPLE - has tool)
+  * "Performance de vendedores vs meta" (SIMPLE - has tool)
+  * "Ranking de vendedores vs meta asignada" (SIMPLE - has tool)
+  * "Cumplimiento de metas de vendedores" (SIMPLE - has tool)
+  * "Dame el performance del último trimestre" (SIMPLE - has tool)
   * "¿Qué productos están decreciendo vs el mes pasado?" (SIMPLE - has tool)
   * "Productos creciendo vs trimestre anterior" (SIMPLE - has tool)
   * "Comparar ventas de productos entre periodos" (SIMPLE - has tool)
@@ -52,6 +59,12 @@ IMPORTANT EXCEPTIONS - These are SIMPLE (not DYNAMIC):
 - "por debajo del presupuesto" / "below budget" → SIMPLE (has tool)
 - "cumplen presupuesto" / "meet budget" → SIMPLE (has tool)
 - "vs presupuesto" / "vs budget" → SIMPLE (has tool)
+- "vendedores por debajo de meta" / "sellers below goal" → SIMPLE (has tool)
+- "vendedores que no alcanzaron cuota" / "sellers who didn't reach quota" → SIMPLE (has tool)
+- "performance de vendedores vs meta" / "seller performance vs goal" → SIMPLE (has tool)
+- "cumplimiento de metas" / "goal achievement" → SIMPLE (has tool)
+- "ranking de vendedores" / "seller ranking" → SIMPLE (has tool)
+- "vs meta" / "vs cuota" / "vs objetivo" / "vs goal" / "vs target" / "vs quota" → SIMPLE (has tool)
 - "productos creciendo/decreciendo" / "products growing/declining" → SIMPLE (has tool)
 - "vs mes/trimestre/año pasado" / "vs last month/quarter/year" → SIMPLE (has tool)
 - "comparar productos entre periodos" / "compare products between periods" → SIMPLE (has tool)

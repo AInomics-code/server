@@ -95,7 +95,9 @@ class SimpleAgent:
             create_budget_performance_tool,
             create_products_not_sold_tool,
             create_product_period_comparison_tool,
-            create_client_performance_analysis_tool
+            create_client_performance_analysis_tool,
+            create_commercial_goals_performance_tool,
+            create_commercial_goals_by_month_tool
         )
         
         # Simple/fast tools only - for quick lookups
@@ -124,6 +126,10 @@ class SimpleAgent:
         self.tools.append(create_products_not_sold_tool(self.queries_executed))
         self.tools.append(create_product_period_comparison_tool(self.queries_executed))
         self.tools.append(create_client_performance_analysis_tool(self.queries_executed))
+        
+        # Commercial goals analysis tools - NEW
+        self.tools.append(create_commercial_goals_performance_tool(self.queries_executed))
+        self.tools.append(create_commercial_goals_by_month_tool(self.queries_executed))
     
     async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         self.queries_executed = []
@@ -194,7 +200,7 @@ class SimpleAgent:
                         parsed = json.loads(observation)
                         # Check if it's structured data (has common data keys)
                         if isinstance(parsed, dict) and any(
-                            k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost', 'results', 'items', 'data']
+                            k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost', 'results', 'items', 'data', 'candidates', 'total_candidates', 'products', 'clients', 'groups', 'months']
                         ):
                             data = parsed
                     except:

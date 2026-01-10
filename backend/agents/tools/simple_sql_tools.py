@@ -3458,3 +3458,374 @@ def create_client_performance_analysis_tool(queries_executed: List[Dict]):
     
     return get_client_performance_analysis
 
+
+def create_commercial_goals_performance_tool(queries_executed: List[Dict]):
+    """Tool to analyze commercial goals (sales targets) vs actual sales performance by seller"""
+    
+    @tool
+    async def get_commercial_goals_performance(
+        year: int,
+        month: Optional[int] = None,
+        start_month: Optional[int] = None,
+        end_month: Optional[int] = None,
+        commercial_id: Optional[str] = None,
+        filter_status: Optional[str] = None,
+        sort_by: str = "variance",
+        top_n: int = 50
+    ) -> str:
+        """
+        Analyze commercial goals (sales targets) vs actual sales performance by seller/commercial.
+        
+        **USE THIS TOOL WHEN:**
+        - "¿Qué vendedores están por debajo de sus metas?" (which sellers are below their goals)
+        - "Vendedores que no alcanzaron su cuota" (sellers who didn't reach their quota)
+        - "Performance de vendedores vs meta en septiembre" (seller performance vs goal in September)
+        - "Ranking de vendedores vs meta asignada" (ranking of sellers vs assigned goal)
+        - "Dame el cumplimiento de metas de vendedores" (seller goal achievement)
+        - "Performance del último trimestre de vendedores" (last quarter seller performance)
+        
+        **CRITICAL WORKFLOWS:**
+        1. Single month: use `year` and `month` parameters
+        2. Multiple months/quarter: use `year`, `start_month`, and `end_month` parameters
+        3. Full year: use only `year` parameter (analyzes entire year)
+        4. Filter results: use `filter_status` ("below_goal", "above_goal", or None for all)
+        5. Current date context: "último trimestre" = last 3 months from current date
+        
+        **IMPORTANT FILTERS:**
+        - filter_status="below_goal" → shows only sellers below their goals
+        - filter_status="above_goal" → shows only sellers meeting or exceeding goals
+        - filter_status=None → shows all sellers
+        
+        **SORT OPTIONS:**
+        - "variance" (default): Sort by gap (goal - actual), largest gaps first
+        - "achievement_pct": Sort by achievement percentage
+        - "actual_sales": Sort by actual sales amount
+        - "goal": Sort by goal amount
+        
+        Args:
+            year: Year to analyze (e.g., 2025)
+            month: Single month to analyze (1-12), optional
+            start_month: Start month for range analysis (1-12), optional
+            end_month: End month for range analysis (1-12), optional
+            commercial_id: Specific seller/commercial code to filter (optional)
+            filter_status: Filter by performance - "below_goal", "above_goal", or None for all
+            sort_by: Sort results by "variance", "achievement_pct", "actual_sales", or "goal"
+            top_n: Number of results to return (default 50)
+        
+        Returns:
+            JSON with sellers, their goals, actual sales, variance, and achievement %
+        """
+        params = []
+        param_counter = 1
+        
+        # Determine date range based on parameters
+        if month:
+            # Single month
+            date_start = f"DATE '{year}-{month:02d}-01'"
+            if month == 12:
+                date_end = f"DATE '{year + 1}-01-01'"
+            else:
+                date_end = f"DATE '{year}-{month + 1:02d}-01'"
+            period_label = f"{year}-{month:02d}"
+        elif start_month and end_month:
+            # Month range (e.g., quarter)
+            date_start = f"DATE '{year}-{start_month:02d}-01'"
+            if end_month == 12:
+                date_end = f"DATE '{year + 1}-01-01'"
+            else:
+                date_end = f"DATE '{year}-{end_month + 1:02d}-01'"
+            period_label = f"{year}-{start_month:02d} to {year}-{end_month:02d}"
+        else:
+            # Full year
+            date_start = f"DATE '{year}-01-01'"
+            date_end = f"DATE '{year + 1}-01-01'"
+            period_label = str(year)
+        
+        # Optional commercial filter
+        commercial_filter = ""
+        if commercial_id:
+            commercial_filter = f"AND cg.commercial_id = ${param_counter}"
+            params.append(commercial_id)
+            param_counter += 1
+        
+        # Build query to compare commercial_goals vs transactions
+        sql = f"""
+            WITH goals_aggregated AS (
+                SELECT
+                    cg.commercial_id,
+                    cg.commercial_name,
+                    SUM(cg.goal) AS total_goal
+                FROM commercial_goals cg
+                WHERE cg.date >= {date_start}
+                  AND cg.date < {date_end}
+                  {commercial_filter}
+                GROUP BY cg.commercial_id, cg.commercial_name
+            ),
+            sales_aggregated AS (
+                SELECT
+                    t.seller_code AS commercial_id,
+                    SUM(t.net_amount) AS total_sales
+                FROM transactions t
+                WHERE t.date >= {date_start}
+                  AND t.date < {date_end}
+                  AND t.transaction_type = 'SALE'
+                GROUP BY t.seller_code
+            )
+            SELECT
+                COALESCE(g.commercial_id, s.commercial_id) AS commercial_id,
+                g.commercial_name,
+                COALESCE(g.total_goal, 0) AS goal,
+                COALESCE(s.total_sales, 0) AS actual_sales,
+                COALESCE(g.total_goal, 0) - COALESCE(s.total_sales, 0) AS variance,
+                CASE 
+                    WHEN COALESCE(g.total_goal, 0) > 0 
+                    THEN (COALESCE(s.total_sales, 0) / COALESCE(g.total_goal, 0) * 100)
+                    ELSE 0
+                END AS achievement_pct,
+                CASE 
+                    WHEN COALESCE(g.total_goal, 0) > COALESCE(s.total_sales, 0) THEN 'below_goal'
+                    WHEN COALESCE(g.total_goal, 0) < COALESCE(s.total_sales, 0) THEN 'above_goal'
+                    ELSE 'on_goal'
+                END AS status
+            FROM goals_aggregated g
+            FULL OUTER JOIN sales_aggregated s ON s.commercial_id = g.commercial_id
+            WHERE 1=1
+                {"AND COALESCE(g.total_goal, 0) > COALESCE(s.total_sales, 0)" if filter_status == "below_goal" else ""}
+                {"AND COALESCE(g.total_goal, 0) <= COALESCE(s.total_sales, 0)" if filter_status == "above_goal" else ""}
+            ORDER BY 
+                CASE 
+                    WHEN '{sort_by}' = 'variance' THEN COALESCE(g.total_goal, 0) - COALESCE(s.total_sales, 0)
+                    WHEN '{sort_by}' = 'achievement_pct' THEN CASE WHEN COALESCE(g.total_goal, 0) > 0 THEN (COALESCE(s.total_sales, 0) / COALESCE(g.total_goal, 0) * 100) ELSE 0 END
+                    WHEN '{sort_by}' = 'actual_sales' THEN COALESCE(s.total_sales, 0)
+                    WHEN '{sort_by}' = 'goal' THEN COALESCE(g.total_goal, 0)
+                    ELSE COALESCE(g.total_goal, 0) - COALESCE(s.total_sales, 0)
+                END DESC
+            LIMIT {top_n}
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": f"No se encontraron datos de metas comerciales para el periodo {period_label}",
+                        "results": []
+                    })
+                
+                results = []
+                for row in rows:
+                    results.append({
+                        "commercial_id": row['commercial_id'],
+                        "commercial_name": row['commercial_name'] or 'N/A',
+                        "goal": float(row['goal']),
+                        "actual_sales": float(row['actual_sales']),
+                        "variance": float(row['variance']),
+                        "achievement_pct": float(row['achievement_pct']),
+                        "status": row['status']
+                    })
+                
+                result = {
+                    "found": True,
+                    "period": period_label,
+                    "filter_status": filter_status or "all",
+                    "sort_by": sort_by,
+                    "total_results": len(results),
+                    "results": results
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_commercial_goals_performance
+
+
+def create_commercial_goals_by_month_tool(queries_executed: List[Dict]):
+    """Tool to analyze commercial goals performance by seller broken down by month"""
+    
+    @tool
+    async def get_commercial_goals_by_month(
+        year: int,
+        start_month: Optional[int] = None,
+        end_month: Optional[int] = None,
+        commercial_id: Optional[str] = None,
+        top_n: int = 20
+    ) -> str:
+        """
+        Get commercial goals performance by seller BROKEN DOWN BY EACH MONTH (time series).
+        
+        **USE THIS TOOL WHEN:**
+        - "Performance mensual de vendedores vs meta" (monthly seller performance vs goal)
+        - "Cumplimiento de metas mes a mes" (goal achievement month by month)
+        - "Dame el desempeño de vendedores por mes" (seller performance by month)
+        - "Evolución mensual de cumplimiento de metas" (monthly evolution of goal achievement)
+        - "Comparar meses de vendedores" (compare seller months)
+        
+        **DO NOT USE WHEN:**
+        - User wants ONE TOTAL for a period → use get_commercial_goals_performance instead
+        - User wants to see ALL sellers ranked for ONE period → use get_commercial_goals_performance
+        
+        **CRITICAL:**
+        - Returns data for EACH MONTH SEPARATELY
+        - Useful for trending and time-series analysis
+        - Shows how sellers perform over time
+        
+        Args:
+            year: Year to analyze (e.g., 2025)
+            start_month: Start month (1-12), defaults to January
+            end_month: End month (1-12), defaults to December
+            commercial_id: Specific seller/commercial code to filter (optional)
+            top_n: Number of top sellers to include (default 20)
+        
+        Returns:
+            JSON with monthly breakdown of goals vs actual sales by seller
+        """
+        params = []
+        param_counter = 1
+        
+        # Default to full year if not specified
+        start_month = start_month or 1
+        end_month = end_month or 12
+        
+        date_start = f"DATE '{year}-{start_month:02d}-01'"
+        if end_month == 12:
+            date_end = f"DATE '{year + 1}-01-01'"
+        else:
+            date_end = f"DATE '{year}-{end_month + 1:02d}-01'"
+        
+        # Optional commercial filter
+        commercial_filter = ""
+        if commercial_id:
+            commercial_filter = f"AND cg.commercial_id = ${param_counter}"
+            params.append(commercial_id)
+            param_counter += 1
+        
+        sql = f"""
+            WITH goals_by_month AS (
+                SELECT
+                    cg.commercial_id,
+                    cg.commercial_name,
+                    cg.date AS month_date,
+                    EXTRACT(YEAR FROM cg.date) AS year,
+                    EXTRACT(MONTH FROM cg.date) AS month,
+                    SUM(cg.goal) AS goal
+                FROM commercial_goals cg
+                WHERE cg.date >= {date_start}
+                  AND cg.date < {date_end}
+                  {commercial_filter}
+                GROUP BY cg.commercial_id, cg.commercial_name, cg.date
+            ),
+            sales_by_month AS (
+                SELECT
+                    t.seller_code AS commercial_id,
+                    DATE_TRUNC('month', t.date) AS month_date,
+                    SUM(t.net_amount) AS sales
+                FROM transactions t
+                WHERE t.date >= {date_start}
+                  AND t.date < {date_end}
+                  AND t.transaction_type = 'SALE'
+                GROUP BY t.seller_code, DATE_TRUNC('month', t.date)
+            ),
+            top_sellers AS (
+                SELECT DISTINCT
+                    cg.commercial_id,
+                    cg.commercial_name,
+                    SUM(cg.goal) OVER (PARTITION BY cg.commercial_id) AS total_goal
+                FROM commercial_goals cg
+                WHERE cg.date >= {date_start}
+                  AND cg.date < {date_end}
+                  {commercial_filter}
+                ORDER BY total_goal DESC
+                LIMIT {top_n}
+            )
+            SELECT
+                ts.commercial_id,
+                ts.commercial_name,
+                TO_CHAR(COALESCE(g.month_date, s.month_date), 'YYYY-MM') AS month,
+                COALESCE(g.goal, 0) AS goal,
+                COALESCE(s.sales, 0) AS actual_sales,
+                COALESCE(g.goal, 0) - COALESCE(s.sales, 0) AS variance,
+                CASE 
+                    WHEN COALESCE(g.goal, 0) > 0 
+                    THEN (COALESCE(s.sales, 0) / COALESCE(g.goal, 0) * 100)
+                    ELSE 0
+                END AS achievement_pct,
+                CASE 
+                    WHEN COALESCE(g.goal, 0) > COALESCE(s.sales, 0) THEN 'below_goal'
+                    WHEN COALESCE(g.goal, 0) < COALESCE(s.sales, 0) THEN 'above_goal'
+                    ELSE 'on_goal'
+                END AS status
+            FROM top_sellers ts
+            LEFT JOIN goals_by_month g 
+                ON g.commercial_id = ts.commercial_id
+            LEFT JOIN sales_by_month s 
+                ON s.commercial_id = ts.commercial_id 
+                AND s.month_date = g.month_date
+            WHERE COALESCE(g.month_date, s.month_date) IS NOT NULL
+            ORDER BY ts.total_goal DESC, ts.commercial_id, month
+        """
+        
+        queries_executed.append({
+            "type": "sql",
+            "database": "client_data",
+            "query": sql,
+            "params": params,
+            "source": "simple_agent_tool"
+        })
+        
+        pool = await get_client_db_pool()
+        try:
+            async with pool.acquire() as conn:
+                rows = await conn.fetch(sql, *params)
+                
+                if not rows:
+                    return json.dumps({
+                        "found": False,
+                        "message": f"No se encontraron datos de metas comerciales mensuales para {year}",
+                        "results": []
+                    })
+                
+                # Group results by seller
+                sellers_data = {}
+                for row in rows:
+                    commercial_id = row['commercial_id']
+                    if commercial_id not in sellers_data:
+                        sellers_data[commercial_id] = {
+                            "commercial_id": commercial_id,
+                            "commercial_name": row['commercial_name'] or 'N/A',
+                            "months": []
+                        }
+                    
+                    sellers_data[commercial_id]["months"].append({
+                        "month": row['month'],
+                        "goal": float(row['goal']),
+                        "actual_sales": float(row['actual_sales']),
+                        "variance": float(row['variance']),
+                        "achievement_pct": float(row['achievement_pct']),
+                        "status": row['status']
+                    })
+                
+                result = {
+                    "found": True,
+                    "period": f"{year}-{start_month:02d} to {year}-{end_month:02d}",
+                    "total_sellers": len(sellers_data),
+                    "sellers": list(sellers_data.values())
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_commercial_goals_by_month
+
