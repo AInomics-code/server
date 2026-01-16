@@ -950,6 +950,8 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         - "Dame el total de ventas del año" (wants ONE grand total)
         - "Resumen de ventas del trimestre" (wants ONE aggregate)
         - "Ventas del grupo X en 2025" (wants ONE total by client group)
+        - "¿Cuánto fue la venta en dólares y cantidades de [producto]?" (wants ONE total for a specific product)
+        - "Ventas de [producto] de enero a diciembre" (wants ONE total for product in period)
         
         **DO NOT USE when user asks for breakdown by time periods:**
         - "Ventas mes a mes" → use get_sales_by_month instead
@@ -970,6 +972,15 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
            - User says: "ventas del grupo Xtra"
            - Step 1: search_client_groups(query="Xtra") → returns "GRUPO XTRA"
            - Step 2: get_sales_summary(client_group="GRUPO XTRA")
+        
+        **CRITICAL WORKFLOW FOR SPECIFIC PRODUCTS:**
+        1. If user mentions a product name (e.g., "Sazonador completo", "Mayonesa"):
+           → FIRST call search_products(query="Sazonador completo") to get the product_id
+           → THEN use the product_id returned in product_id parameter
+        2. Example:
+           - User says: "¿cuánto fue la venta de Sazonador completo de enero a diciembre?"
+           - Step 1: search_products(query="Sazonador completo") → returns product_id='0154-SACOM160G'
+           - Step 2: get_sales_summary(start_date="2025-01-01", end_date="2025-12-31", product_id="0154-SACOM160G")
         
         **IMPORTANT:**
         - Use `client_id` for a SPECIFIC CLIENT CODE (e.g., client_id='C12345')
@@ -1484,20 +1495,23 @@ def create_sales_by_product_tool(queries_executed: List[Dict]):
         - If user asks in English → respond in English
         
         **USE THIS TOOL WHEN:**
-        - "Ventas por producto" (sales by product)
-        - "Qué productos se vendieron en enero?" (which products were sold)
-        - "Ventas sumarizadas por producto" (sales summarized by product)
-        - "Cuáles fueron los productos más vendidos?" (which were the top selling products)
-        - "Dame el desglose de ventas por producto" (give me breakdown by product)
-        - "Productos vendidos en el mes de X" (products sold in month X)
-        - "Todos los productos vendidos" (all products sold)
+        - "Ventas por producto" (sales by product - MULTIPLE products)
+        - "Qué productos se vendieron en enero?" (which products were sold - LIST of products)
+        - "Ventas sumarizadas por producto" (sales summarized by product - ALL products)
+        - "Cuáles fueron los productos más vendidos?" (which were the top selling products - RANKING)
+        - "Dame el desglose de ventas por producto" (give me breakdown by product - ALL products)
+        - "Productos vendidos en el mes de X" (products sold in month X - LIST)
+        - "Todos los productos vendidos" (all products sold - LIST)
         - "Ventas de maquilas" (sales of outsourced products) → use outsourced_only=True
         - "Ventas por categoría" (sales by category) → use group_by="category"
         - "Ventas en bodega X" (sales at warehouse X) → use location_id
         
         **DO NOT USE for:**
+        - "¿Cuánto vendimos de X?" → use get_sales_summary instead (wants ONE total for ONE product)
+        - "Total de ventas de enero a octubre" → use get_sales_summary instead (wants ONE grand total)
+        - "Ventas de UN producto específico" → use get_sales_summary with product_id (wants ONE result)
         - Month by month breakdown → use get_sales_by_month
-        - Total of a period → use get_sales_summary
+        - "Ventas en dólares y cantidades de [producto]" → use get_sales_summary with product_id
         
         **CRITICAL WORKFLOW FOR CLIENT GROUPS:**
         1. If user mentions a group name (e.g., "Xtra", "Super"):
