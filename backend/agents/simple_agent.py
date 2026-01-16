@@ -77,6 +77,7 @@ class SimpleAgent:
             create_sales_tool,
             create_backorders_tool,
             create_product_search_tool,
+            create_location_search_tool,
             create_client_search_tool,
             create_client_group_search_tool,
             create_inventory_summary_tool,
@@ -102,6 +103,7 @@ class SimpleAgent:
         
         # Simple/fast tools only - for quick lookups
         self.tools.append(create_product_search_tool(self.queries_executed))
+        self.tools.append(create_location_search_tool(self.queries_executed))
         self.tools.append(create_client_search_tool(self.queries_executed))
         self.tools.append(create_client_group_search_tool(self.queries_executed))
         self.tools.append(create_inventory_summary_tool(self.queries_executed))

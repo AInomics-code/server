@@ -83,6 +83,77 @@ def create_product_search_tool(queries_executed: List[Dict]):
     return search_products
 
 
+def create_location_search_tool(queries_executed: List[Dict]):
+    """Tool to search locations by name using vector similarity"""
+    
+    @tool
+    async def search_locations(query: str, top_n: int = 1) -> str:
+        """
+        Search for locations/warehouses/bodegas/sucursales by name using semantic search.
+        
+        **CRITICAL:** This tool is REQUIRED before filtering by location_id!
+        
+        **SPANISH SYNONYMS:** In Spanish, "sucursal", "bodega", and "location" are synonyms - all refer to warehouses/branches.
+        
+        **WHEN TO USE:**
+        - User mentions a location/warehouse/bodega/sucursal name
+        - Before calling get_sales_summary or other tools with location_id
+        - Examples: 
+          * "ventas de la sucursal de Santiago"
+          * "bodega Central"
+          * "ventas en Valparaíso"
+          * "sucursal Norte"
+        
+        **WORKFLOW:**
+        1. User says: "ventas de enero en la sucursal de Santiago" (or "bodega de Santiago")
+        2. Call: search_locations(query="Santiago")
+        3. Get result with location_id, location_name, city
+        4. Call: get_sales_summary(start_date="2025-01-01", end_date="2025-01-31", location_id="<location_id_from_step_3>")
+        5. Respond to user with ONLY the sales information
+        
+        **IMPORTANT:**
+        - DO NOT mention to the user that you searched for the location
+        - DO NOT show the search results to the user
+        - Use the location_id silently and respond directly with the requested information
+        
+        Args:
+            query: Location name or city to search (e.g., "Santiago", "Bodega Central", "Valparaíso", "Sucursal Norte")
+            top_n: Number of results to return (default 1, max 20). Use 1 for specific location searches.
+        
+        Returns:
+            List of matching locations with their IDs, names, and cities.
+            USE THE EXACT location_id from results in subsequent queries.
+            DO NOT show this search result to the user - use it silently.
+        """
+        from tools.vector_search import VectorSearchTool
+        
+        top_n = min(max(1, top_n), 20)  # Clamp between 1-20
+        
+        vector_tool = VectorSearchTool()
+        result = await vector_tool.search_locations(query, top_n)
+        
+        queries_executed.append({
+            "type": "vector_search",
+            "database": "main_db",
+            "target": "locations",
+            "search_term": query,
+            "top_n": top_n,
+            "source": "simple_agent_tool"
+        })
+        
+        if result.get("success") and result.get("data"):
+            locations = result["data"]
+            response = f"Found {len(locations)} location(s):\n\n"
+            for loc in locations:
+                city_info = f", City: {loc.get('city', 'N/A')}" if loc.get('city') else ""
+                response += f"- ID: {loc['location_id']}, Name: {loc['location_name']}{city_info}\n"
+            return response
+        else:
+            return f"No locations found matching '{query}'"
+    
+    return search_locations
+
+
 def create_client_search_tool(queries_executed: List[Dict]):
     """Tool to search for individual clients by name"""
     
@@ -937,7 +1008,8 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         end_date: Optional[str] = None,
         product_id: Optional[str] = None,
         client_id: Optional[str] = None,
-        client_group: Optional[str] = None
+        client_group: Optional[str] = None,
+        location_id: Optional[str] = None
     ) -> str:
         """
         Get TOTAL AGGREGATED sales metrics for a PERIOD (ONE SINGLE TOTAL, not broken down by time).
@@ -982,6 +1054,16 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
            - Step 1: search_products(query="Sazonador completo") → returns product_id='0154-SACOM160G'
            - Step 2: get_sales_summary(start_date="2025-01-01", end_date="2025-12-31", product_id="0154-SACOM160G")
         
+        **CRITICAL WORKFLOW FOR SPECIFIC LOCATIONS:**
+        1. If user mentions a location/warehouse/bodega/sucursal (e.g., "Santiago", "Bodega Central", "Sucursal Norte"):
+           → FIRST call search_locations(query="Santiago") to get the location_id
+           → THEN use the location_id returned in location_id parameter
+        2. **SPANISH SYNONYMS:** "sucursal", "bodega", and "location" are synonyms - all mean warehouse/branch
+        3. Example:
+           - User says: "¿cuánto fue la venta de enero a diciembre en la sucursal de Santiago?"
+           - Step 1: search_locations(query="Santiago") → returns location_id='LOC-SANTIAGO-01'
+           - Step 2: get_sales_summary(start_date="2025-01-01", end_date="2025-12-31", location_id="LOC-SANTIAGO-01")
+        
         **IMPORTANT:**
         - Use `client_id` for a SPECIFIC CLIENT CODE (e.g., client_id='C12345')
         - Use `client_group` ONLY with the EXACT group name from search_client_groups
@@ -993,6 +1075,7 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
             product_id: Specific product ID to filter (optional)
             client_id: Specific client ID to filter by individual client (optional)
             client_group: EXACT client group name from search_client_groups (optional)
+            location_id: Specific location ID to filter by warehouse/bodega (optional)
         
         Returns:
             JSON with total_quantity, total_amount, record_count, top_products, top_clients
@@ -1030,6 +1113,12 @@ def create_sales_summary_tool(queries_executed: List[Dict]):
         if client_group:
             conditions.append(f"c.client_group = ${param_counter}")
             params.append(client_group)
+            param_counter += 1
+        
+        # NEW: Support for filtering by location_id
+        if location_id:
+            conditions.append(f"t.location_id = ${param_counter}")
+            params.append(location_id)
             param_counter += 1
         
         where_clause = f"WHERE {' AND '.join(conditions)}"

@@ -65,6 +65,7 @@ class DynamicAgent:
             create_backorders_summary_tool,
             create_backorders_by_month_tool,
             create_product_search_tool,
+            create_location_search_tool,
             create_client_search_tool,
             create_client_group_search_tool,
             create_product_first_sale_tool,
@@ -105,6 +106,7 @@ class DynamicAgent:
         self.tools.append(create_sales_tool(self.queries_executed))
         self.tools.append(create_backorders_tool(self.queries_executed))
         self.tools.append(create_product_search_tool(self.queries_executed))
+        self.tools.append(create_location_search_tool(self.queries_executed))
         self.tools.append(create_client_search_tool(self.queries_executed))
         self.tools.append(create_client_group_search_tool(self.queries_executed))
         

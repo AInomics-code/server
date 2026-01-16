@@ -175,4 +175,30 @@ class VectorSearchTool(BaseTool):
         if result.get("success") and result.get("data"):
             return result["data"][0]["id"]
         return None
+    
+    async def search_locations(self, query: str, limit: int = 1) -> Dict[str, Any]:
+        """Search for locations and return formatted data like search_product"""
+        print(f"[VECTOR_SEARCH] Searching for location: '{query}', limit: {limit}")
+        result = await self.execute(query, category="locations", limit=limit)
+        print(f"[VECTOR_SEARCH] Result: {result}")
+        
+        if result.get("success") and result.get("data"):
+            # Transform result to expected format (similar to search_product)
+            locations = []
+            for item in result["data"]:
+                location = {
+                    "location_id": item["id"],
+                    "location_name": item["name"],
+                    "similarity": item.get("similarity")
+                }
+                # additional contains [city] for locations
+                if item.get("additional") and len(item["additional"]) > 0:
+                    location["city"] = item["additional"][0]
+                locations.append(location)
+            
+            print(f"[VECTOR_SEARCH] Found {len(locations)} location(s)")
+            return {"success": True, "data": locations}
+        
+        print(f"[VECTOR_SEARCH] No location found")
+        return {"success": False, "data": []}
 

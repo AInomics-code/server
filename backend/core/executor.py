@@ -49,7 +49,7 @@ class QueryExecutor:
     
     async def _execute_dynamic(self, query: str, session_id: str, user_id: str, history: list) -> dict:
         """Execute dynamic queries using Sonnet agent"""
-        return await self.dynamic_agent.execute(query, session_id, user_id)
+        return await self.dynamic_agent.execute(query, session_id, user_id, history)
     
     async def _format_for_frontend(self, result: dict, original_query: str) -> dict:
         """Format agent response for frontend consumption"""
