@@ -15,6 +15,7 @@ import BusinessContextPrompts from "@/pages/BusinessContextPrompts";
 import Chat from "@/pages/chat-clean-top";
 import SmoothChat from "@/pages/chat-smooth";
 import AgentChat from "@/pages/agent-chat";
+import { LLMChatPage } from "@/pages/LLMChatPage";
 import ScenarioSimulator from "@/pages/scenario-simulator";
 import SidebarLayout from "@/components/sidebar-layout";
 import Collaboration from "@/pages/collaboration";
@@ -64,7 +65,11 @@ function Router() {
       <Route path="/onboarding/data" component={OnboardingDataForm} />
       <Route path="/onboarding/context" component={BusinessContextPrompts} />
       <Route path="/table-demo" component={TableConfigDemo} />
-      <Route path="/dashboard" component={Dashboard} />
+      <Route path="/dashboard">
+        <ProtectedRoute>
+          <LLMChatPage />
+        </ProtectedRoute>
+      </Route>
       <Route path="/agent-chat">
         <ProtectedRoute>
           <AgentChat />
@@ -78,6 +83,11 @@ function Router() {
       <Route path="/chat-clean-top">
         <ProtectedRoute>
           <Chat />
+        </ProtectedRoute>
+      </Route>
+      <Route path="/llm-chat">
+        <ProtectedRoute>
+          <LLMChatPage />
         </ProtectedRoute>
       </Route>
       <Route path="/sidebar">

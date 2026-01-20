@@ -1,9 +1,143 @@
-/* GPT-like fonts */
+@import './styles/tokens.css';
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--bg-0);
+  color: var(--text-0);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Focus Reset */
+*:focus {
+  outline: none;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Chat Input Placeholder */
+.chat-input-textarea::placeholder {
+  color: #677C99;
+}
+
+.chat-input-textarea::-webkit-input-placeholder {
+  color: #677C99;
+}
+
+.chat-input-textarea::-moz-placeholder {
+  color: #677C99;
+  opacity: 1;
+}
+
+.chat-input-textarea:-ms-input-placeholder {
+  color: #677C99;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeInUp {
+  from { 
+    opacity: 0; 
+    transform: translateY(8px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 120ms ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 200ms ease-out forwards;
+}
+
+.animate-pulse {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* Prose Styling for AI Responses */
+.prose-dark {
+  color: var(--text-0);
+  line-height: 1.7;
+}
+
+.prose-dark strong {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.prose-dark p {
+  margin-bottom: 12px;
+}
+
+.prose-dark ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.prose-dark ul li {
+  position: relative;
+  padding-left: 20px;
+  margin-bottom: 8px;
+}
+
+.prose-dark ul li::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 10px;
+  width: 4px;
+  height: 4px;
+  background: var(--accent);
+  border-radius: 50%;
+}
 
 /* Custom slider styling */
 .slider-thumb {

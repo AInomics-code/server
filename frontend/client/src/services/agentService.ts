@@ -6,15 +6,92 @@ export interface QueryRequest {
     session_id: string;
 }
 
+// Component types from API docs
+export type ComponentType = 
+  | 'text'
+  | 'bar_chart'
+  | 'line_chart'
+  | 'area_chart'
+  | 'pie_chart'
+  | 'bubble_chart'
+  | 'radar_chart'
+  | 'scatter_chart'
+  | 'polar_chart'
+  | 'mixed_chart';
+
+export interface BaseComponent {
+  type: ComponentType;
+  data: any;
+}
+
+export interface TextComponent extends BaseComponent {
+  type: 'text';
+  data: string; // Markdown string
+}
+
+export interface ChartComponent extends BaseComponent {
+  type: 'bar_chart' | 'line_chart' | 'area_chart' | 'scatter_chart' | 'mixed_chart';
+  data: {
+    title: string;
+    x_axis_label: string;
+    y_axis_label: string;
+    datasets: Array<{
+      label: string;
+      type?: 'bar' | 'line'; // For mixed_chart
+      data: Array<{ x: string | number; y: number }>;
+    }>;
+  };
+}
+
+export interface PieChartComponent extends BaseComponent {
+  type: 'pie_chart' | 'polar_chart';
+  data: {
+    title: string;
+    datasets: Array<{
+      label: string;
+      data: Array<{ label: string; value: number }>;
+    }>;
+  };
+}
+
+export interface BubbleChartComponent extends BaseComponent {
+  type: 'bubble_chart';
+  data: {
+    title: string;
+    x_axis_label: string;
+    y_axis_label: string;
+    datasets: Array<{
+      label: string;
+      data: Array<{ x: number; y: number; r: number; label?: string }>;
+    }>;
+  };
+}
+
+export interface RadarChartComponent extends BaseComponent {
+  type: 'radar_chart';
+  data: {
+    title: string;
+    datasets: Array<{
+      label: string;
+      data: Array<{ axis: string; value: number }>;
+    }>;
+  };
+}
+
+export type Component = 
+  | TextComponent
+  | ChartComponent
+  | PieChartComponent
+  | BubbleChartComponent
+  | RadarChartComponent;
+
 export interface QueryResponse {
-    message: string;
-    data: any | null;
-    queries_executed: any[];
+    message: Component[];
     metadata: {
         session_id: string;
-        query_type: string;
+        query_type: 'simple' | 'dynamic';
         latency_ms: number;
-        type: string;
+        type: 'simple_agent' | 'dynamic';
     };
 }
 

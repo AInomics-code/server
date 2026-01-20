@@ -1,0 +1,44 @@
+:root {
+  /* Dark Theme - Deep Navy */
+  --bg-0: #141A24;
+  --bg-1: #1A2332;
+  --bg-2: #202A37;
+  --bg-3: #2A3544;
+  
+  /* Text */
+  --text-0: #E6EAF1;
+  --text-1: #9CA5B5;
+  --text-2: #677C99;
+  
+  /* Accent */
+  --accent: #5B9EFF;
+  --accent-hover: #4A8FEE;
+  
+  /* Status */
+  --success: #4ADE80;
+  --warning: #FBBF24;
+  --danger: #F87171;
+  
+  /* Borders */
+  --border: rgba(255, 255, 255, 0.06);
+  --border-hover: rgba(255, 255, 255, 0.12);
+  
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+  
+  /* Motion */
+  --motion-fast: 120ms;
+  --motion-med: 200ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}

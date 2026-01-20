@@ -5,11 +5,11 @@ export const validateEnvironment = () => {
   const errors: string[] = [];
   
   if (!ENV_CONFIG.API_URL) {
-    errors.push('VITE_API_URL is required');
+    errors.push('NEXT_PUBLIC_API_URL or VITE_API_URL is required');
   }
   
   if (ENV_CONFIG.API_URL === 'http://localhost:8000' && import.meta.env.PROD) {
-    errors.push('VITE_API_URL is still set to localhost in production');
+    errors.push('API_URL is still set to localhost in production');
   }
   
   if (errors.length > 0) {
