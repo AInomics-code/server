@@ -216,9 +216,6 @@ class SimpleAgent:
         import json
         import re
         
-        print(f"[SIMPLE AGENT] Raw response length: {len(response)}")
-        print(f"[SIMPLE AGENT] First 200 chars: {response[:200]}")
-        
         if not response or not response.strip():
             return [{"type": "text", "data": "No se pudo procesar la consulta."}]
         
@@ -233,17 +230,12 @@ class SimpleAgent:
         if json_match:
             response = json_match.group(0)
         
-        print(f"[SIMPLE AGENT] After extraction: {response[:200]}")
-        
         try:
             components = json.loads(response)
             
             # Validate it's an array
             if not isinstance(components, list):
-                print(f"[SIMPLE AGENT] Invalid response format: not an array, type={type(components)}")
                 return [{"type": "text", "data": str(components)}]
-            
-            print(f"[SIMPLE AGENT] Parsed {len(components)} components")
             
             # Validate each component
             valid_types = {
@@ -253,31 +245,24 @@ class SimpleAgent:
             }
             
             validated_components = []
-            for i, component in enumerate(components):
+            for component in components:
                 if not isinstance(component, dict):
-                    print(f"[SIMPLE AGENT] Component {i} is not a dict: {type(component)}")
                     continue
                 
                 comp_type = component.get("type")
                 if comp_type not in valid_types:
-                    print(f"[SIMPLE AGENT] Invalid component type: {comp_type}")
                     continue
                 
                 if "data" not in component:
-                    print(f"[SIMPLE AGENT] Component {i} missing 'data' field")
                     continue
                 
-                print(f"[SIMPLE AGENT] Component {i} validated: type={comp_type}")
                 validated_components.append(component)
             
             if not validated_components:
-                print(f"[SIMPLE AGENT] No valid components, returning raw as text")
                 return [{"type": "text", "data": response}]
             
             return validated_components
         
-        except json.JSONDecodeError as e:
-            print(f"[SIMPLE AGENT] JSON parse error: {e}")
-            print(f"[SIMPLE AGENT] Failed to parse: {response[:500]}")
+        except json.JSONDecodeError:
             # Fallback to text component
             return [{"type": "text", "data": response}]
