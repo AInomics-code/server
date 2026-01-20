@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List, Any
 from core.router import QueryRouter
 from core.executor import QueryExecutor
 from memory.redis_memory import RedisMemory
@@ -20,9 +20,7 @@ class QueryRequest(BaseModel):
     session_id: Optional[str] = None
 
 class QueryResponse(BaseModel):
-    message: str
-    data: Optional[dict] = None
-    queries_executed: Optional[list] = None
+    message: List[dict]  # Array of component objects
     metadata: dict
 
 @router.post("/query", response_model=QueryResponse)
@@ -47,14 +45,12 @@ async def query_endpoint(request: QueryRequest):
         user_id=request.user_id
     )
     
-    await memory.add_message(session_id, "assistant", result["message"])
+    await memory.add_message(session_id, "assistant", json.dumps(result["message"]))
     
     latency = (time.time() - start) * 1000
     
     return QueryResponse(
         message=result["message"],
-        data=result.get("data"),
-        queries_executed=result.get("queries_executed", []),
         metadata={
             "session_id": session_id,
             "query_type": query_type.value,

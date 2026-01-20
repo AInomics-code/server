@@ -177,7 +177,7 @@ class SimpleAgent:
                 config=config
             )
             
-            output = result.get("output", "No pude procesar tu consulta.")
+            output = result.get("output", "")
             
             if isinstance(output, list):
                 answer = ""
@@ -186,49 +186,20 @@ class SimpleAgent:
                         answer += item.get('text', '')
                     elif isinstance(item, str):
                         answer += item
-                answer = answer.strip() or "No pude procesar tu consulta."
+                answer = answer.strip()
             else:
                 answer = output
             
-            # Collect tool observations (formatted data from tools)
-            tool_observations = []
-            data = None
-            intermediate_steps = result.get("intermediate_steps", [])
-            for action, observation in intermediate_steps:
-                if isinstance(observation, str):
-                    # Try to parse as JSON for data field
-                    try:
-                        import json
-                        parsed = json.loads(observation)
-                        # Check if it's structured data (has common data keys)
-                        if isinstance(parsed, dict) and any(
-                            k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost', 'results', 'items', 'data', 'candidates', 'total_candidates', 'products', 'clients', 'groups', 'months']
-                        ):
-                            data = parsed
-                    except:
-                        # If not JSON, it's formatted text - add to observations
-                        tool_observations.append(observation)
-            
-            # Build complete answer: tool observations + agent's final comment
-            complete_answer = ""
-            if tool_observations:
-                complete_answer = "\n\n".join(tool_observations)
-                if answer and answer.strip():
-                    complete_answer += "\n\n" + answer
-            else:
-                complete_answer = answer
-            
-            answer = complete_answer
+            # Parse and validate structured response
+            message_components = self._parse_structured_response(answer)
             
             print(f"\n{'='*70}")
-            print(f"[SIMPLE AGENT] Completed")
+            print(f"[SIMPLE AGENT] Completed - {len(message_components)} components")
             print(f"{'='*70}\n")
             
             return {
-                "answer": answer,
-                "data": data,
-                "source": "simple_agent",
-                "queries_executed": self.queries_executed
+                "answer": message_components,
+                "source": "simple_agent"
             }
         
         except Exception as e:
@@ -236,8 +207,77 @@ class SimpleAgent:
             import traceback
             traceback.print_exc()
             return {
-                "answer": f"Error: {str(e)}",
-                "data": None,
-                "source": "simple_agent",
-                "queries_executed": self.queries_executed
+                "answer": [{"type": "text", "data": f"Error: {str(e)}"}],
+                "source": "simple_agent"
             }
+    
+    def _parse_structured_response(self, response: str) -> List[Dict]:
+        """Parse and validate the structured JSON response from agent"""
+        import json
+        import re
+        
+        print(f"[SIMPLE AGENT] Raw response length: {len(response)}")
+        print(f"[SIMPLE AGENT] First 200 chars: {response[:200]}")
+        
+        if not response or not response.strip():
+            return [{"type": "text", "data": "No se pudo procesar la consulta."}]
+        
+        # Remove markdown code blocks if present
+        response = re.sub(r'^```json\s*', '', response)
+        response = re.sub(r'^```\s*', '', response)
+        response = re.sub(r'\s*```$', '', response)
+        
+        # Try to extract JSON from response (in case there's extra text)
+        # Look for array pattern [...]
+        json_match = re.search(r'\[.*\]', response, re.DOTALL)
+        if json_match:
+            response = json_match.group(0)
+        
+        print(f"[SIMPLE AGENT] After extraction: {response[:200]}")
+        
+        try:
+            components = json.loads(response)
+            
+            # Validate it's an array
+            if not isinstance(components, list):
+                print(f"[SIMPLE AGENT] Invalid response format: not an array, type={type(components)}")
+                return [{"type": "text", "data": str(components)}]
+            
+            print(f"[SIMPLE AGENT] Parsed {len(components)} components")
+            
+            # Validate each component
+            valid_types = {
+                "text", "area_chart", "bar_chart", "bubble_chart", 
+                "pie_chart", "line_chart", "polar_chart", "mixed_chart", 
+                "radar_chart", "scatter_chart"
+            }
+            
+            validated_components = []
+            for i, component in enumerate(components):
+                if not isinstance(component, dict):
+                    print(f"[SIMPLE AGENT] Component {i} is not a dict: {type(component)}")
+                    continue
+                
+                comp_type = component.get("type")
+                if comp_type not in valid_types:
+                    print(f"[SIMPLE AGENT] Invalid component type: {comp_type}")
+                    continue
+                
+                if "data" not in component:
+                    print(f"[SIMPLE AGENT] Component {i} missing 'data' field")
+                    continue
+                
+                print(f"[SIMPLE AGENT] Component {i} validated: type={comp_type}")
+                validated_components.append(component)
+            
+            if not validated_components:
+                print(f"[SIMPLE AGENT] No valid components, returning raw as text")
+                return [{"type": "text", "data": response}]
+            
+            return validated_components
+        
+        except json.JSONDecodeError as e:
+            print(f"[SIMPLE AGENT] JSON parse error: {e}")
+            print(f"[SIMPLE AGENT] Failed to parse: {response[:500]}")
+            # Fallback to text component
+            return [{"type": "text", "data": response}]

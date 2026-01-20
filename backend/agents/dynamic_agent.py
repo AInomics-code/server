@@ -3,7 +3,7 @@ from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 from config import get_settings
 from prompts import load_prompt_with_date
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 settings = get_settings()
 
@@ -174,10 +174,8 @@ class DynamicAgent:
             result = await self.agent.ainvoke({"messages": messages}, config=config)
             final_messages = result.get("messages", [])
             
-            # Collect tool observations and final answer
-            tool_observations = []
+            # Get the final AI response
             answer = ""
-            data = None
             
             for msg in final_messages[2:]:  # Skip system and user messages
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
@@ -186,50 +184,102 @@ class DynamicAgent:
                 elif hasattr(msg, 'content') and isinstance(msg.content, str):
                     if msg.type == 'tool':
                         print(f"\n{msg.content}\n")
-                        # Collect tool observations (formatted data from tools)
-                        try:
-                            import json
-                            parsed = json.loads(msg.content)
-                            # Check if it's structured data (has common data keys)
-                            if isinstance(parsed, dict) and any(
-                                k in parsed for k in ['total_quantity', 'total_value_usd', 'total_amount', 'total_cost', 'results', 'items', 'data']
-                            ):
-                                data = parsed
-                        except:
-                            # If not JSON, it's formatted text - add to observations
-                            tool_observations.append(msg.content)
                     elif msg.type == 'ai' and msg.content:
                         print(f"{msg.content}\n")
                         # This is the final AI response
                         answer = msg.content
             
-            # Build complete answer: tool observations + agent's final comment
-            if tool_observations:
-                complete_answer = "\n\n".join(tool_observations)
-                if answer and answer.strip():
-                    complete_answer += "\n\n" + answer
-                answer = complete_answer
-            elif not answer:
+            if not answer:
                 answer = "No pude procesar tu consulta."
+            
+            # Parse and validate structured response
+            message_components = self._parse_structured_response(answer)
             
             print("\n> Finished chain.\n")
             print(f"{'='*70}")
-            print(f"[DYNAMIC AGENT] Completed - {len(self.queries_executed)} tools used")
+            print(f"[DYNAMIC AGENT] Completed - {len(message_components)} components")
             print(f"{'='*70}\n")
             
             return {
-                "answer": answer,
-                "data": data,
-                "source": "dynamic",
-                "queries_executed": self.queries_executed
+                "answer": message_components,
+                "source": "dynamic"
             }
         
         except Exception as e:
             print(f"\n[DYNAMIC AGENT ERROR] {str(e)}\n")
             return {
-                "answer": f"Error ejecutando la consulta: {str(e)}",
-                "data": None,
-                "source": "dynamic",
-                "queries_executed": self.queries_executed
+                "answer": [{"type": "text", "data": f"Error ejecutando la consulta: {str(e)}"}],
+                "source": "dynamic"
             }
+    
+    def _parse_structured_response(self, response: str) -> List[Dict]:
+        """Parse and validate the structured JSON response from agent"""
+        import json
+        import re
+        
+        print(f"[DYNAMIC AGENT] Raw response length: {len(response)}")
+        print(f"[DYNAMIC AGENT] First 200 chars: {response[:200]}")
+        
+        if not response or not response.strip():
+            return [{"type": "text", "data": "No pude procesar la consulta."}]
+        
+        # Remove markdown code blocks if present
+        response = re.sub(r'^```json\s*', '', response)
+        response = re.sub(r'^```\s*', '', response)
+        response = re.sub(r'\s*```$', '', response)
+        
+        # Try to extract JSON from response (in case there's extra text)
+        # Look for array pattern [...]
+        json_match = re.search(r'\[.*\]', response, re.DOTALL)
+        if json_match:
+            response = json_match.group(0)
+        
+        print(f"[DYNAMIC AGENT] After extraction: {response[:200]}")
+        
+        try:
+            components = json.loads(response)
+            
+            # Validate it's an array
+            if not isinstance(components, list):
+                print(f"[DYNAMIC AGENT] Invalid response format: not an array, type={type(components)}")
+                return [{"type": "text", "data": str(components)}]
+            
+            print(f"[DYNAMIC AGENT] Parsed {len(components)} components")
+            
+            # Validate each component
+            valid_types = {
+                "text", "area_chart", "bar_chart", "bubble_chart", 
+                "pie_chart", "line_chart", "polar_chart", "mixed_chart", 
+                "radar_chart", "scatter_chart"
+            }
+            
+            validated_components = []
+            for i, component in enumerate(components):
+                if not isinstance(component, dict):
+                    print(f"[DYNAMIC AGENT] Component {i} is not a dict: {type(component)}")
+                    continue
+                
+                comp_type = component.get("type")
+                if comp_type not in valid_types:
+                    print(f"[DYNAMIC AGENT] Invalid component type: {comp_type}")
+                    continue
+                
+                if "data" not in component:
+                    print(f"[DYNAMIC AGENT] Component {i} missing 'data' field")
+                    continue
+                
+                print(f"[DYNAMIC AGENT] Component {i} validated: type={comp_type}")
+                validated_components.append(component)
+            
+            if not validated_components:
+                print(f"[DYNAMIC AGENT] No valid components, returning raw as text")
+                return [{"type": "text", "data": response}]
+            
+            return validated_components
+        
+        except json.JSONDecodeError as e:
+            print(f"[DYNAMIC AGENT] JSON parse error: {e}")
+            print(f"[DYNAMIC AGENT] Failed to parse: {response[:500]}")
+            # Fallback to text component
+            return [{"type": "text", "data": response}]
 

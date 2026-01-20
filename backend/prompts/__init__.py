@@ -19,8 +19,10 @@ def load_prompt(filename: str) -> str:
 
 
 def load_prompt_with_date(filename: str) -> str:
-    """Load a prompt and inject current date"""
+    """Load a prompt and inject current date and response format"""
     prompt = load_prompt(filename)
+    response_format = load_prompt("response_format.txt")
     current_date = datetime.now().strftime("%B %d, %Y")  # e.g., "October 21, 2025"
-    return prompt.format(current_date=current_date)
+    return prompt.format(current_date=current_date, response_format=response_format)
+
 

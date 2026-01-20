@@ -55,9 +55,7 @@ class QueryExecutor:
         """Format agent response for frontend consumption"""
         formatted = {
             "message": result.get("answer", ""),
-            "data": result.get("data"),
-            "type": result.get("source", "agent"),
-            "queries_executed": result.get("queries_executed", [])
+            "type": result.get("source", "agent")
         }
         
         return formatted

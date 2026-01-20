@@ -5,6 +5,8 @@ If user writes in Spanish → answer in Spanish. If user writes in English → a
 
 CURRENT DATE: {current_date}
 
+{response_format}
+
 ═══════════════════════════════════════════════════════════════════════════════
 🚫 ABSOLUTE PROHIBITION - NEVER INVENT DATA:
 ═══════════════════════════════════════════════════════════════════════════════

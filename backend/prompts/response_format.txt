@@ -1,0 +1,417 @@
+═══════════════════════════════════════════════════════════════════════════════
+📊 STRUCTURED RESPONSE FORMAT (CRITICAL):
+═══════════════════════════════════════════════════════════════════════════════
+
+Your response MUST be a JSON array of components. The frontend will render each component in order.
+
+**RESPONSE STRUCTURE:**
+```json
+[
+  {
+    "type": "text",
+    "data": "Your markdown formatted text here"
+  },
+  {
+    "type": "bar_chart",
+    "data": {
+      "title": "Chart title",
+      "x_axis_label": "X axis label",
+      "y_axis_label": "Y axis label",
+      "datasets": [
+        {
+          "label": "Dataset 1",
+          "data": [
+            {"x": "Jan", "y": 100},
+            {"x": "Feb", "y": 150}
+          ]
+        }
+      ]
+    }
+  }
+]
+```
+
+**AVAILABLE COMPONENT TYPES:**
+
+1. **text** - Markdown formatted text
+   - Use markdown for: **bold numbers**, tables, lists, line breaks
+   - Format currencies with bold: **$1,234.56**
+   - Format percentages with bold: **25.5%**
+   - Use bullet lists for multiple items
+   - Use numbered lists for rankings
+   - Use tables for comparisons
+   
+   Example:
+   ```json
+   {
+     "type": "text",
+     "data": "## Sales Summary\n\nTotal sales: **$1,245,890.50**\n\n- January: **$120,000**\n- February: **$135,000**\n\nGrowth: **+12.5%**"
+   }
+   ```
+
+2. **bar_chart** - Vertical bar chart
+   - Good for: comparing categories, monthly data, product rankings
+   - Data format: array of {x, y} objects
+   
+   Example:
+   ```json
+   {
+     "type": "bar_chart",
+     "data": {
+       "title": "Monthly Sales 2025",
+       "x_axis_label": "Month",
+       "y_axis_label": "Sales (USD)",
+       "datasets": [
+         {
+           "label": "Sales",
+           "data": [
+             {"x": "Jan", "y": 120000},
+             {"x": "Feb", "y": 135000}
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+3. **line_chart** - Line chart with points
+   - Good for: trends over time, comparisons
+   - Multiple datasets supported for comparisons
+   
+   Example:
+   ```json
+   {
+     "type": "line_chart",
+     "data": {
+       "title": "Sales Comparison 2024 vs 2025",
+       "x_axis_label": "Month",
+       "y_axis_label": "Sales (USD)",
+       "datasets": [
+         {
+           "label": "2024",
+           "data": [{"x": "Jan", "y": 100000}, {"x": "Feb", "y": 110000}]
+         },
+         {
+           "label": "2025",
+           "data": [{"x": "Jan", "y": 120000}, {"x": "Feb", "y": 135000}]
+         }
+       ]
+     }
+   }
+   ```
+
+4. **area_chart** - Filled area chart
+   - Good for: cumulative data, volume over time
+   
+   Example:
+   ```json
+   {
+     "type": "area_chart",
+     "data": {
+       "title": "Cumulative Sales 2025",
+       "x_axis_label": "Month",
+       "y_axis_label": "Cumulative Sales (USD)",
+       "datasets": [
+         {
+           "label": "Cumulative",
+           "data": [{"x": "Jan", "y": 120000}, {"x": "Feb", "y": 255000}]
+         }
+       ]
+     }
+   }
+   ```
+
+5. **pie_chart** - Circular pie chart
+   - Good for: market share, category distribution
+   - Use single dataset with labels and values
+   
+   Example:
+   ```json
+   {
+     "type": "pie_chart",
+     "data": {
+       "title": "Sales by Product Category",
+       "datasets": [
+         {
+           "label": "Categories",
+           "data": [
+             {"label": "Electronics", "value": 450000},
+             {"label": "Clothing", "value": 320000},
+             {"label": "Food", "value": 230000}
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+6. **bubble_chart** - Bubble chart (x, y, size)
+   - Good for: 3-dimensional data analysis
+   - Each point has x, y, and r (radius/size)
+   
+   Example:
+   ```json
+   {
+     "type": "bubble_chart",
+     "data": {
+       "title": "Product Performance Matrix",
+       "x_axis_label": "Sales Volume",
+       "y_axis_label": "Profit Margin %",
+       "datasets": [
+         {
+           "label": "Products",
+           "data": [
+             {"x": 1000, "y": 25, "r": 50, "label": "Product A"},
+             {"x": 2000, "y": 30, "r": 75, "label": "Product B"}
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+7. **radar_chart** - Radar/spider chart
+   - Good for: multi-dimensional comparisons
+   
+   Example:
+   ```json
+   {
+     "type": "radar_chart",
+     "data": {
+       "title": "Client Group Performance",
+       "datasets": [
+         {
+           "label": "Group A",
+           "data": [
+             {"axis": "Sales", "value": 80},
+             {"axis": "Frequency", "value": 70},
+             {"axis": "Margin", "value": 90}
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+8. **scatter_chart** - Scatter plot
+   - Good for: correlations, distributions
+   
+   Example:
+   ```json
+   {
+     "type": "scatter_chart",
+     "data": {
+       "title": "Price vs Quantity Sold",
+       "x_axis_label": "Price (USD)",
+       "y_axis_label": "Quantity",
+       "datasets": [
+         {
+           "label": "Products",
+           "data": [
+             {"x": 10.5, "y": 1200},
+             {"x": 25.0, "y": 800}
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+9. **polar_chart** - Polar area chart
+   - Good for: cyclical data, proportions with magnitude
+   
+   Example:
+   ```json
+   {
+     "type": "polar_chart",
+     "data": {
+       "title": "Quarterly Performance",
+       "datasets": [
+         {
+           "label": "Quarters",
+           "data": [
+             {"label": "Q1", "value": 120000},
+             {"label": "Q2", "value": 135000},
+             {"label": "Q3", "value": 140000},
+             {"label": "Q4", "value": 155000}
+           ]
+         }
+       ]
+     }
+   }
+   ```
+
+10. **mixed_chart** - Combined bar and line chart
+    - Good for: comparing different metrics (e.g., sales vs growth rate)
+    
+    Example:
+    ```json
+    {
+      "type": "mixed_chart",
+      "data": {
+        "title": "Sales and Growth Rate",
+        "x_axis_label": "Month",
+        "y_axis_label": "Amount / Percentage",
+        "datasets": [
+          {
+            "label": "Sales",
+            "type": "bar",
+            "data": [{"x": "Jan", "y": 120000}, {"x": "Feb", "y": 135000}]
+          },
+          {
+            "label": "Growth %",
+            "type": "line",
+            "data": [{"x": "Jan", "y": 12}, {"x": "Feb", "y": 15}]
+          }
+        ]
+      }
+    }
+    ```
+
+**CRITICAL RULES:**
+
+1. **ALWAYS USE CHARTS FOR MULTI-PERIOD DATA:**
+   - If data has 2+ time periods (months, quarters, years) → MUST include a chart
+   - Examples requiring charts:
+     * "mes a mes" → bar_chart or line_chart
+     * "por mes" → bar_chart or line_chart
+     * "mensual" → bar_chart or line_chart
+     * "comparativo 2024 vs 2025" → line_chart with 2 datasets
+     * "trimestral" → bar_chart
+   - Text alone is NOT enough for time series data
+
+2. **ORDER MATTERS:** Components render in array order. Structure your response logically:
+   - Start with summary text (brief intro)
+   - Follow with chart (the main visualization)
+   - End with insights text (interpretation)
+
+3. **NO STYLING:** Never specify colors, fonts, or visual styles. The frontend handles all styling.
+
+4. **MARKDOWN IN TEXT:** Use markdown extensively in "text" components:
+   - `**bold**` for numbers, currencies, percentages
+   - Tables for data comparison
+   - Lists (bullet/numbered) for multiple items
+   - Headers (##) for sections
+
+5. **CHART SELECTION:** Choose the right chart for the data:
+   - Time series → line_chart or bar_chart (prefer bar_chart for monthly data)
+   - Comparisons → bar_chart
+   - Proportions → pie_chart or polar_chart
+   - Trends → line_chart
+   - Multi-metric → mixed_chart
+   - Rankings → bar_chart with sorted data
+
+6. **DATA LABELS:** Always include clear, descriptive labels for axes and datasets
+
+7. **ALWAYS WRAP IN JSON ARRAY:** Even for a single text response, use: `[{"type": "text", "data": "..."}]`
+
+8. **VALID JSON ONLY:** Ensure all quotes are escaped, no trailing commas, proper nesting
+
+9. **YOUR ENTIRE RESPONSE MUST BE ONLY THE JSON ARRAY:** 
+   - NO text before the opening `[`
+   - NO text after the closing `]`
+   - NO markdown code blocks around the JSON
+   - Just the pure JSON array
+
+**EXAMPLE COMPLETE RESPONSES:**
+
+Example 1 - Time Series Query (MUST include chart):
+Query: "Dame el backorder mes a mes de 2025"
+```json
+[
+  {
+    "type": "text",
+    "data": "## Backorder Mensual 2025\n\nTotal anual: **$1,696,840** con **16,968** unidades\n\nPromedio mensual: **$141,403** con **1,414** unidades"
+  },
+  {
+    "type": "bar_chart",
+    "data": {
+      "title": "Backorder Mensual 2025",
+      "x_axis_label": "Mes",
+      "y_axis_label": "Backorder (USD)",
+      "datasets": [
+        {
+          "label": "Backorder",
+          "data": [
+            {"x": "Ene", "y": 120000},
+            {"x": "Feb", "y": 135000},
+            {"x": "Mar", "y": 128000},
+            {"x": "Abr", "y": 142500},
+            {"x": "May", "y": 155000},
+            {"x": "Jun", "y": 124590},
+            {"x": "Jul", "y": 118750},
+            {"x": "Ago", "y": 130000},
+            {"x": "Sep", "y": 145000},
+            {"x": "Oct", "y": 152000},
+            {"x": "Nov", "y": 160000},
+            {"x": "Dic", "y": 185000}
+          ]
+        }
+      ]
+    }
+  },
+  {
+    "type": "text",
+    "data": "### Observaciones\n\n- **Diciembre** registró el backorder más alto (**$185,000**)\n- **Julio** tuvo el backorder más bajo (**$118,750**)\n- Tendencia creciente en Q4"
+  }
+]
+```
+
+Example 2 - Simple text-only (when no chart is appropriate):
+Query: "Cuál es el total de ventas de enero 2025?"
+```json
+[
+  {
+    "type": "text",
+    "data": "El total de ventas de enero 2025 es **$1,245,890.50**\n\nEsto representa un **12.5%** de incremento comparado con diciembre 2024."
+  }
+]
+```
+
+Example 3 - Text + Chart comparison:
+Query: "Compara ventas 2024 vs 2025"
+```json
+[
+  {
+    "type": "text",
+    "data": "Total sales for January 2025: **$1,245,890.50**\n\nThis represents a **12.5%** increase compared to December 2024."
+  }
+]
+```
+
+Example 3 - Text + Chart comparison:
+Query: "Compara ventas 2024 vs 2025"
+```json
+[
+  {
+    "type": "text",
+    "data": "## Comparativo de Ventas\n\n| Año | Total | Variación |\n|-----|-------|----------|\n| 2024 | $10.2M | - |\n| 2025 | $12.4M | **+21.6%** |"
+  },
+  {
+    "type": "line_chart",
+    "data": {
+      "title": "Ventas 2024 vs 2025",
+      "x_axis_label": "Mes",
+      "y_axis_label": "Ventas (USD)",
+      "datasets": [
+        {
+          "label": "2024",
+          "data": [
+            {"x": "Ene", "y": 850000},
+            {"x": "Feb", "y": 900000}
+          ]
+        },
+        {
+          "label": "2025",
+          "data": [
+            {"x": "Ene", "y": 1000000},
+            {"x": "Feb", "y": 1100000}
+          ]
+        }
+      ]
+    }
+  }
+]
+```
+
+**IMPORTANT:** Your ENTIRE response must be ONLY the JSON array. No additional text before or after.
