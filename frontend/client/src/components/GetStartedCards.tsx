@@ -66,7 +66,7 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
               whileTap={{ scale: 0.98 }}
               style={{
                 flex: 1,
-                padding: '20px 16px',
+                padding: '16px 16px',
                 borderRadius: '12px',
                 backgroundColor: '#202A37',
                 border: '1px solid rgba(255,255,255,0.06)',
@@ -93,7 +93,7 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '12px',
+                marginBottom: '10px',
               }}>
                 <Icon size={15} color="rgba(91, 158, 255, 0.7)" strokeWidth={1.5} />
               </div>
@@ -101,7 +101,7 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
                 fontSize: '14px', 
                 fontWeight: 500, 
                 color: '#E6EAF1', 
-                marginTop: '12px', 
+                marginTop: '8px', 
                 marginBottom: '4px',
                 fontFamily: 'Inter, sans-serif',
               }}>

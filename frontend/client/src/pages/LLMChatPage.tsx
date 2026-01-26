@@ -25,6 +25,9 @@ import {
   BarChart3,
   Calendar,
   Plus,
+  Globe,
+  LayoutGrid,
+  Mic,
 } from 'lucide-react';
 import { SiSap, SiSalesforce, SiSnowflake } from 'react-icons/si';
 import { FaFileExcel } from 'react-icons/fa';
@@ -493,40 +496,17 @@ export function LLMChatPage() {
                 padding: '40px',
               }}
             >
-              {/* Animated Aragon Logo */}
-              <motion.div
-                initial={{ opacity: 0, scale: 0.85 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ 
-                  duration: 0.8, 
-                  ease: [0.16, 1, 0.3, 1],
-                }}
+              {/* Aragon Logo - Static */}
+              <div
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '16px',
-                  marginBottom: '48px',
+                  marginBottom: '40px',
                 }}
               >
-                <motion.div
-                  initial={{ rotate: 0 }}
-                  animate={{ rotate: 360 }}
-                  transition={{ 
-                    duration: 20, 
-                    repeat: Infinity, 
-                    ease: 'linear' 
-                  }}
-                >
-                  <VortaStarIcon size={64} color="#5B9EFF" />
-                </motion.div>
-                <motion.span
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ 
-                    duration: 0.8, 
-                    delay: 0.5, 
-                    ease: [0.16, 1, 0.3, 1] 
-                  }}
+                <VortaStarIcon size={64} color="#5B9EFF" />
+                <span
                   style={{
                     fontSize: '32px',
                     fontWeight: 500,
@@ -535,14 +515,14 @@ export function LLMChatPage() {
                   }}
                 >
                   Aragon
-                </motion.span>
-              </motion.div>
+                </span>
+              </div>
 
               {/* Chat Input Bar */}
               <div style={{
                 width: '100%',
-                maxWidth: '1000px',
-                marginBottom: '48px',
+                maxWidth: '800px',
+                marginBottom: '32px',
                 display: 'flex',
                 justifyContent: 'center',
               }}>
@@ -1068,37 +1048,40 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           {[
-            { icon: '🌐', label: 'Web' },
-            { icon: '📊', label: 'Grid' },
-            { icon: '📎', label: 'Attach' },
-            { icon: '🎤', label: 'Voice' },
-          ].map((item, i) => (
-            <button
-              key={i}
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                backgroundColor: 'transparent',
-                border: '1px solid rgba(255,255,255,0.08)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.12s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-              }}
-            >
-              <span style={{ fontSize: '18px' }}>{item.icon}</span>
-            </button>
-          ))}
+            { icon: Globe, label: 'Globe' },
+            { icon: LayoutGrid, label: 'Grid' },
+            { icon: Paperclip, label: 'Attach' },
+            { icon: Mic, label: 'Voice' },
+          ].map((item, i) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={i}
+                style={{
+                  width: '36px',
+                  height: '36px',
+                  borderRadius: '8px',
+                  backgroundColor: 'transparent',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'all 0.12s',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                }}
+              >
+                <Icon size={18} color="#9CA5B5" />
+              </button>
+            );
+          })}
         </div>
         <motion.button
           onClick={onSend}
