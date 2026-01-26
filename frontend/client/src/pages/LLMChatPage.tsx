@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { GlobalSidebar } from '@/components/GlobalSidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
+import { GetStartedCards } from '@/components/GetStartedCards';
 import { 
   agentService, 
   generateSessionId, 
@@ -501,28 +502,48 @@ export function LLMChatPage() {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '16px',
-                  marginBottom: '40px',
+                  justifyContent: 'center',
+                  marginBottom: '32px',
+                  position: 'relative',
+                  overflow: 'hidden',
+                  width: '100%',
                 }}
               >
-                <VortaStarIcon size={64} color="#5B9EFF" />
-                <span
-                  style={{
-                    fontSize: '32px',
-                    fontWeight: 500,
-                    color: '#E6EAF1',
-                    letterSpacing: '2px',
-                  }}
-                >
-                  Aragon
-                </span>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                }}>
+                  <VortaStarIcon size={56} color="#5B9EFF" />
+                  <motion.span
+                    initial={{ opacity: 0, x: -30, width: 0 }}
+                    animate={{ opacity: 1, x: 0, width: 'auto' }}
+                    transition={{ 
+                      duration: 0.5, 
+                      delay: 0.3,
+                      ease: [0.25, 0.46, 0.45, 0.94]
+                    }}
+                    style={{
+                      fontSize: '44px',
+                      fontWeight: 600,
+                      color: '#5B9EFF',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+                      position: 'relative',
+                      zIndex: 1,
+                    }}
+                  >
+                    Aragon
+                  </motion.span>
+                </div>
               </div>
 
               {/* Chat Input Bar */}
               <div style={{
                 width: '100%',
                 maxWidth: '800px',
-                marginBottom: '32px',
+                marginBottom: '20px',
                 display: 'flex',
                 justifyContent: 'center',
               }}>
@@ -908,81 +929,6 @@ export function LLMChatPage() {
   );
 }
 
-// Helper component for Get Started Cards
-function GetStartedCards({ cards, onCardClick }: { cards: any[], onCardClick: (title: string, question: string) => void }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.2 }}
-      style={{ width: '100%', maxWidth: '720px' }}
-    >
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'center',
-        marginBottom: '24px',
-      }}>
-        <span style={{ fontSize: '14px', color: '#9CA5B5', fontWeight: 500 }}>
-          Daily Commercial Checks
-        </span>
-      </div>
-      {/* Cards Grid */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '720px' }}>
-        {cards.map((card, i) => {
-          const Icon = card.icon;
-          return (
-            <motion.button
-              key={i}
-              onClick={() => onCardClick(card.title, card.question)}
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              style={{
-                flex: 1,
-                padding: '20px 16px',
-                borderRadius: '12px',
-                backgroundColor: '#202A37',
-                border: '1px solid rgba(255,255,255,0.06)',
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.12s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(91, 158, 255, 0.3)';
-                e.currentTarget.style.backgroundColor = '#242E3D';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.backgroundColor = '#202A37';
-              }}
-            >
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '6px',
-                backgroundColor: 'rgba(91, 158, 255, 0.06)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '12px',
-              }}>
-                <Icon size={15} color="rgba(91, 158, 255, 0.7)" strokeWidth={1.5} />
-              </div>
-              <div style={{ fontSize: '14px', fontWeight: 500, color: '#E6EAF1', marginBottom: '4px' }}>
-                {card.title}
-              </div>
-              <div style={{ fontSize: '12px', color: '#9CA5B5' }}>
-                {card.description}
-              </div>
-            </motion.button>
-          );
-        })}
-      </div>
-    </motion.div>
-  );
-}
 
 // Chat Input Component
 function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
@@ -993,6 +939,7 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
   placeholder?: string;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [isFocused, setIsFocused] = useState(false);
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -1009,14 +956,15 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
   }, [value]);
   
   return (
-    <div
+    <motion.div
       style={{
-        backgroundColor: '#202A37',
+        backgroundColor: '#19212C',
         borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: `1px solid ${isFocused || value.trim() ? 'rgba(91, 158, 255, 0.3)' : 'rgba(255,255,255,0.08)'}`,
         padding: '14px 16px',
         width: '100%',
         maxWidth: '1000px',
+        transition: 'border-color 0.2s ease',
       }}
     >
       <textarea
@@ -1024,6 +972,8 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         placeholder={placeholder}
         rows={1}
         disabled={isLoading}
@@ -1045,7 +995,7 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
           color: #677C99;
         }
       `}</style>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
         <div style={{ display: 'flex', gap: '8px' }}>
           {[
             { icon: Globe, label: 'Globe' },
@@ -1062,7 +1012,7 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
                   height: '36px',
                   borderRadius: '8px',
                   backgroundColor: 'transparent',
-                  border: '1px solid rgba(255,255,255,0.08)',
+                  border: 'none',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
@@ -1071,14 +1021,12 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
                 }}
                 onMouseLeave={(e) => {
                   e.currentTarget.style.backgroundColor = 'transparent';
-                  e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
                 }}
               >
-                <Icon size={18} color="#9CA5B5" />
+                <Icon size={18} color="#677C99" />
               </button>
             );
           })}
@@ -1115,6 +1063,6 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
           )}
         </motion.button>
       </div>
-    </div>
+    </motion.div>
   );
 }

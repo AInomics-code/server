@@ -24,14 +24,16 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      style={{ width: '100%' }}
+      style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
       {/* Header */}
       <div style={{ 
         display: 'flex', 
         alignItems: 'center', 
         justifyContent: 'space-between',
-        marginBottom: '16px',
+        marginBottom: '12px',
+        width: '100%',
+        maxWidth: '800px',
       }}>
         <span style={{ fontSize: '13px', color: '#9CA5B5', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
           Daily Commercial Checks
@@ -55,7 +57,7 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
         )}
       </div>
       {/* Cards Grid */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '520px' }}>
+      <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '800px', justifyContent: 'center' }}>
         {cards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -66,8 +68,8 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
               whileTap={{ scale: 0.98 }}
               style={{
                 flex: 1,
-                padding: '16px 16px',
-                borderRadius: '12px',
+                padding: '10px 12px',
+                borderRadius: '8px',
                 backgroundColor: '#202A37',
                 border: '1px solid rgba(255,255,255,0.06)',
                 cursor: 'pointer',
@@ -75,6 +77,8 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
                 transition: 'all 0.12s ease',
                 display: 'flex',
                 flexDirection: 'column',
+                alignItems: 'flex-start',
+                gap: '8px',
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.borderColor = 'rgba(91, 158, 255, 0.3)';
@@ -86,33 +90,41 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
               }}
             >
               <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '6px',
+                width: '26px',
+                height: '26px',
+                borderRadius: '5px',
                 backgroundColor: 'rgba(91, 158, 255, 0.06)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                marginBottom: '10px',
+                flexShrink: 0,
+                marginBottom: '2px',
               }}>
-                <Icon size={15} color="rgba(91, 158, 255, 0.7)" strokeWidth={1.5} />
+                <Icon size={15} color="rgba(91, 158, 255, 0.7)" strokeWidth={2.2} />
               </div>
               <div style={{ 
-                fontSize: '14px', 
-                fontWeight: 500, 
-                color: '#E6EAF1', 
-                marginTop: '8px', 
-                marginBottom: '4px',
-                fontFamily: 'Inter, sans-serif',
+                display: 'flex',
+                flexDirection: 'column',
+                width: '100%',
+                gap: '2px',
               }}>
-                {card.title}
-              </div>
-              <div style={{ 
-                fontSize: '12px', 
-                color: '#9CA5B5',
-                fontFamily: 'Inter, sans-serif',
-              }}>
-                {card.description}
+                <div style={{ 
+                  fontSize: '13px', 
+                  fontWeight: 500, 
+                  color: '#E6EAF1', 
+                  fontFamily: 'Inter, sans-serif',
+                  lineHeight: '1.2',
+                }}>
+                  {card.title}
+                </div>
+                <div style={{ 
+                  fontSize: '11px', 
+                  color: '#9CA5B5',
+                  fontFamily: 'Inter, sans-serif',
+                  lineHeight: '1.2',
+                }}>
+                  {card.description}
+                </div>
               </div>
             </motion.button>
           );
