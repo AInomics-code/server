@@ -98,7 +98,9 @@ class SimpleAgent:
             create_product_period_comparison_tool,
             create_client_performance_analysis_tool,
             create_commercial_goals_performance_tool,
-            create_commercial_goals_by_month_tool
+            create_commercial_goals_by_month_tool,
+            create_sales_health_tool,
+            create_backorder_health_tool
         )
         
         # Simple/fast tools only - for quick lookups
@@ -132,6 +134,10 @@ class SimpleAgent:
         # Commercial goals analysis tools - NEW
         self.tools.append(create_commercial_goals_performance_tool(self.queries_executed))
         self.tools.append(create_commercial_goals_by_month_tool(self.queries_executed))
+        
+        # Health monitoring tools - NEW
+        self.tools.append(create_sales_health_tool(self.queries_executed))
+        self.tools.append(create_backorder_health_tool(self.queries_executed))
     
     async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         self.queries_executed = []

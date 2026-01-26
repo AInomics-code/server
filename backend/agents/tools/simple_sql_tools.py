@@ -3932,3 +3932,689 @@ def create_commercial_goals_by_month_tool(queries_executed: List[Dict]):
     
     return get_commercial_goals_by_month
 
+
+def create_sales_health_tool(queries_executed: List[Dict]):
+    """Tool for monthly sales health monitoring (MTD - Month To Date)"""
+    
+    @tool
+    async def get_sales_health(
+        year: Optional[int] = None,
+        month: Optional[int] = None,
+        location_id: Optional[str] = None
+    ) -> str:
+        """
+        MANDATORY TOOL for sales health/check/status queries. ALWAYS call this tool when user mentions "sales" + "health"/"check"/"status"/"report".
+        
+        REQUIRED for: "sales health", "salud de ventas", "sales check", "estado de ventas",
+        "how are sales", "cómo van las ventas", "sales report", "sales dashboard"
+        
+        DO NOT respond to these queries without calling this tool first.
+        DO NOT invent sales data - use this tool to get real data.
+        
+        Args:
+            year: Optional year (defaults to most recent)
+            month: Optional month 1-12 (defaults to most recent)
+            location_id: Optional location filter
+        
+        Returns: JSON with monthly sales metrics, profit margins, comparisons, top products/clients, alerts
+        """
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        pool = await get_client_db_pool()
+        
+        # First, find the most recent month with data
+        try:
+            async with pool.acquire() as conn:
+                latest_data = await conn.fetchrow("""
+                    SELECT 
+                        EXTRACT(YEAR FROM MAX(date))::int as latest_year,
+                        EXTRACT(MONTH FROM MAX(date))::int as latest_month
+                    FROM transactions
+                    WHERE transaction_type = 'SALE'
+                """)
+                
+                if not latest_data or not latest_data['latest_year']:
+                    return json.dumps({
+                        "has_data": False,
+                        "message": "No sales data available in the database."
+                    })
+                
+                # Use provided year/month or default to latest available
+                target_year = year if year else latest_data['latest_year']
+                target_month = month if month else latest_data['latest_month']
+        except Exception as e:
+            await pool.close()
+            raise e
+        
+        # Calculate date ranges
+        month_start = datetime(target_year, target_month, 1).date()
+        if target_month == 12:
+            month_end = datetime(target_year + 1, 1, 1).date() - timedelta(days=1)
+        else:
+            month_end = datetime(target_year, target_month + 1, 1).date() - timedelta(days=1)
+        
+        # Previous month
+        prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
+        prev_month_end = month_start - timedelta(days=1)
+        
+        # Same month last year
+        try:
+            same_month_last_year_start = datetime(target_year - 1, target_month, 1).date()
+            if target_month == 12:
+                same_month_last_year_end = datetime(target_year, 1, 1).date() - timedelta(days=1)
+            else:
+                same_month_last_year_end = datetime(target_year - 1, target_month + 1, 1).date() - timedelta(days=1)
+        except:
+            same_month_last_year_start = None
+            same_month_last_year_end = None
+        
+        # Build location filter if provided
+        location_filter = ""
+        if location_id:
+            location_filter = f"AND t.location_id = '{location_id}'"
+        
+        # Query 1: Current month sales (MTD)
+        sql_current_month = f"""
+            SELECT 
+                COALESCE(SUM(t.net_amount), 0) as total_sales,
+                COALESCE(SUM(t.quantity), 0) as total_quantity,
+                COUNT(DISTINCT t.client_id) as unique_clients,
+                COUNT(DISTINCT DATE(t.date)) as days_with_sales,
+                COUNT(*) as transaction_count,
+                COALESCE(SUM(t.net_amount - (t.unit_cost * t.quantity)), 0) as total_profit,
+                CASE 
+                    WHEN SUM(t.unit_cost * t.quantity) > 0 
+                    THEN ((SUM(t.net_amount - (t.unit_cost * t.quantity)) / SUM(t.unit_cost * t.quantity)) * 100)
+                    ELSE 0
+                END as profit_margin_pct
+            FROM transactions t
+            WHERE t.date >= $1
+              AND t.date <= $2
+              AND t.transaction_type = 'SALE'
+              {location_filter}
+        """
+        
+        # Query 2: Previous month sales
+        sql_prev_month = f"""
+            SELECT 
+                COALESCE(SUM(t.net_amount), 0) as total_sales,
+                COUNT(DISTINCT DATE(t.date)) as days_with_sales
+            FROM transactions t
+            WHERE t.date >= $1
+              AND t.date <= $2
+              AND t.transaction_type = 'SALE'
+              {location_filter}
+        """
+        
+        # Query 3: Same month last year
+        sql_same_month_last_year = f"""
+            SELECT 
+                COALESCE(SUM(t.net_amount), 0) as total_sales,
+                COUNT(DISTINCT DATE(t.date)) as days_with_sales
+            FROM transactions t
+            WHERE t.date >= $1
+              AND t.date <= $2
+              AND t.transaction_type = 'SALE'
+              {location_filter}
+        """
+        
+        # Query 4: Top products this month
+        sql_top_products = f"""
+            SELECT 
+                p.product_name,
+                p.brand,
+                SUM(t.quantity) as quantity,
+                SUM(t.net_amount) as sales
+            FROM transactions t
+            JOIN products p ON t.product_id = p.product_id
+            WHERE t.date >= $1
+              AND t.date <= $2
+              AND t.transaction_type = 'SALE'
+              {location_filter}
+            GROUP BY p.product_name, p.brand
+            ORDER BY sales DESC
+            LIMIT 5
+        """
+        
+        # Query 5: Top clients this month
+        sql_top_clients = f"""
+            SELECT 
+                c.client_name,
+                c.client_group,
+                SUM(t.net_amount) as sales,
+                COUNT(*) as transactions
+            FROM transactions t
+            JOIN clients c ON t.client_id = c.client_id
+            WHERE t.date >= $1
+              AND t.date <= $2
+              AND t.transaction_type = 'SALE'
+              {location_filter}
+            GROUP BY c.client_name, c.client_group
+            ORDER BY sales DESC
+            LIMIT 5
+        """
+        
+        queries_executed.append({
+            "type": "sql_health_check",
+            "database": "client_data",
+            "query": "sales_health_monthly",
+            "source": "simple_agent_tool"
+        })
+        
+        try:
+            async with pool.acquire() as conn:
+                # Execute all queries with their respective date ranges
+                current_month_data = await conn.fetchrow(sql_current_month, month_start, month_end)
+                prev_month_data = await conn.fetchrow(sql_prev_month, prev_month_start, prev_month_end)
+                
+                same_month_last_year_data = None
+                if same_month_last_year_start:
+                    same_month_last_year_data = await conn.fetchrow(sql_same_month_last_year, same_month_last_year_start, same_month_last_year_end)
+                
+                top_products = await conn.fetch(sql_top_products, month_start, month_end)
+                top_clients = await conn.fetch(sql_top_clients, month_start, month_end)
+                
+                # Calculate totals
+                current_month_sales = float(current_month_data['total_sales']) if current_month_data['total_sales'] else 0.0
+                prev_month_sales = float(prev_month_data['total_sales']) if prev_month_data['total_sales'] else 0.0
+                same_month_last_year_sales = float(same_month_last_year_data['total_sales']) if same_month_last_year_data and same_month_last_year_data['total_sales'] else 0.0
+                
+                days_with_sales = int(current_month_data['days_with_sales']) if current_month_data['days_with_sales'] else 0
+                prev_month_days = int(prev_month_data['days_with_sales']) if prev_month_data['days_with_sales'] else 0
+                
+                # CRITICAL: Check if there's any data for this month
+                has_data = current_month_data and (current_month_data['transaction_count'] is not None and int(current_month_data['transaction_count']) > 0)
+                
+                if not has_data:
+                    return json.dumps({
+                        "year": target_year,
+                        "month": target_month,
+                        "has_data": False,
+                        "message": f"No sales data available for {target_year}-{target_month:02d}."
+                    })
+                
+                # Calculate comparisons
+                vs_prev_month_pct = ((current_month_sales - prev_month_sales) / prev_month_sales * 100) if prev_month_sales > 0 else 0
+                vs_same_month_last_year_pct = ((current_month_sales - same_month_last_year_sales) / same_month_last_year_sales * 100) if same_month_last_year_sales > 0 else 0
+                
+                # Calculate daily averages
+                daily_avg_current = current_month_sales / days_with_sales if days_with_sales > 0 else 0
+                daily_avg_prev = prev_month_sales / prev_month_days if prev_month_days > 0 else 0
+                
+                # Generate alerts (data only, no text)
+                alerts = []
+                if vs_prev_month_pct < -10:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "sales_decrease_vs_prev_month",
+                        "value": abs(vs_prev_month_pct)
+                    })
+                elif vs_prev_month_pct > 15:
+                    alerts.append({
+                        "type": "success",
+                        "metric": "sales_increase_vs_prev_month",
+                        "value": vs_prev_month_pct
+                    })
+                
+                if current_month_data['profit_margin_pct'] and float(current_month_data['profit_margin_pct']) < 15:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "low_profit_margin",
+                        "value": float(current_month_data['profit_margin_pct'])
+                    })
+                
+                if vs_same_month_last_year_pct < -15 and same_month_last_year_sales > 0:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "sales_decrease_vs_last_year",
+                        "value": abs(vs_same_month_last_year_pct)
+                    })
+                
+                # Build result
+                result = {
+                    "year": target_year,
+                    "month": target_month,
+                    "period": f"{target_year}-{target_month:02d}",
+                    "has_data": True,
+                    "summary": {
+                        "total_sales": current_month_sales,
+                        "total_quantity": int(current_month_data['total_quantity']) if current_month_data['total_quantity'] else 0,
+                        "unique_clients": int(current_month_data['unique_clients']) if current_month_data['unique_clients'] else 0,
+                        "transaction_count": int(current_month_data['transaction_count']) if current_month_data['transaction_count'] else 0,
+                        "days_with_sales": days_with_sales,
+                        "total_profit": float(current_month_data['total_profit']) if current_month_data['total_profit'] else 0.0,
+                        "profit_margin_pct": float(current_month_data['profit_margin_pct']) if current_month_data['profit_margin_pct'] else 0.0,
+                        "avg_transaction_value": current_month_sales / int(current_month_data['transaction_count']) if current_month_data['transaction_count'] and int(current_month_data['transaction_count']) > 0 else 0,
+                        "daily_average": daily_avg_current
+                    },
+                    "comparisons": {
+                        "vs_prev_month": {
+                            "amount": prev_month_sales,
+                            "change_pct": vs_prev_month_pct,
+                            "trend": "up" if vs_prev_month_pct > 0 else "down" if vs_prev_month_pct < 0 else "flat",
+                            "daily_avg": daily_avg_prev,
+                            "daily_avg_change_pct": ((daily_avg_current - daily_avg_prev) / daily_avg_prev * 100) if daily_avg_prev > 0 else 0
+                        },
+                        "vs_same_month_last_year": {
+                            "amount": same_month_last_year_sales,
+                            "change_pct": vs_same_month_last_year_pct,
+                            "trend": "up" if vs_same_month_last_year_pct > 0 else "down" if vs_same_month_last_year_pct < 0 else "flat"
+                        } if same_month_last_year_sales > 0 else None
+                    },
+                    "top_products": [
+                        {
+                            "product_name": row['product_name'],
+                            "brand": row['brand'],
+                            "quantity": int(row['quantity']) if row['quantity'] else 0,
+                            "sales": float(row['sales']) if row['sales'] else 0.0,
+                            "pct_of_total": (float(row['sales']) / current_month_sales * 100) if current_month_sales > 0 and row['sales'] else 0
+                        }
+                        for row in top_products
+                    ],
+                    "top_clients": [
+                        {
+                            "client_name": row['client_name'],
+                            "client_group": row['client_group'],
+                            "sales": float(row['sales']) if row['sales'] else 0.0,
+                            "transactions": int(row['transactions']) if row['transactions'] else 0,
+                            "pct_of_total": (float(row['sales']) / current_month_sales * 100) if current_month_sales > 0 and row['sales'] else 0
+                        }
+                        for row in top_clients
+                    ],
+                    "alerts": alerts
+                }
+                
+                return json.dumps(result)
+        finally:
+            await pool.close()
+    
+    return get_sales_health
+
+
+def create_backorder_health_tool(queries_executed: List[Dict]):
+    """Tool for monthly backorder health monitoring"""
+    
+    @tool
+    async def get_backorder_health(
+        year: Optional[int] = None,
+        month: Optional[int] = None,
+        location_id: Optional[str] = None
+    ) -> str:
+        """
+        MANDATORY TOOL for backorder health/check/status queries. ALWAYS call this tool when user mentions "backorder" + "health"/"check"/"status"/"report".
+        
+        REQUIRED for: "backorder health", "salud de backorder", "backorder check", "estado de backorder", 
+        "run backorder health check", "how is backorder", "cómo está el backorder", "backorder report", "backorder dashboard"
+        
+        DO NOT respond to these queries without calling this tool first.
+        DO NOT invent backorder data - use this tool to get real data.
+        
+        Args:
+            year: Optional year (defaults to most recent)
+            month: Optional month 1-12 (defaults to most recent)
+            location_id: Optional location filter
+        
+        Returns: JSON with monthly backorder metrics, comparisons, top products/clients, aging analysis, alerts
+        """
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+        
+        pool = await get_client_db_pool()
+        
+        # First, find the most recent month with backorder data
+        try:
+            async with pool.acquire() as conn:
+                latest_data = await conn.fetchrow("""
+                    SELECT 
+                        EXTRACT(YEAR FROM MAX(date))::int as latest_year,
+                        EXTRACT(MONTH FROM MAX(date))::int as latest_month
+                    FROM backorder
+                    WHERE backorder_qty > 0
+                """)
+                
+                if not latest_data or not latest_data['latest_year']:
+                    return json.dumps({
+                        "has_data": False,
+                        "message": "No backorder data available in the database."
+                    })
+                
+                # Use provided year/month or default to latest available
+                target_year = year if year else latest_data['latest_year']
+                target_month = month if month else latest_data['latest_month']
+        except Exception as e:
+            await pool.close()
+            raise e
+        
+        # Calculate date ranges
+        month_start = datetime(target_year, target_month, 1).date()
+        if target_month == 12:
+            month_end = datetime(target_year + 1, 1, 1).date() - timedelta(days=1)
+        else:
+            month_end = datetime(target_year, target_month + 1, 1).date() - timedelta(days=1)
+        
+        # Previous month
+        prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
+        prev_month_end = month_start - timedelta(days=1)
+        
+        # Same month last year
+        try:
+            same_month_last_year_start = datetime(target_year - 1, target_month, 1).date()
+            if target_month == 12:
+                same_month_last_year_end = datetime(target_year, 1, 1).date() - timedelta(days=1)
+            else:
+                same_month_last_year_end = datetime(target_year - 1, target_month + 1, 1).date() - timedelta(days=1)
+        except:
+            same_month_last_year_start = None
+            same_month_last_year_end = None
+        
+        # Build location filter if provided
+        location_filter = ""
+        if location_id:
+            location_filter = f"AND b.location_id = '{location_id}'"
+        
+        # Query 1: Current month backorder
+        sql_current_month = f"""
+            SELECT 
+                COALESCE(SUM(b.backorder_qty), 0) as total_qty,
+                COALESCE(SUM(b.total), 0) as total_value,
+                COUNT(DISTINCT b.product_id) as unique_products,
+                COUNT(DISTINCT b.client_id) as unique_clients,
+                COUNT(*) as order_count,
+                AVG(b.days_delayed) as avg_days_delayed
+            FROM backorder b
+            WHERE b.date >= $1
+              AND b.date <= $2
+              AND b.backorder_qty > 0
+              {location_filter}
+        """
+        
+        # Query 2: Previous month backorder
+        sql_prev_month = f"""
+            SELECT 
+                COALESCE(SUM(b.backorder_qty), 0) as total_qty,
+                COALESCE(SUM(b.total), 0) as total_value
+            FROM backorder b
+            WHERE b.date >= $1
+              AND b.date <= $2
+              AND b.backorder_qty > 0
+              {location_filter}
+        """
+        
+        # Query 3: Same month last year
+        sql_same_month_last_year = f"""
+            SELECT 
+                COALESCE(SUM(b.backorder_qty), 0) as total_qty,
+                COALESCE(SUM(b.total), 0) as total_value
+            FROM backorder b
+            WHERE b.date >= $1
+              AND b.date <= $2
+              AND b.backorder_qty > 0
+              {location_filter}
+        """
+        
+        # Query 4: Top products this month
+        sql_top_products = f"""
+            SELECT 
+                p.product_name,
+                p.brand,
+                SUM(b.backorder_qty) as quantity,
+                SUM(b.total) as value,
+                AVG(b.days_delayed) as avg_days_delayed
+            FROM backorder b
+            JOIN products p ON b.product_id = p.product_id
+            WHERE b.date >= $1
+              AND b.date <= $2
+              AND b.backorder_qty > 0
+              {location_filter}
+            GROUP BY p.product_name, p.brand
+            ORDER BY quantity DESC
+            LIMIT 5
+        """
+        
+        # Query 5: Top clients this month
+        sql_top_clients = f"""
+            SELECT 
+                c.client_name,
+                c.client_group,
+                SUM(b.backorder_qty) as quantity,
+                SUM(b.total) as value,
+                COUNT(*) as orders
+            FROM backorder b
+            JOIN clients c ON b.client_id = c.client_id
+            WHERE b.date >= $1
+              AND b.date <= $2
+              AND b.backorder_qty > 0
+              {location_filter}
+            GROUP BY c.client_name, c.client_group
+            ORDER BY value DESC
+            LIMIT 5
+        """
+        
+        # Query 6: Aging analysis
+        sql_aging = f"""
+            SELECT 
+                age_bucket,
+                order_count,
+                quantity,
+                value
+            FROM (
+                SELECT 
+                    CASE 
+                        WHEN b.days_delayed <= 7 THEN '0-7 days'
+                        WHEN b.days_delayed <= 14 THEN '8-14 days'
+                        WHEN b.days_delayed <= 30 THEN '15-30 days'
+                        ELSE '30+ days'
+                    END as age_bucket,
+                    CASE 
+                        WHEN b.days_delayed <= 7 THEN 1
+                        WHEN b.days_delayed <= 14 THEN 2
+                        WHEN b.days_delayed <= 30 THEN 3
+                        ELSE 4
+                    END as sort_order,
+                    COUNT(*) as order_count,
+                    SUM(b.backorder_qty) as quantity,
+                    SUM(b.total) as value
+                FROM backorder b
+                WHERE b.date >= $1
+                  AND b.date <= $2
+                  AND b.backorder_qty > 0
+                  {location_filter}
+                GROUP BY 
+                    CASE 
+                        WHEN b.days_delayed <= 7 THEN '0-7 days'
+                        WHEN b.days_delayed <= 14 THEN '8-14 days'
+                        WHEN b.days_delayed <= 30 THEN '15-30 days'
+                        ELSE '30+ days'
+                    END,
+                    CASE 
+                        WHEN b.days_delayed <= 7 THEN 1
+                        WHEN b.days_delayed <= 14 THEN 2
+                        WHEN b.days_delayed <= 30 THEN 3
+                        ELSE 4
+                    END
+            ) sub
+            ORDER BY sort_order
+        """
+        
+        queries_executed.append({
+            "type": "sql_health_check",
+            "database": "client_data",
+            "query": "backorder_health_monthly",
+            "source": "simple_agent_tool"
+        })
+        
+        print(f"\n{'='*70}")
+        print(f"[BACKORDER HEALTH] Executing for {target_year}-{target_month:02d}")
+        print(f"  Month range: {month_start} to {month_end}")
+        print(f"  Prev month: {prev_month_start} to {prev_month_end}")
+        print(f"  Location filter: {location_filter if location_filter else 'None'}")
+        print(f"{'='*70}\n")
+        
+        try:
+            async with pool.acquire() as conn:
+                # Execute all queries with their respective date ranges
+                print("[BACKORDER HEALTH] Executing queries...")
+                current_month_data = await conn.fetchrow(sql_current_month, month_start, month_end)
+                print(f"  ✓ Current month data: {current_month_data['order_count'] if current_month_data else 0} orders")
+                
+                prev_month_data = await conn.fetchrow(sql_prev_month, prev_month_start, prev_month_end)
+                print(f"  ✓ Prev month data: fetched")
+                
+                same_month_last_year_data = None
+                if same_month_last_year_start:
+                    same_month_last_year_data = await conn.fetchrow(sql_same_month_last_year, same_month_last_year_start, same_month_last_year_end)
+                    print(f"  ✓ Same month last year: fetched")
+                
+                top_products = await conn.fetch(sql_top_products, month_start, month_end)
+                print(f"  ✓ Top products: {len(top_products)} found")
+                
+                top_clients = await conn.fetch(sql_top_clients, month_start, month_end)
+                print(f"  ✓ Top clients: {len(top_clients)} found")
+                
+                aging_data = await conn.fetch(sql_aging, month_start, month_end)
+                print(f"  ✓ Aging data: {len(aging_data)} buckets")
+                
+                # Calculate totals
+                current_month_qty = float(current_month_data['total_qty']) if current_month_data['total_qty'] else 0.0
+                current_month_value = float(current_month_data['total_value']) if current_month_data['total_value'] else 0.0
+                prev_month_qty = float(prev_month_data['total_qty']) if prev_month_data['total_qty'] else 0.0
+                prev_month_value = float(prev_month_data['total_value']) if prev_month_data['total_value'] else 0.0
+                same_month_last_year_qty = float(same_month_last_year_data['total_qty']) if same_month_last_year_data and same_month_last_year_data['total_qty'] else 0.0
+                same_month_last_year_value = float(same_month_last_year_data['total_value']) if same_month_last_year_data and same_month_last_year_data['total_value'] else 0.0
+                
+                # CRITICAL: Check if there's any data for this month
+                has_data = current_month_data and (current_month_data['order_count'] is not None and int(current_month_data['order_count']) > 0)
+                
+                if not has_data:
+                    return json.dumps({
+                        "year": target_year,
+                        "month": target_month,
+                        "has_data": False,
+                        "message": f"No backorder data available for {target_year}-{target_month:02d}."
+                    })
+                
+                # Calculate comparisons
+                vs_prev_month_qty_pct = ((current_month_qty - prev_month_qty) / prev_month_qty * 100) if prev_month_qty > 0 else 0
+                vs_prev_month_value_pct = ((current_month_value - prev_month_value) / prev_month_value * 100) if prev_month_value > 0 else 0
+                vs_same_month_last_year_qty_pct = ((current_month_qty - same_month_last_year_qty) / same_month_last_year_qty * 100) if same_month_last_year_qty > 0 else 0
+                vs_same_month_last_year_value_pct = ((current_month_value - same_month_last_year_value) / same_month_last_year_value * 100) if same_month_last_year_value > 0 else 0
+                
+                # Generate alerts (data only, no text)
+                alerts = []
+                avg_days = float(current_month_data['avg_days_delayed']) if current_month_data['avg_days_delayed'] else 0
+                
+                if vs_prev_month_qty_pct > 15:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "backorder_increase_vs_prev_month",
+                        "value": vs_prev_month_qty_pct
+                    })
+                elif vs_prev_month_qty_pct < -15:
+                    alerts.append({
+                        "type": "success",
+                        "metric": "backorder_decrease_vs_prev_month",
+                        "value": abs(vs_prev_month_qty_pct)
+                    })
+                
+                if avg_days > 14:
+                    alerts.append({
+                        "type": "critical",
+                        "metric": "high_avg_delay",
+                        "value": avg_days
+                    })
+                
+                if current_month_data['unique_products'] and int(current_month_data['unique_products']) > 50:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "high_product_variety",
+                        "value": int(current_month_data['unique_products'])
+                    })
+                
+                if vs_same_month_last_year_qty_pct > 20 and same_month_last_year_qty > 0:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "backorder_increase_vs_last_year",
+                        "value": vs_same_month_last_year_qty_pct
+                    })
+                
+                # Build result
+                result = {
+                    "year": target_year,
+                    "month": target_month,
+                    "period": f"{target_year}-{target_month:02d}",
+                    "has_data": True,
+                    "summary": {
+                        "total_quantity": current_month_qty,
+                        "total_value": current_month_value,
+                        "unique_products": int(current_month_data['unique_products']) if current_month_data['unique_products'] else 0,
+                        "unique_clients": int(current_month_data['unique_clients']) if current_month_data['unique_clients'] else 0,
+                        "order_count": int(current_month_data['order_count']) if current_month_data['order_count'] else 0,
+                        "avg_days_delayed": avg_days
+                    },
+                    "comparisons": {
+                        "vs_prev_month": {
+                            "quantity": prev_month_qty,
+                            "value": prev_month_value,
+                            "qty_change_pct": vs_prev_month_qty_pct,
+                            "value_change_pct": vs_prev_month_value_pct,
+                            "trend": "up" if vs_prev_month_qty_pct > 0 else "down" if vs_prev_month_qty_pct < 0 else "flat"
+                        },
+                        "vs_same_month_last_year": {
+                            "quantity": same_month_last_year_qty,
+                            "value": same_month_last_year_value,
+                            "qty_change_pct": vs_same_month_last_year_qty_pct,
+                            "value_change_pct": vs_same_month_last_year_value_pct,
+                            "trend": "up" if vs_same_month_last_year_qty_pct > 0 else "down" if vs_same_month_last_year_qty_pct < 0 else "flat"
+                        } if same_month_last_year_qty > 0 else None
+                    },
+                    "top_products": [
+                        {
+                            "product_name": row['product_name'],
+                            "brand": row['brand'],
+                            "quantity": float(row['quantity']) if row['quantity'] else 0.0,
+                            "value": float(row['value']) if row['value'] else 0.0,
+                            "avg_days_delayed": float(row['avg_days_delayed']) if row['avg_days_delayed'] else 0.0,
+                            "pct_of_total": (float(row['quantity']) / current_month_qty * 100) if current_month_qty > 0 and row['quantity'] else 0
+                        }
+                        for row in top_products
+                    ],
+                    "top_clients": [
+                        {
+                            "client_name": row['client_name'],
+                            "client_group": row['client_group'],
+                            "quantity": float(row['quantity']) if row['quantity'] else 0.0,
+                            "value": float(row['value']) if row['value'] else 0.0,
+                            "orders": int(row['orders']) if row['orders'] else 0,
+                            "pct_of_total": (float(row['value']) / current_month_value * 100) if current_month_value > 0 and row['value'] else 0
+                        }
+                        for row in top_clients
+                    ],
+                    "aging_analysis": [
+                        {
+                            "age_bucket": row['age_bucket'],
+                            "order_count": int(row['order_count']) if row['order_count'] else 0,
+                            "quantity": float(row['quantity']) if row['quantity'] else 0.0,
+                            "value": float(row['value']) if row['value'] else 0.0,
+                            "pct_of_total": (float(row['value']) / current_month_value * 100) if current_month_value > 0 and row['value'] else 0
+                        }
+                        for row in aging_data
+                    ],
+                    "alerts": alerts
+                }
+                
+                result_json = json.dumps(result)
+                print(f"\n[BACKORDER HEALTH] ✅ Success - returning {len(result_json)} chars")
+                print(f"  Period: {result['period']}, Has data: {result['has_data']}")
+                print(f"  Total value: ${result['summary']['total_value']:,.2f}\n")
+                return result_json
+        except Exception as e:
+            print(f"\n[BACKORDER HEALTH] ❌ ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        finally:
+            await pool.close()
+    
+    return get_backorder_health
+

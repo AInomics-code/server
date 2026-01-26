@@ -23,6 +23,20 @@ class QueryRouter:
         self.prompt_template = load_prompt("router_classifier.txt")
     
     async def classify(self, query: str, conversation_history: Optional[List[Dict]] = None) -> QueryType:
+        # OVERRIDE: Force health queries to DYNAMIC agent (uses Sonnet, better at following tool instructions)
+        query_lower = query.lower()
+        health_keywords = [
+            "health", "salud", 
+            "check", "revisar", "verificar",
+            "dashboard",
+            "run backorder", "run sales"
+        ]
+        
+        if any(keyword in query_lower for keyword in health_keywords):
+            if "sales" in query_lower or "ventas" in query_lower or "backorder" in query_lower:
+                print(f"[ROUTER] 🎯 OVERRIDE: '{query[:50]}...' -> DYNAMIC (health query detected)")
+                return QueryType.DYNAMIC
+        
         # Build context from conversation history
         context_str = ""
         if conversation_history and len(conversation_history) > 0:

@@ -78,7 +78,9 @@ class DynamicAgent:
             create_product_period_comparison_tool,
             create_client_performance_analysis_tool,
             create_commercial_goals_performance_tool,
-            create_commercial_goals_by_month_tool
+            create_commercial_goals_by_month_tool,
+            create_sales_health_tool,
+            create_backorder_health_tool
         )
         from agents.tools.advanced_sql_tools import (
             create_client_sales_analysis_tool,
@@ -136,18 +138,44 @@ class DynamicAgent:
         self.tools.append(create_commercial_goals_performance_tool(self.queries_executed))
         self.tools.append(create_commercial_goals_by_month_tool(self.queries_executed))
         
+        # Health monitoring tools - NEW
+        self.tools.append(create_sales_health_tool(self.queries_executed))
+        self.tools.append(create_backorder_health_tool(self.queries_executed))
+        
         # Dynamic SQL and vector search
         self.tools.append(create_sql_tool(self.queries_executed))
         self.tools.append(create_vector_tool(self.queries_executed))
         self.tools.append(get_current_date)
     
-    async def execute(self, query: str, session_id: str, user_id: str) -> Dict[str, Any]:
+    async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         self.queries_executed = []
         
-        messages = [
-            SystemMessage(content=self.system_prompt),
-            HumanMessage(content=query)
-        ]
+        # Build messages with conversation history
+        messages = [SystemMessage(content=self.system_prompt)]
+        
+        # Add conversation history if available
+        if conversation_history:
+            # Take last 10 messages to avoid context overload
+            recent_messages = conversation_history[-10:]
+            for msg in recent_messages:
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg.get("content", "")))
+                elif msg.get("role") == "assistant":
+                    # For assistant messages, extract the text content
+                    content = msg.get("content", "")
+                    # If content is a list of components, extract text
+                    if isinstance(content, list):
+                        text_parts = []
+                        for comp in content:
+                            if isinstance(comp, dict) and comp.get("type") == "text":
+                                text_parts.append(comp.get("data", ""))
+                        content = "\n".join(text_parts) if text_parts else ""
+                    from langchain_core.messages import AIMessage
+                    if content:
+                        messages.append(AIMessage(content=content))
+        
+        # Add current query
+        messages.append(HumanMessage(content=query))
         
         config = {
             "configurable": {"thread_id": session_id},
@@ -156,7 +184,8 @@ class DynamicAgent:
                 "conversation_id": session_id,
                 "user_id": user_id,
                 "agent_type": "dynamic",
-                "model": "sonnet"
+                "model": "sonnet",
+                "history_length": len(conversation_history) if conversation_history else 0
             },
             "tags": [
                 settings.environment if hasattr(settings, 'environment') else "development",
@@ -167,6 +196,7 @@ class DynamicAgent:
         
         print(f"\n{'='*70}")
         print(f"[DYNAMIC AGENT] Query: {query}")
+        print(f"[DYNAMIC AGENT] History: {len(conversation_history) if conversation_history else 0} messages")
         print(f"{'='*70}\n")
         print("\n> Entering new AgentExecutor chain...\n")
         
@@ -177,7 +207,11 @@ class DynamicAgent:
             # Get the final AI response
             answer = ""
             
-            for msg in final_messages[2:]:  # Skip system and user messages
+            # Skip initial messages (system + history + current user query)
+            # Find where the agent's reasoning starts
+            start_idx = len(messages)  # Start after all input messages
+            
+            for msg in final_messages[start_idx:]:
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
                     for tool_call in msg.tool_calls:
                         print(f"\nInvoking: `{tool_call['name']}` with `{tool_call['args']}`")
