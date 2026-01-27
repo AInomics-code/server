@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import { HelpCircle, Settings as SettingsIcon } from 'lucide-react';
+import { useTranslation } from '@/config/i18n';
 
 interface GlobalSidebarProps {
   activePage?: 'home' | 'data' | 'playground' | 'llm';
@@ -9,6 +10,7 @@ interface GlobalSidebarProps {
 export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
   const [, setLocation] = useLocation();
   const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const { t } = useTranslation();
 
   return (
     <div 
@@ -93,7 +95,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           </svg>
           {isSidebarExpanded && (
             <span style={{ fontSize: '14px', color: '#677C99' }}>
-              Home
+              {t('sidebar.home')}
             </span>
           )}
         </button>
@@ -132,7 +134,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           </svg>
           {isSidebarExpanded && (
             <span style={{ fontSize: '14px', color: activePage === 'llm' ? '#5B9EFF' : '#DCE7F5' }}>
-              LLM
+              {t('sidebar.llm')}
             </span>
           )}
         </button>
@@ -160,7 +162,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           </svg>
           {isSidebarExpanded && (
             <span style={{ fontSize: '14px', color: '#677C99' }}>
-              Playground
+              {t('sidebar.playground')}
             </span>
           )}
         </button>
@@ -192,7 +194,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           </svg>
           {isSidebarExpanded && (
             <span style={{ fontSize: '14px', color: '#677C99' }}>
-              Data
+              {t('sidebar.data')}
             </span>
           )}
         </button>
@@ -226,7 +228,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         >
           <HelpCircle size={20} color="#5B9EFF" />
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#5B9EFF' }}>Help</span>
+            <span style={{ fontSize: '14px', color: '#5B9EFF' }}>{t('sidebar.help')}</span>
           )}
         </button>
       </div>
@@ -253,7 +255,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         >
           <SettingsIcon size={20} color="#677C99" />
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#DCE7F5' }}>Settings</span>
+            <span style={{ fontSize: '14px', color: '#DCE7F5' }}>{t('sidebar.settings')}</span>
           )}
         </button>
       </div>

@@ -16,63 +16,88 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
       fontSize: '15px', 
       color: '#C5CDD8', 
       lineHeight: 1.6,
+      marginTop: '0',
+      paddingTop: '0',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'flex-start',
     }}>
+      <style>{`
+        .llm-markdown-content > *:first-child {
+          margin-top: 0 !important;
+          padding-top: 0 !important;
+          margin-bottom: 0 !important;
+          padding-bottom: 0 !important;
+        }
+      `}</style>
+      <div className="llm-markdown-content" style={{ width: '100%', marginTop: '0', paddingTop: '0', lineHeight: '1.5', display: 'flex', flexDirection: 'column' }}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm]}
         components={{
           // Headers
-          h1: ({ children }) => (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                fontSize: '17px',
-                fontWeight: 600,
-                color: '#E6EAF1',
-                lineHeight: 1.5,
-                marginTop: '24px',
-                marginBottom: '16px',
-              }}
-            >
-              {children}
-            </motion.div>
-          ),
-          h2: ({ children }) => (
-            <motion.div
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                fontSize: '17px',
-                fontWeight: 600,
-                color: '#E6EAF1',
-                lineHeight: 1.5,
-                marginTop: '24px',
-                marginBottom: '16px',
-              }}
-            >
-              {children}
-            </motion.div>
-          ),
-          h3: ({ children }) => (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-              style={{
-                fontSize: '12px',
-                color: '#677C99',
-                fontWeight: 500,
-                textTransform: 'uppercase',
-                letterSpacing: '0.4px',
-                marginTop: '20px',
-                marginBottom: '12px',
-              }}
-            >
-              {children}
-            </motion.div>
-          ),
+          h1: ({ children, node }) => {
+            const isFirst = node?.position?.start?.line === 1;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  fontSize: '17px',
+                  fontWeight: 600,
+                  color: '#E6EAF1',
+                  lineHeight: 1.5,
+                  marginTop: isFirst ? '0' : '24px',
+                  marginBottom: '16px',
+                  paddingTop: '0',
+                }}
+              >
+                {children}
+              </motion.div>
+            );
+          },
+          h2: ({ children, node }) => {
+            const isFirst = node?.position?.start?.line === 1;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  fontSize: '17px',
+                  fontWeight: 600,
+                  color: '#E6EAF1',
+                  lineHeight: 1.5,
+                  marginTop: isFirst ? '0' : '24px',
+                  marginBottom: '16px',
+                  paddingTop: isFirst ? '0' : '0',
+                }}
+              >
+                {children}
+              </motion.div>
+            );
+          },
+          h3: ({ children, node }) => {
+            const isFirst = node?.position?.start?.line === 1;
+            return (
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                  fontSize: '12px',
+                  color: '#677C99',
+                  fontWeight: 500,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.4px',
+                  marginTop: isFirst ? '0' : '20px',
+                  marginBottom: '12px',
+                }}
+              >
+                {children}
+              </motion.div>
+            );
+          },
           
           // Paragraphs
           p: ({ children }) => (
@@ -329,6 +354,7 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
       >
         {content}
       </ReactMarkdown>
+      </div>
     </div>
   );
 }
