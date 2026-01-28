@@ -3948,11 +3948,18 @@ def create_sales_health_tool(queries_executed: List[Dict]):
         """
         MANDATORY TOOL for sales health/check/status queries. ALWAYS call this tool when user mentions "sales" + "health"/"check"/"status"/"report".
         
+        ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
+        - User asks "Sales health" (ENGLISH) → Respond in ENGLISH (all titles, text, follow-up questions)
+        - User asks "Salud de ventas" (SPANISH) → Respond in SPANISH (all titles, text, follow-up questions)
+        - NEVER mix languages in your response
+        
+        ⚠️ CRITICAL: You MUST call this tool FIRST before responding.
+        - DO NOT respond without calling this tool
+        - DO NOT invent data or make up product/client names
+        - ONLY use the real data returned by this tool
+        
         REQUIRED for: "sales health", "salud de ventas", "sales check", "estado de ventas",
         "how are sales", "cómo van las ventas", "sales report", "sales dashboard"
-        
-        DO NOT respond to these queries without calling this tool first.
-        DO NOT invent sales data - use this tool to get real data.
         
         Args:
             year: Optional year (defaults to most recent)
@@ -4247,11 +4254,18 @@ def create_backorder_health_tool(queries_executed: List[Dict]):
         """
         MANDATORY TOOL for backorder health/check/status queries. ALWAYS call this tool when user mentions "backorder" + "health"/"check"/"status"/"report".
         
+        ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
+        - User asks "Backorder health" (ENGLISH) → Respond in ENGLISH (all titles, text, follow-up questions)
+        - User asks "Salud de backorder" (SPANISH) → Respond in SPANISH (all titles, text, follow-up questions)
+        - NEVER mix languages in your response
+        
+        ⚠️ CRITICAL: You MUST call this tool FIRST before responding.
+        - DO NOT respond without calling this tool
+        - DO NOT invent data or make up product/client names
+        - ONLY use the real data returned by this tool
+        
         REQUIRED for: "backorder health", "salud de backorder", "backorder check", "estado de backorder", 
         "run backorder health check", "how is backorder", "cómo está el backorder", "backorder report", "backorder dashboard"
-        
-        DO NOT respond to these queries without calling this tool first.
-        DO NOT invent backorder data - use this tool to get real data.
         
         Args:
             year: Optional year (defaults to most recent)
