@@ -1404,6 +1404,9 @@ def create_sales_by_client_tool(queries_executed: List[Dict]):
         - "¿Cuáles clientes compraron más en octubre?" (which clients bought most in October)
         - "Ranking de clientes por venta" (ranking of clients by sales)
         - "Top 25 clientes que más compran producto X" (top 25 clients buying product X) → use product_id
+        - "¿Cuál es el supermercado que más vende?" (which supermarket sells most) - supermercado = cliente
+        - "Supermercados con mayores ventas" (supermarkets with highest sales) - supermercado = cliente
+        - "Top supermercados" (top supermarkets) - supermercado = cliente
         
         **DO NOT USE for:**
         - Product breakdown → use get_sales_by_product
