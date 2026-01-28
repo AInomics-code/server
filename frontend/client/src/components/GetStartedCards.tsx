@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { AlertCircle, TrendingUp, Target, X, LucideIcon } from 'lucide-react';
+import { useTranslation } from '@/config/i18n';
 
 interface Card {
   id: string;
@@ -17,6 +18,7 @@ interface GetStartedCardsProps {
 }
 
 export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCardsProps) {
+  const { t } = useTranslation();
 
   return (
     <motion.div
@@ -36,7 +38,7 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
         maxWidth: '800px',
       }}>
         <span style={{ fontSize: '13px', color: '#9CA5B5', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
-          Daily Commercial Checks
+          {t('cards.title')}
         </span>
         {onClose && (
           <button

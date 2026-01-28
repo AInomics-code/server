@@ -4,6 +4,7 @@ import { GlobalSidebar } from '@/components/GlobalSidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
 import { GetStartedCards } from '@/components/GetStartedCards';
+import { useTranslation } from '@/config/i18n';
 import { 
   agentService, 
   generateSessionId, 
@@ -29,6 +30,8 @@ import {
   Globe,
   LayoutGrid,
   Mic,
+  ThumbsUp,
+  ThumbsDown,
 } from 'lucide-react';
 import { SiSap, SiSalesforce, SiSnowflake } from 'react-icons/si';
 import { FaFileExcel } from 'react-icons/fa';
@@ -152,8 +155,10 @@ function convertComponentToChartData(component: Component): any | null {
 
 // ========== MAIN COMPONENT ==========
 export function LLMChatPage() {
+  // ========== TRANSLATIONS ==========
+  const { t } = useTranslation();
+  
   // ========== STATE MANAGEMENT ==========
-  const [inputValue, setInputValue] = useState('');
   const [showGetStarted, setShowGetStarted] = useState(true);
   
   // Chat mode state
@@ -209,8 +214,8 @@ export function LLMChatPage() {
   // ========== HANDLERS ==========
   
   // Main question submission handler
-  const handleQuestionSubmit = async () => {
-    const question = inputValue.trim();
+  const handleQuestionSubmit = async (rawQuestion: string) => {
+    const question = rawQuestion.trim();
     if (!question) return;
     
     // Add user message to history
@@ -219,7 +224,6 @@ export function LLMChatPage() {
     setSubmittedQuestion(question);
     setChatMode(true);
     setIsWaitingForResponse(true);
-    setInputValue('');
     setShowGetStarted(false);
     
     try {
@@ -286,7 +290,6 @@ export function LLMChatPage() {
     setConversationHistory([]);
     setSubmittedQuestion('');
     setShowGetStarted(true);
-    setInputValue('');
   };
   
   // Copy message
@@ -440,26 +443,26 @@ export function LLMChatPage() {
     {
       id: 'backorder-health',
       icon: Activity,
-      title: 'Backorder Health',
-      description: 'Check revenue risk',
+      title: t('cards.backorder.title'),
+      description: t('cards.backorder.description'),
       workflow: 'backorder_health',
-      question: 'Run backorder health check',
+      question: t('cards.backorder.title'),
     },
     {
       id: 'sales-health',
       icon: BarChart3,
-      title: 'Sales Health',
-      description: 'MTD performance',
+      title: t('cards.sales.title'),
+      description: t('cards.sales.description'),
       workflow: 'sales_health',
-      question: 'Run sales health check',
+      question: t('cards.sales.title'),
     },
     {
       id: 'forecast-tracking',
       icon: Calendar,
-      title: 'Forecast Tracking',
-      description: 'Budget vs actual',
+      title: t('cards.forecast.title'),
+      description: t('cards.forecast.description'),
       workflow: 'forecast_tracking',
-      question: 'Run forecast tracking check',
+      question: t('cards.forecast.title'),
     },
   ];
 
@@ -534,7 +537,7 @@ export function LLMChatPage() {
                       zIndex: 1,
                     }}
                   >
-                    Aragon
+                    {t('app.name')}
                   </motion.span>
                 </div>
               </div>
@@ -548,11 +551,9 @@ export function LLMChatPage() {
                 justifyContent: 'center',
               }}>
                 <ChatInput
-                  value={inputValue}
-                  onChange={setInputValue}
                   onSend={handleQuestionSubmit}
                   isLoading={isWaitingForResponse}
-                  placeholder="Ask anything about your business..."
+                  placeholder={t('chat.input.placeholder')}
                 />
               </div>
 
@@ -611,7 +612,7 @@ export function LLMChatPage() {
                     e.currentTarget.style.color = '#677C99';
                   }}
                 >
-                  ← Back
+                  {t('chat.back')}
                 </button>
                 <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>Vorta</span>
                 <span style={{ fontSize: '14px', color: '#677C99', fontWeight: 400 }}>V.2</span>
@@ -668,13 +669,13 @@ export function LLMChatPage() {
                     </div>
                     
                     {/* Message Content */}
-                    <div style={{ flex: 1, paddingTop: '8px' }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: '42px' }}>
                       {message.role === 'user' ? (
                         <div style={{ fontSize: '15px', color: '#E2E6F0', lineHeight: 1.6 }}>
                           {message.content}
                         </div>
                       ) : (
-                        <div>
+                        <div style={{ width: '100%' }}>
                           {/* Render components if available, otherwise fall back to content */}
                           {message.components && message.components.length > 0 ? (
                             // New component-based format - render each component
@@ -682,7 +683,7 @@ export function LLMChatPage() {
                               if (component.type === 'text') {
                                 // Render text component using markdown renderer
                                 return (
-                                  <div key={compIdx} style={{ marginBottom: compIdx < message.components!.length - 1 ? '24px' : '0' }}>
+                                  <div key={compIdx} style={{ marginBottom: compIdx < message.components!.length - 1 ? '24px' : '0', marginTop: compIdx === 0 ? '0' : '0', paddingTop: compIdx === 0 ? '0' : '0' }}>
                                     <LLMMarkdownRenderer content={component.data as string} />
                                   </div>
                                 );
@@ -709,29 +710,8 @@ export function LLMChatPage() {
                             <ChatChart chartData={message.chartData} />
                           )}
                           
-                          {/* Sources Footer */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '16px',
-                            marginTop: '16px',
-                            paddingTop: '12px',
-                            borderTop: '1px solid rgba(255,255,255,0.06)',
-                          }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <SiSap size={16} color="#0FAAFF" />
-                                <SiSalesforce size={16} color="#00A1E0" />
-                                <SiSnowflake size={16} color="#29B5E8" />
-                                <FaFileExcel size={14} color="#217346" />
-                                <Database size={14} color="#6366F1" />
-                              </div>
-                              <span style={{ fontSize: '12px', color: '#677C99' }}>5 sources</span>
-                            </div>
-                          </div>
-                          
                           {/* Action Buttons */}
-                          <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+                          <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'center' }}>
                             <button
                               onClick={() => handleCopyMessage(message.content || (message.components?.map(c => c.type === 'text' ? c.data : '').join('\n') || ''), idx)}
                               style={{
@@ -748,9 +728,9 @@ export function LLMChatPage() {
                               }}
                             >
                               {copiedMessageIdx === idx ? (
-                                <><Check size={14} /><span>Copied</span></>
+                                <><Check size={14} /><span>{t('chat.copied')}</span></>
                               ) : (
-                                <><Copy size={14} /><span>Copy</span></>
+                                <><Copy size={14} /><span>{t('chat.copy')}</span></>
                               )}
                             </button>
                             
@@ -770,7 +750,49 @@ export function LLMChatPage() {
                               }}
                             >
                               <Download size={14} />
-                              <span>Download</span>
+                              <span>{t('chat.download')}</span>
+                            </button>
+                            
+                            <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
+                            
+                            <button
+                              onClick={() => console.log('Thumbs up')}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '4px',
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#677C99',
+                                fontSize: '12px',
+                                transition: 'color 0.2s',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#4ADE80'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#677C99'}
+                            >
+                              <ThumbsUp size={16} />
+                            </button>
+                            
+                            <button
+                              onClick={() => console.log('Thumbs down')}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                padding: '4px',
+                                backgroundColor: 'transparent',
+                                border: 'none',
+                                cursor: 'pointer',
+                                color: '#677C99',
+                                fontSize: '12px',
+                                transition: 'color 0.2s',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#F87171'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#677C99'}
+                            >
+                              <ThumbsDown size={16} />
                             </button>
                           </div>
                         </div>
@@ -787,8 +809,9 @@ export function LLMChatPage() {
                     transition={{ duration: 0.3 }}
                     style={{
                       display: 'flex',
-                      alignItems: 'flex-start',
+                      alignItems: 'center',
                       gap: '16px',
+                      marginBottom: '32px',
                     }}
                   >
                     <div style={{
@@ -803,13 +826,42 @@ export function LLMChatPage() {
                     }}>
                       <VortaStarIcon size={24} color="#5B9EFF" />
                     </div>
-                    <div style={{ flex: 1, paddingTop: '8px' }}>
+                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: '42px' }}>
                       <div style={{
-                        fontSize: '14px',
-                        color: '#9CA5B5',
-                        fontStyle: 'italic',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
                       }}>
-                        Thinking...
+                        <motion.div
+                          animate={{ y: [0, -8, 0] }}
+                          transition={{ duration: 1.4, repeat: Infinity, delay: 0, ease: 'easeInOut' }}
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#9CA5B5',
+                          }}
+                        />
+                        <motion.div
+                          animate={{ y: [0, -8, 0] }}
+                          transition={{ duration: 1.4, repeat: Infinity, delay: 0.3, ease: 'easeInOut' }}
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#9CA5B5',
+                          }}
+                        />
+                        <motion.div
+                          animate={{ y: [0, -8, 0] }}
+                          transition={{ duration: 1.4, repeat: Infinity, delay: 0.6, ease: 'easeInOut' }}
+                          style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: '#9CA5B5',
+                          }}
+                        />
                       </div>
                     </div>
                   </motion.div>
@@ -879,7 +931,6 @@ export function LLMChatPage() {
             {/* Chat Input */}
             <div style={{
               padding: '24px 80px',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
               backgroundColor: '#141A24',
               display: 'flex',
               flexDirection: 'column',
@@ -894,30 +945,10 @@ export function LLMChatPage() {
                 alignItems: 'center',
                 gap: '12px',
               }}>
-                {/* Plus Icon and V.2 Text */}
-                <div style={{
-                  alignSelf: 'flex-start',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  marginBottom: '8px',
-                }}>
-                  <Plus size={16} color="#677C99" />
-                  <span style={{
-                    fontSize: '12px',
-                    fontWeight: 600,
-                    color: '#677C99',
-                  }}>
-                    V.2
-                  </span>
-                </div>
-                
                 <ChatInput
-                  value={inputValue}
-                  onChange={setInputValue}
                   onSend={handleQuestionSubmit}
                   isLoading={isWaitingForResponse}
-                  placeholder={conversationHistory.length > 0 ? "Ask a follow-up question..." : "Ask anything about your business..."}
+                  placeholder={conversationHistory.length > 0 ? t('chat.input.placeholder.followup') : t('chat.input.placeholder')}
                 />
               </div>
             </div>
@@ -931,20 +962,22 @@ export function LLMChatPage() {
 
 
 // Chat Input Component
-function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
-  value: string;
-  onChange: (value: string) => void;
-  onSend: () => void;
+function ChatInput({ onSend, isLoading, placeholder }: {
+  onSend: (value: string) => void;
   isLoading?: boolean;
   placeholder?: string;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
+  const [value, setValue] = useState('');
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      onSend();
+      if (value.trim()) {
+        onSend(value);
+        setValue('');
+      }
     }
   };
   
@@ -970,7 +1003,7 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
       <textarea
         ref={inputRef}
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
@@ -995,8 +1028,8 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
           color: #677C99;
         }
       `}</style>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px' }}>
-        <div style={{ display: 'flex', gap: '8px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', paddingLeft: '0' }}>
+        <div style={{ display: 'flex', gap: '8px', paddingLeft: '0', marginLeft: '0' }}>
           {[
             { icon: Globe, label: 'Globe' },
             { icon: LayoutGrid, label: 'Grid' },
@@ -1032,7 +1065,12 @@ function ChatInput({ value, onChange, onSend, isLoading, placeholder }: {
           })}
         </div>
         <motion.button
-          onClick={onSend}
+          onClick={() => {
+            if (value.trim()) {
+              onSend(value);
+              setValue('');
+            }
+          }}
           disabled={!value.trim() || isLoading}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
