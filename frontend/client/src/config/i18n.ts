@@ -56,7 +56,7 @@ const esTranslations: Record<string, string> = {
   "chat.download": "Descargar",
   "chat.sources": "fuentes",
   "cards.title": "Verificaciones Comerciales Diarias",
-  "cards.backorder.title": "Salud de Pedidos Pendientes",
+  "cards.backorder.title": "Salud de Backorder",
   "cards.backorder.description": "Verificar riesgo de ingresos",
   "cards.sales.title": "Salud de Ventas",
   "cards.sales.description": "Rendimiento MTD",
