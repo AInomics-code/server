@@ -4,9 +4,20 @@ import { ENV_CONFIG } from './env';
 export const SUPPORTED_LANGUAGES = ['en', 'es'] as const;
 export type Language = typeof SUPPORTED_LANGUAGES[number];
 
-// Get language from environment variable, default to 'en'
-export const DEFAULT_LANGUAGE: Language = 
-  (ENV_CONFIG.APP_LANGUAGE || 'en') as Language;
+// Resolve initial language from env, then from localStorage, default to 'en'
+function resolveInitialLanguage(): Language {
+  if (typeof window !== 'undefined') {
+    const stored = window.localStorage.getItem('appLanguage') as Language | null;
+    if (stored && (SUPPORTED_LANGUAGES as readonly string[]).includes(stored)) {
+      return stored;
+    }
+  }
+  return (ENV_CONFIG.APP_LANGUAGE || 'en') as Language;
+}
+
+export const DEFAULT_LANGUAGE: Language = resolveInitialLanguage();
+
+let currentLanguage: Language = DEFAULT_LANGUAGE;
 
 // Translation files
 const enTranslations: Record<string, string> = {
@@ -66,20 +77,30 @@ const translations: Record<Language, Record<string, string>> = {
 
 // Translation function
 export function t(key: string, lang?: Language): string {
-  const currentLang = lang || DEFAULT_LANGUAGE;
+  const currentLang = lang || currentLanguage;
   return translations[currentLang]?.[key] || translations['en']?.[key] || key;
 }
 
-// Get current language
+// Get / set current language (stateful, persisted in localStorage)
 export function getCurrentLanguage(): Language {
-  return DEFAULT_LANGUAGE;
+  return currentLanguage;
 }
 
-// Hook for React components
+export function setCurrentLanguage(lang: Language) {
+  if (!(SUPPORTED_LANGUAGES as readonly string[]).includes(lang)) return;
+  currentLanguage = lang;
+  if (typeof window !== 'undefined') {
+    window.localStorage.setItem('appLanguage', lang);
+  }
+}
+
+// Backwards-compatible React-style hook used across the app
 export function useTranslation() {
   const lang = getCurrentLanguage();
   return {
     t: (key: string) => t(key, lang),
     language: lang,
+    setLanguage: setCurrentLanguage,
   };
 }
+

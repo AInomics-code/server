@@ -175,7 +175,7 @@ export function ChatMessage({ message, index, isLast }: ChatMessageProps) {
       transition={{ duration: 0.3, delay: isLast ? 0 : 0 }}
       style={{
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         gap: '16px',
         marginBottom: '32px',
       }}
@@ -199,7 +199,7 @@ export function ChatMessage({ message, index, isLast }: ChatMessageProps) {
       </div>
       
       {/* Message Content */}
-      <div style={{ flex: 1, paddingTop: '8px' }}>
+      <div style={{ flex: 1, paddingTop: '10px' }}>
         {message.role === 'user' ? (
           // User message - simple text
           <div style={{ fontSize: '15px', color: '#E2E6F0', lineHeight: 1.6 }}>
