@@ -70,39 +70,36 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
               whileTap={{ scale: 0.98 }}
               style={{
                 flex: 1,
-                padding: '10px 12px',
+                padding: '8px 12px',
                 borderRadius: '8px',
-                backgroundColor: '#202A37',
-                border: '1px solid rgba(255,255,255,0.06)',
+                backgroundColor: 'transparent',
+                border: '1.2px solid rgba(103, 124, 153, 0.4)',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'all 0.12s ease',
+                transition: 'all 0.25s ease',
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                gap: '8px',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: '10px',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(91, 158, 255, 0.3)';
-                e.currentTarget.style.backgroundColor = '#242E3D';
+                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.65)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.backgroundColor = '#202A37';
+                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.4)';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               <div style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '5px',
-                backgroundColor: 'rgba(91, 158, 255, 0.06)',
+                width: '22px',
+                height: '22px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                marginBottom: '2px',
               }}>
-                <Icon size={15} color="rgba(91, 158, 255, 0.7)" strokeWidth={2.2} />
+                <Icon size={16} color="#677C99" strokeWidth={2.2} />
               </div>
               <div style={{ 
                 display: 'flex',
@@ -111,21 +108,13 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
                 gap: '2px',
               }}>
                 <div style={{ 
-                  fontSize: '13px', 
-                  fontWeight: 500, 
-                  color: '#E6EAF1', 
+                  fontSize: '14px', 
+                  fontWeight: 400, 
+                  color: '#677C99', 
                   fontFamily: 'Inter, sans-serif',
-                  lineHeight: '1.2',
+                  lineHeight: '1.3',
                 }}>
                   {card.title}
-                </div>
-                <div style={{ 
-                  fontSize: '11px', 
-                  color: '#9CA5B5',
-                  fontFamily: 'Inter, sans-serif',
-                  lineHeight: '1.2',
-                }}>
-                  {card.description}
                 </div>
               </div>
             </motion.button>

@@ -32,6 +32,7 @@ import {
   Mic,
   ThumbsUp,
   ThumbsDown,
+  FileText,
 } from 'lucide-react';
 import { SiSap, SiSalesforce, SiSnowflake } from 'react-icons/si';
 import { FaFileExcel } from 'react-icons/fa';
@@ -481,6 +482,14 @@ export function LLMChatPage() {
       workflow: 'forecast_tracking',
       question: t('cards.forecast.title', language),
     },
+    {
+      id: 'generate-reports',
+      icon: FileText,
+      title: t('cards.reports.title', language),
+      description: t('cards.reports.description', language),
+      workflow: 'generate_reports',
+      question: t('cards.reports.title', language),
+    },
   ];
 
   // ========== RENDER ==========
@@ -515,6 +524,7 @@ export function LLMChatPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '40px',
+                paddingTop: '10px',
               }}
             >
               {/* Aragon Logo - Static */}
@@ -1032,6 +1042,68 @@ export function LLMChatPage() {
   );
 }
 
+// Icon Button Component - subtle blue hover effect
+function IconButton({ Icon, size }: { Icon: React.ComponentType<any>; size: number }) {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <button
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        width: '30px',
+        height: '30px',
+        borderRadius: '999px',
+        backgroundColor: 'transparent',
+        border: 'none',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        transition: 'all 0.2s ease',
+      }}
+    >
+      <Icon size={size} color={isHovered ? '#5B9EFF' : '#677C99'} />
+    </button>
+  );
+}
+
+// Language Toggle Button - same size as icons, subtle blue hover
+function LanguageToggleButton({
+  language,
+  onLanguageChange,
+}: {
+  language: Language;
+  onLanguageChange: (lang: Language) => void;
+}) {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <button
+      onClick={() => onLanguageChange(language === 'en' ? 'es' : 'en')}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      style={{
+        width: '30px',
+        height: '30px',
+        borderRadius: '999px',
+        border: 'none',
+        backgroundColor: 'transparent',
+        color: isHovered ? '#5B9EFF' : '#677C99',
+        fontSize: '13px',
+        fontWeight: 600,
+        lineHeight: '1',
+        cursor: 'pointer',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        letterSpacing: '0.02em',
+        transition: 'color 0.2s ease',
+        padding: 0,
+      }}
+    >
+      {language.toUpperCase()}
+    </button>
+  );
+}
 
 // Chat Input Component
 function ChatInput({
@@ -1111,84 +1183,16 @@ function ChatInput({
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', paddingLeft: '0' }}>
         <div style={{ display: 'flex', gap: '6px', paddingLeft: '0', marginLeft: '0' }}>
           {/* Globe */}
-          <button
-            style={{
-              width: '30px',
-              height: '30px',
-              borderRadius: '999px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'all 0.12s',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            <Globe size={18} color="#677C99" />
-          </button>
+          <IconButton Icon={Globe} size={18} />
 
           {/* Single compact language toggle (cycles EN/ES) - same visual weight as icons */}
-          <button
-            onClick={() => onLanguageChange(language === 'en' ? 'es' : 'en')}
-            style={{
-              minWidth: '30px',
-              height: '30px',
-              borderRadius: '999px',
-              border: 'none',
-              backgroundColor: 'transparent',
-              color: '#677C99',
-              fontSize: '12px',
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              letterSpacing: '0.03em',
-              transition: 'all 0.15s ease',
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-            }}
-          >
-            {language.toUpperCase()}
-          </button>
+          <LanguageToggleButton
+            language={language}
+            onLanguageChange={onLanguageChange}
+          />
 
           {/* Other small icons */}
-          {[Paperclip, Mic].map((Icon, i) => (
-            <button
-              key={i}
-              style={{
-                width: '30px',
-                height: '30px',
-                borderRadius: '999px',
-                backgroundColor: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.12s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.04)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.backgroundColor = 'transparent';
-              }}
-            >
-              <Icon size={18} color="#677C99" />
-            </button>
-          ))}
+          <IconButton Icon={Paperclip} size={18} />
         </div>
         <motion.button
           onClick={() => {
