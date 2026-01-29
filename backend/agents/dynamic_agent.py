@@ -1,4 +1,4 @@
-from langchain_aws import ChatBedrock
+from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import SystemMessage, HumanMessage
 from langgraph.prebuilt import create_react_agent
 from config import get_settings
@@ -36,14 +36,14 @@ class DynamicAgent:
             config=retry_config
         )
         
-        return ChatBedrock(
-            model_id=settings.bedrock_model_id,
-            client=bedrock_client,  # Pass explicit client
-            model_kwargs={
-                "temperature": 0.3,
-                "max_tokens": 2000,
-                "anthropic_version": "bedrock-2023-05-31"  # Add explicit version
-            }
+        # Use ChatBedrockConverse (Converse API) instead of ChatBedrock
+        # CRITICAL: ChatBedrock generates XML format for Claude 4+ which doesn't work with langgraph
+        # ChatBedrockConverse uses Converse API with native tool calling support
+        return ChatBedrockConverse(
+            model=settings.bedrock_model_id,
+            client=bedrock_client,
+            temperature=0.3,
+            max_tokens=4000  # Increased for complex reports like sales health
         )
     
     def _get_system_prompt(self) -> str:
@@ -259,6 +259,9 @@ class DynamicAgent:
         response = re.sub(r'^```\s*', '', response)
         response = re.sub(r'\s*```$', '', response)
         
+        # Clean up response
+        response = response.strip()
+        
         # Try to extract JSON from response (in case there's extra text)
         # Look for array pattern [...]
         json_match = re.search(r'\[.*\]', response, re.DOTALL)
@@ -294,11 +297,21 @@ class DynamicAgent:
                 validated_components.append(component)
             
             if not validated_components:
+                print(f"[WARNING] No valid components found in response")
                 return [{"type": "text", "data": response}]
             
             return validated_components
         
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            # JSON is malformed or incomplete
+            print(f"[ERROR] JSON parsing failed: {str(e)}")
+            print(f"[ERROR] Response preview: {response[:500]}...")
+            
+            # If response looks like it was truncated (missing closing brackets)
+            if response.count('[') > response.count(']') or response.count('{') > response.count('}'):
+                error_msg = "⚠️ La respuesta fue truncada. Por favor intenta de nuevo o simplifica tu consulta."
+                return [{"type": "text", "data": error_msg}]
+            
             # Fallback to text component
             return [{"type": "text", "data": response}]
 

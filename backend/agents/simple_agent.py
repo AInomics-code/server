@@ -1,8 +1,6 @@
-from langchain_aws import ChatBedrock
-from langchain.agents import AgentExecutor, create_tool_calling_agent
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import RunnableConfig
+from langchain_aws import ChatBedrockConverse
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from langgraph.prebuilt import create_react_agent
 from config import get_settings
 from prompts import load_prompt_with_date
 from typing import Dict, Any, List
@@ -16,31 +14,13 @@ class SimpleAgent:
         self.tools = []
         self.queries_executed = []
         self._load_tools()
-        
-        # Create prompt without system message in template
-        # We'll add system message separately to avoid Bedrock issues
-        prompt = ChatPromptTemplate.from_messages([
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-        
-        agent = create_tool_calling_agent(self.llm, self.tools, prompt)
-        
-        self.agent_executor = AgentExecutor(
-            agent=agent,
-            tools=self.tools,
-            verbose=True,
-            max_iterations=5,
-            early_stopping_method="generate",
-            handle_parsing_errors=True,
-            return_intermediate_steps=True
-        )
+        self.agent = create_react_agent(self.llm, self.tools)
+        self.system_prompt = self._get_system_prompt()
+    
+    def _get_system_prompt(self) -> str:
+        return load_prompt_with_date("simple_agent.txt")
     
     def _initialize_llm(self):
-        # Add system prompt to model configuration instead of chat template
-        system_prompt = load_prompt_with_date("simple_agent.txt")
-        
         # Configure retry strategy with exponential backoff for throttling
         from botocore.config import Config
         retry_config = Config(
@@ -60,15 +40,14 @@ class SimpleAgent:
             config=retry_config
         )
         
-        return ChatBedrock(
-            model_id=settings.classifier_model_id,
-            client=bedrock_client,  # Pass explicit client
-            model_kwargs={
-                "temperature": 0,
-                "max_tokens": 1500,
-                "anthropic_version": "bedrock-2023-05-31",  # Add explicit version
-                "system": system_prompt  # Set system prompt in model kwargs
-            }
+        # Use ChatBedrockConverse (Converse API) instead of ChatBedrock
+        # CRITICAL: ChatBedrock generates XML format for Claude 4+ which doesn't work with langgraph
+        # ChatBedrockConverse uses Converse API with native tool calling support
+        return ChatBedrockConverse(
+            model=settings.classifier_model_id,
+            client=bedrock_client,
+            temperature=0,
+            max_tokens=3000  # Increased for complex responses
         )
     
     def _load_tools(self):
@@ -98,9 +77,7 @@ class SimpleAgent:
             create_product_period_comparison_tool,
             create_client_performance_analysis_tool,
             create_commercial_goals_performance_tool,
-            create_commercial_goals_by_month_tool,
-            create_sales_health_tool,
-            create_backorder_health_tool
+            create_commercial_goals_by_month_tool
         )
         
         # Simple/fast tools only - for quick lookups
@@ -134,72 +111,90 @@ class SimpleAgent:
         # Commercial goals analysis tools - NEW
         self.tools.append(create_commercial_goals_performance_tool(self.queries_executed))
         self.tools.append(create_commercial_goals_by_month_tool(self.queries_executed))
-        
-        # Health monitoring tools - NEW
-        self.tools.append(create_sales_health_tool(self.queries_executed))
-        self.tools.append(create_backorder_health_tool(self.queries_executed))
     
     async def execute(self, query: str, session_id: str, user_id: str, conversation_history: List[Dict] = None) -> Dict[str, Any]:
         self.queries_executed = []
+        
+        # Build messages with conversation history
+        messages = [SystemMessage(content=self.system_prompt)]
+        
+        # Add conversation history if available
+        if conversation_history:
+            # Take last 10 messages to avoid context overload
+            recent_messages = conversation_history[-10:]
+            for msg in recent_messages:
+                if msg.get("role") == "user":
+                    messages.append(HumanMessage(content=msg.get("content", "")))
+                elif msg.get("role") == "assistant":
+                    # For assistant messages, extract the text content
+                    content = msg.get("content", "")
+                    # If content is a list of components, extract text
+                    if isinstance(content, list):
+                        text_parts = []
+                        for comp in content:
+                            if isinstance(comp, dict) and comp.get("type") == "text":
+                                text_parts.append(comp.get("data", ""))
+                        content = "\n".join(text_parts) if text_parts else ""
+                    if content:
+                        messages.append(AIMessage(content=content))
+        
+        # Add current query
+        messages.append(HumanMessage(content=query))
+        
+        config = {
+            "configurable": {"thread_id": session_id},
+            "recursion_limit": 10,
+            "metadata": {
+                "conversation_id": session_id,
+                "user_id": user_id,
+                "agent_type": "simple",
+                "model": "haiku",
+                "history_length": len(conversation_history) if conversation_history else 0
+            },
+            "tags": [
+                settings.environment if hasattr(settings, 'environment') else "development",
+                "simple_agent",
+                "haiku"
+            ]
+        }
         
         print(f"\n{'='*70}")
         print(f"[SIMPLE AGENT] Query: {query}")
         print(f"[SIMPLE AGENT] History: {len(conversation_history) if conversation_history else 0} messages")
         print(f"{'='*70}\n")
-        
-        chat_history = []
-        if conversation_history:
-            # Take last 10 messages and ensure they alternate user/assistant properly
-            recent_messages = conversation_history[-10:]
-            for msg in recent_messages:
-                if msg.get("role") == "user":
-                    chat_history.append(HumanMessage(content=msg.get("content", "")))
-                elif msg.get("role") == "assistant":
-                    chat_history.append(AIMessage(content=msg.get("content", "")))
-            
-            # AWS Bedrock requires first message to be user role
-            # If chat_history starts with assistant message, remove it
-            if chat_history and isinstance(chat_history[0], AIMessage):
-                chat_history = chat_history[1:]
-        
-        config = RunnableConfig(
-            metadata={
-                "conversation_id": session_id,
-                "user_id": user_id,
-                "agent_type": "simple",
-                "model": "haiku",
-                "history_length": len(chat_history)
-            },
-            tags=[
-                settings.environment if hasattr(settings, 'environment') else "development",
-                "simple_agent",
-                "haiku"
-            ]
-        )
+        print("\n> Entering new AgentExecutor chain...\n")
         
         try:
-            result = await self.agent_executor.ainvoke(
-                {"input": query, "chat_history": chat_history},
-                config=config
-            )
+            result = await self.agent.ainvoke({"messages": messages}, config=config)
+            final_messages = result.get("messages", [])
             
-            output = result.get("output", "")
+            # Get the final AI response
+            answer = ""
             
-            if isinstance(output, list):
-                answer = ""
-                for item in output:
-                    if isinstance(item, dict) and item.get('type') == 'text':
-                        answer += item.get('text', '')
-                    elif isinstance(item, str):
-                        answer += item
-                answer = answer.strip()
-            else:
-                answer = output
+            # Skip initial messages (system + history + current user query)
+            # Find where the agent's reasoning starts
+            start_idx = len(messages)  # Start after all input messages
+            
+            for msg in final_messages[start_idx:]:
+                if hasattr(msg, 'tool_calls') and msg.tool_calls:
+                    for tool_call in msg.tool_calls:
+                        print(f"\nInvoking: `{tool_call['name']}` with `{tool_call['args']}`")
+                elif hasattr(msg, 'content') and isinstance(msg.content, str):
+                    if msg.type == 'tool':
+                        print(f"\n{msg.content}\n")
+                    elif msg.type == 'ai' and msg.content:
+                        print(f"{msg.content}\n")
+                        # This is the final AI response
+                        answer = msg.content
+            
+            if not answer:
+                answer = "No pude procesar tu consulta."
             
             # Parse and validate structured response
             message_components = self._parse_structured_response(answer)
             
-            print(f"\n{'='*70}")
+            print("\n> Finished chain.\n")
+            print(f"{'='*70}")
             print(f"[SIMPLE AGENT] Completed - {len(message_components)} components")
             print(f"{'='*70}\n")
             
@@ -225,10 +220,16 @@ class SimpleAgent:
         if not response or not response.strip():
             return [{"type": "text", "data": "No se pudo procesar la consulta."}]
         
+        # Remove XML tool call blocks (legacy format from Claude)
+        response = re.sub(r'<function_calls>.*?</function_calls>', '', response, flags=re.DOTALL)
+        
         # Remove markdown code blocks if present
         response = re.sub(r'^```json\s*', '', response)
         response = re.sub(r'^```\s*', '', response)
         response = re.sub(r'\s*```$', '', response)
+        
+        # Clean up extra whitespace after removing XML
+        response = response.strip()
         
         # Try to extract JSON from response (in case there's extra text)
         # Look for array pattern [...]
@@ -269,6 +270,15 @@ class SimpleAgent:
             
             return validated_components
         
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            # JSON is malformed or incomplete
+            print(f"[ERROR] JSON parsing failed: {str(e)}")
+            print(f"[ERROR] Response preview: {response[:500]}...")
+            
+            # If response looks like it was truncated (missing closing brackets)
+            if response.count('[') > response.count(']') or response.count('{') > response.count('}'):
+                error_msg = "⚠️ La respuesta fue truncada. Por favor intenta de nuevo o simplifica tu consulta."
+                return [{"type": "text", "data": error_msg}]
+            
             # Fallback to text component
             return [{"type": "text", "data": response}]

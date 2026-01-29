@@ -24,8 +24,8 @@ class Settings(BaseSettings):
     aws_access_key_id: str = ""
     aws_secret_access_key: str = ""
     
-    bedrock_model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-    classifier_model_id: str = "anthropic.claude-3-haiku-20240307-v1:0"
+    bedrock_model_id: str = "global.anthropic.claude-sonnet-4-5-20250929-v1:0"
+    classifier_model_id: str = "global.anthropic.claude-haiku-4-5-20251001-v1:0"
     
     session_ttl_seconds: int = 2700  # 45 minutes
     max_session_ttl_seconds: int = 86400  # 24 hours
