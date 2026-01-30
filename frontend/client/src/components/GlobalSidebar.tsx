@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
-import { HelpCircle, Settings as SettingsIcon } from 'lucide-react';
+import { Settings as SettingsIcon } from 'lucide-react';
 import { useTranslation } from '@/config/i18n';
 
 interface GlobalSidebarProps {
@@ -9,7 +9,7 @@ interface GlobalSidebarProps {
 
 export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
   const [, setLocation] = useLocation();
-  const [isSidebarExpanded, setIsSidebarExpanded] = useState(false);
+  const [isSidebarExpanded] = useState(false); // Keep state for layout but don't allow toggling
   const { t } = useTranslation();
 
   return (
@@ -19,15 +19,15 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         left: 0,
         top: 0,
         height: '100%',
-        width: isSidebarExpanded ? '256px' : '64px',
+        width: isSidebarExpanded ? '256px' : '76px',
         backgroundColor: '#202A37',
-        borderRight: '1px solid rgba(255, 255, 255, 0.06)',
         display: 'flex',
         flexDirection: 'column',
         padding: '24px 0',
         transition: 'width 0.3s ease',
         zIndex: 50,
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+        overflow: 'visible',
       }}
     >
       {/* Top Section - Logo & Toggle */}
@@ -38,25 +38,38 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         justifyContent: isSidebarExpanded ? 'flex-start' : 'center' 
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <button 
-            onClick={() => setIsSidebarExpanded(!isSidebarExpanded)}
-            style={{
-              padding: '10px',
-              borderRadius: '6px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s',
-              outline: 'none',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)'}
-            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-          >
-            {/* Hamburger Icon */}
-            <svg width="20" height="20" fill="none" stroke="#677C99" strokeWidth="2" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16"/>
+          {/* Aragon Star Logo */}
+          <div style={{
+            padding: '10px',
+            borderRadius: '6px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}>
+            <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
+              {/* Vertical line (0 degrees) */}
+              <path 
+                d="M32 8L32 56" 
+                stroke="#5B9EFF" 
+                strokeWidth="8" 
+                strokeLinecap="square"
+              />
+              {/* Rotated 60 degrees */}
+              <path 
+                d="M52.78 20L11.22 44" 
+                stroke="#5B9EFF" 
+                strokeWidth="8" 
+                strokeLinecap="square"
+              />
+              {/* Rotated 120 degrees */}
+              <path 
+                d="M11.22 20L52.78 44" 
+                stroke="#5B9EFF" 
+                strokeWidth="8" 
+                strokeLinecap="square"
+              />
             </svg>
-          </button>
+          </div>
           {isSidebarExpanded && (
             <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#DCE7F5', margin: 0 }}>
               Vorta
@@ -65,11 +78,8 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         </div>
       </div>
 
-      {/* Divider after header */}
-      <div style={{ height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.06)', marginBottom: '16px' }} />
-
       {/* Navigation Icons */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 12px', gap: '12px' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 12px', gap: '28px', marginTop: '16px', position: 'relative' }}>
         
         {/* Home - DISABLED */}
         <button 
@@ -89,7 +99,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           }}
         >
           {/* Home Icon */}
-          <svg width="20" height="20" fill="#677C99" viewBox="0 0 24 24">
+                      <svg width="21" height="21" fill="#677C99" viewBox="0 0 24 24">
             <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
             <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
           </svg>
@@ -109,11 +119,13 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             gap: '12px',
             padding: '10px',
             borderRadius: '6px',
-            backgroundColor: activePage === 'llm' ? 'rgba(91, 158, 255, 0.12)' : 'transparent',
+            backgroundColor: 'transparent',
             border: 'none',
             cursor: 'pointer',
             justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
             outline: 'none',
+            position: 'relative',
+            width: '100%',
           }}
           onMouseEnter={(e) => {
             if (activePage !== 'llm') {
@@ -126,12 +138,26 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             }
           }}
         >
-          {/* Chat/LLM Icon */}
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible' }}>
+          {/* Chat/LLM Icon - Original Design */}
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible' }}>
             <path d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" fill={activePage === 'llm' ? '#5B9EFF' : '#677C99'}/>
             <circle cx="21" cy="3" r="5.5" fill="#202A37"/>
             <circle cx="21" cy="3" r="3.5" fill={activePage === 'llm' ? '#5B9EFF' : '#677C99'}/>
           </svg>
+          {/* Active indicator line - vertical bar at the right edge of sidebar */}
+          {activePage === 'llm' && (
+            <div style={{
+              position: 'absolute',
+              right: '-12px',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              width: '2.5px',
+              height: '56px',
+              backgroundColor: '#5B9EFF',
+              borderRadius: '1.5px 0 0 1.5px',
+              zIndex: 100,
+            }} />
+          )}
           {isSidebarExpanded && (
             <span style={{ fontSize: '14px', color: activePage === 'llm' ? '#5B9EFF' : '#DCE7F5' }}>
               {t('sidebar.llm')}
@@ -157,7 +183,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           }}
         >
           {/* Grid Icon */}
-          <svg width="20" height="20" fill="#677C99" viewBox="0 0 24 24">
+                      <svg width="21" height="21" fill="#677C99" viewBox="0 0 24 24">
             <path fillRule="evenodd" d="M3 6a3 3 0 013-3h2.25a3 3 0 013 3v2.25a3 3 0 01-3 3H6a3 3 0 01-3-3V6zm9.75 0a3 3 0 013-3H18a3 3 0 013 3v2.25a3 3 0 01-3 3h-2.25a3 3 0 01-3-3V6zM3 15.75a3 3 0 013-3h2.25a3 3 0 013 3V18a3 3 0 01-3 3H6a3 3 0 01-3-3v-2.25zm9.75 0a3 3 0 013-3H18a3 3 0 013 3V18a3 3 0 01-3 3h-2.25a3 3 0 01-3-3v-2.25z" clipRule="evenodd" />
           </svg>
           {isSidebarExpanded && (
@@ -185,7 +211,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
           }}
         >
           {/* Database Icon */}
-          <svg width="20" height="20" viewBox="0 0 24 24">
+                      <svg width="20" height="20" viewBox="0 0 24 24">
             <ellipse cx="12" cy="5" rx="9" ry="3" fill="#677C99"/>
             <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" fill="#677C99"/>
             <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#202A37" strokeWidth="1.5"/>
@@ -198,66 +224,54 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             </span>
           )}
         </button>
-
-        {/* Divider before Help */}
-        <div style={{ height: '1px', backgroundColor: 'rgba(255, 255, 255, 0.06)', margin: '24px -12px 12px -12px', width: 'calc(100% + 24px)' }} />
-
-        {/* Help */}
-        <button 
-          onClick={() => console.log('Help clicked')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
-            borderRadius: '6px',
-            backgroundColor: 'transparent',
-            border: '1px solid transparent',
-            cursor: 'pointer',
-            justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
-            outline: 'none',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = 'rgba(91, 158, 255, 0.1)';
-            e.currentTarget.style.borderColor = 'rgba(91, 158, 255, 0.3)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.borderColor = 'transparent';
-          }}
-        >
-          <HelpCircle size={20} color="#5B9EFF" />
-          {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#5B9EFF' }}>{t('sidebar.help')}</span>
-          )}
-        </button>
       </div>
 
-      {/* Bottom Section - Settings */}
-      <div style={{ padding: '0 12px' }}>
+      {/* Bottom Section - Settings, User, and Aragon */}
+      <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', paddingBottom: '24px', position: 'relative', minHeight: '200px' }}>
+        {/* Settings Icon - Proper Gear (Filled) - Fixed Position */}
         <button 
           onClick={() => console.log('Settings clicked')}
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
+            justifyContent: 'center',
+            padding: '6px',
             borderRadius: '6px',
             backgroundColor: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            width: '100%',
-            justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
             outline: 'none',
+            position: 'absolute',
+            bottom: '80px',
           }}
           onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)'}
           onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >
-          <SettingsIcon size={20} color="#677C99" />
-          {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#DCE7F5' }}>{t('sidebar.settings')}</span>
-          )}
+          <svg width="21" height="21" viewBox="0 0 24 24" fill="#677C99">
+            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.4-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+          </svg>
         </button>
+        
+        {/* User Circle with U - At Very Bottom */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '20px' }}>
+          {/* User Circle with U */}
+          <div style={{
+            width: '32px',
+            height: '32px',
+            borderRadius: '50%',
+            backgroundColor: '#677C99',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}>
+            <span style={{
+              color: '#202A37',
+              fontSize: '14px',
+              fontWeight: 600,
+            }}>U</span>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -266,7 +280,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
 // Hook to get sidebar width for layout offset
 export function useSidebarWidth() {
   const [isSidebarExpanded] = useState(false);
-  return isSidebarExpanded ? '256px' : '64px';
+  return isSidebarExpanded ? '256px' : '76px';
 }
 
 export default GlobalSidebar;

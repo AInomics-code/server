@@ -1352,13 +1352,13 @@ export function LLMChatPage() {
       backgroundColor: '#141A24',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
-      <GlobalSidebar />
+      <GlobalSidebar activePage="llm" />
       
       <main style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginLeft: '64px',
+        marginLeft: '72px',
       }}>
         <AnimatePresence mode="wait">
           {!chatMode && conversationHistory.length === 0 && !isWaitingForResponse ? (
