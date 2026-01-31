@@ -1,10 +1,12 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Optional, List, Any
 from core.router import QueryRouter
 from core.executor import QueryExecutor
 from memory.redis_memory import RedisMemory
+from auth.dependencies import get_current_user
+from models.user import UserResponse
 import json
 import asyncio
 
@@ -16,7 +18,6 @@ memory = RedisMemory()
 
 class QueryRequest(BaseModel):
     query: str
-    user_id: str
     session_id: Optional[str] = None
 
 class QueryResponse(BaseModel):
@@ -24,11 +25,15 @@ class QueryResponse(BaseModel):
     metadata: dict
 
 @router.post("/query", response_model=QueryResponse)
-async def query_endpoint(request: QueryRequest):
+async def query_endpoint(
+    request: QueryRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
     import time
     start = time.time()
     
-    session_id = request.session_id or f"{request.user_id}_{int(time.time())}"
+    user_id = str(current_user.user_id)
+    session_id = request.session_id or f"{user_id}_{int(time.time())}"
     
     # Get conversation history BEFORE adding new message
     history = await memory.get_messages(session_id)
@@ -42,7 +47,7 @@ async def query_endpoint(request: QueryRequest):
         query=request.query,
         query_type=query_type,
         session_id=session_id,
-        user_id=request.user_id
+        user_id=user_id
     )
     
     await memory.add_message(session_id, "assistant", json.dumps(result["message"]))
@@ -60,12 +65,16 @@ async def query_endpoint(request: QueryRequest):
     )
 
 @router.post("/query/stream")
-async def query_stream_endpoint(request: QueryRequest):
+async def query_stream_endpoint(
+    request: QueryRequest,
+    current_user: UserResponse = Depends(get_current_user)
+):
     async def event_generator():
         import time
         start = time.time()
         
-        session_id = request.session_id or f"{request.user_id}_{int(time.time())}"
+        user_id = str(current_user.user_id)
+        session_id = request.session_id or f"{user_id}_{int(time.time())}"
         
         # Get conversation history BEFORE adding new message
         history = await memory.get_messages(session_id)
@@ -83,7 +92,7 @@ async def query_stream_endpoint(request: QueryRequest):
             query=request.query,
             query_type=query_type,
             session_id=session_id,
-            user_id=request.user_id
+            user_id=user_id
         ):
             yield f"data: {json.dumps({'type': 'chunk', 'content': chunk})}\n\n"
             await asyncio.sleep(0.01)
@@ -94,17 +103,25 @@ async def query_stream_endpoint(request: QueryRequest):
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @router.get("/session/{session_id}")
-async def get_session(session_id: str):
+async def get_session(
+    session_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     messages = await memory.get_messages(session_id)
     return {"session_id": session_id, "messages": messages}
 
 @router.delete("/session/{session_id}")
-async def clear_session(session_id: str):
+async def clear_session(
+    session_id: str,
+    current_user: UserResponse = Depends(get_current_user)
+):
     await memory.clear_session(session_id)
     return {"status": "cleared", "session_id": session_id}
 
 @router.post("/admin/clear-cache")
-async def clear_router_cache():
+async def clear_router_cache(
+    current_user: UserResponse = Depends(get_current_user)
+):
     """Clear the query classification cache (admin endpoint)"""
     query_router.clear_cache()
     return {"message": "Router cache cleared successfully"}

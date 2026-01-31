@@ -4,7 +4,7 @@ from functools import lru_cache
 class Settings(BaseSettings):
     # Vector DB (main_db) - Solo para búsquedas vectoriales
     postgres_host: str = "localhost"
-    postgres_port: int = 5432
+    postgres_port: int = 5434
     postgres_db: str = "main_db"
     postgres_user: str = "postgres"
     postgres_password: str = "postgres123"
@@ -29,6 +29,11 @@ class Settings(BaseSettings):
     
     session_ttl_seconds: int = 2700  # 45 minutes
     max_session_ttl_seconds: int = 86400  # 24 hours
+    
+    # JWT Authentication
+    jwt_secret_key: str = "your-secret-key-min-32-chars-change-in-production"
+    jwt_algorithm: str = "HS256"
+    jwt_expiration_minutes: int = 60
     
     # Environment
     environment: str = "development"  # development, staging, production

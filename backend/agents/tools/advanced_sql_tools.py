@@ -335,9 +335,22 @@ def create_product_performance_tool(queries_executed: List[Dict]):
                 END as stock_status
             FROM products p
             LEFT JOIN transactions t ON p.product_id = t.product_id 
-                AND t.transaction_type = 'SALE'
-                {f"AND t.date >= ${params.index(start_date_obj) + 1 if start_date_obj in params else 'CURRENT_DATE - INTERVAL \'30 days\''}" if start_date_obj or not start_date else ""}
-                {f"AND t.date <= ${params.index(end_date_obj) + 1 if end_date_obj in params else ''}" if end_date_obj else ""}
+                AND t.transaction_type = 'SALE'"""
+        
+        # Add date filters (can't use backslashes in f-strings)
+        interval_default = "CURRENT_DATE - INTERVAL '30 days'"
+        newline = "\n"
+        if start_date_obj or not start_date:
+            if start_date_obj in params:
+                sql += f"{newline}                AND t.date >= ${params.index(start_date_obj) + 1}"
+            else:
+                sql += f"{newline}                AND t.date >= {interval_default}"
+        
+        if end_date_obj:
+            if end_date_obj in params:
+                sql += f"{newline}                AND t.date <= ${params.index(end_date_obj) + 1}"
+        
+        sql += f"""
             {where_clause}
             GROUP BY p.product_id, p.product_name, p.brand, p.category, p.subcategory
             ORDER BY sales_value DESC

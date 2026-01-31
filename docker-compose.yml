@@ -3,34 +3,34 @@
 
 services:
   # n8n workflow automation
-  n8n:
-    image: n8nio/n8n:latest
-    container_name: n8n
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - DB_TYPE=postgresdb
-      - DB_POSTGRESDB_HOST=postgres
-      - DB_POSTGRESDB_PORT=5432
-      - DB_POSTGRESDB_DATABASE=n8n
-      - DB_POSTGRESDB_USER=n8n_user
-      - DB_POSTGRESDB_PASSWORD=n8n_password
-      - N8N_BASIC_AUTH_ACTIVE=true
-      - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
-      - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
-      - N8N_HOST=localhost
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - EXECUTIONS_MODE=regular
-      - GENERIC_TIMEZONE=America/Mexico_City
-    volumes:
-      - n8n_data:/home/node/.n8n
-    depends_on:
-      - postgres
-      - redis
-    networks:
-      - services_network
+  # n8n:
+  #   image: n8nio/n8n:latest
+  #   container_name: n8n
+  #   restart: unless-stopped
+  #   ports:
+  #     - "5678:5678"
+  #   environment:
+  #     - DB_TYPE=postgresdb
+  #     - DB_POSTGRESDB_HOST=postgres
+  #     - DB_POSTGRESDB_PORT=5432
+  #     - DB_POSTGRESDB_DATABASE=n8n
+  #     - DB_POSTGRESDB_USER=n8n_user
+  #     - DB_POSTGRESDB_PASSWORD=n8n_password
+  #     - N8N_BASIC_AUTH_ACTIVE=true
+  #     - N8N_BASIC_AUTH_USER=${N8N_BASIC_AUTH_USER}
+  #     - N8N_BASIC_AUTH_PASSWORD=${N8N_BASIC_AUTH_PASSWORD}
+  #     - N8N_HOST=localhost
+  #     - N8N_PORT=5678
+  #     - N8N_PROTOCOL=http
+  #     - EXECUTIONS_MODE=regular
+  #     - GENERIC_TIMEZONE=America/Mexico_City
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #   depends_on:
+  #     - postgres
+  #     - redis
+  #   networks:
+  #     - services_network
 
   # PostgreSQL with pgvector and tds_fdw extensions
   postgres:
@@ -40,7 +40,7 @@ services:
     container_name: postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5434:5432"
     command: >
       -c ssl=on
       -c ssl_cert_file=/etc/postgresql/ssl/server.crt
@@ -50,6 +50,10 @@ services:
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}
+      - INITIAL_ADMIN_PASSWORD=${INITIAL_ADMIN_PASSWORD}
+      - INITIAL_ADMIN_NAME=${INITIAL_ADMIN_NAME}
+      - INITIAL_ADMIN_LAST_NAME=${INITIAL_ADMIN_LAST_NAME}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./init-scripts:/docker-entrypoint-initdb.d
@@ -79,7 +83,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # AI Agent Backend
+  # # AI Agent Backend
   # backend:
   #   build: ./backend
   #   container_name: ai-agent-backend
@@ -98,6 +102,9 @@ services:
   #     - AWS_REGION=${AWS_REGION}
   #     - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
   #     - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+  #     - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+  #     - JWT_ALGORITHM=${JWT_ALGORITHM}
+  #     - JWT_EXPIRATION_MINUTES=${JWT_EXPIRATION_MINUTES}
   #   depends_on:
   #     postgres:
   #       condition: service_healthy
@@ -112,8 +119,8 @@ networks:
     name: services_network
 
 volumes:
-  n8n_data:
-    name: n8n_data
+  # n8n_data:
+  #   name: n8n_data
   postgres_data:
     name: postgres_data
   redis_data:
