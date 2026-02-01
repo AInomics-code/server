@@ -155,8 +155,17 @@ class DynamicAgent:
         
         # Add conversation history if available
         if conversation_history:
-            # Take last 10 messages to avoid context overload
-            recent_messages = conversation_history[-10:]
+            # Take last 4 messages: 2 user + 2 assistant (most recent context only)
+            # Filter by role and take last 2 of each
+            user_messages = [msg for msg in conversation_history if msg.get("role") == "user"][-2:]
+            assistant_messages = [msg for msg in conversation_history if msg.get("role") == "assistant"][-2:]
+            
+            # Merge and sort by original order (maintain conversation flow)
+            recent_messages = sorted(
+                user_messages + assistant_messages,
+                key=lambda m: conversation_history.index(m)
+            )
+            
             for msg in recent_messages:
                 if msg.get("role") == "user":
                     messages.append(HumanMessage(content=msg.get("content", "")))

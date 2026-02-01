@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import query, users
+from routers import query, users, conversations
 from config import get_settings
 import os
 
@@ -23,6 +23,7 @@ app.add_middleware(
 
 app.include_router(query.router, prefix="/api", tags=["query"])
 app.include_router(users.router, prefix="/api", tags=["users", "auth"])
+app.include_router(conversations.router, prefix="/api", tags=["conversations"])
 
 @app.get("/health")
 async def health_check():

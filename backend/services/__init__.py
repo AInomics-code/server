@@ -1,20 +1,7 @@
 """
-Services package initialization.
+Services package for backend operations.
 """
-from .user_service import (
-    create_user,
-    get_user_by_email,
-    get_user_by_id,
-    list_users,
-    update_user,
-    delete_user,
-)
+from . import user_service
+from . import conversation_service
 
-__all__ = [
-    "create_user",
-    "get_user_by_email",
-    "get_user_by_id",
-    "list_users",
-    "update_user",
-    "delete_user",
-]
+__all__ = ['user_service', 'conversation_service']
