@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = False
+        extra = "allow"  # Allow extra env vars (e.g., INITIAL_ADMIN_* for PostgreSQL init scripts)
 
 @lru_cache()
 def get_settings():
