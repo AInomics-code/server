@@ -369,7 +369,9 @@ export function LLMChatPage() {
   
   // Backend integration
   const [sessionId] = useState(() => generateSessionId());
-  const [userId] = useState("user");
+  const [userId] = useState(() => {
+    return localStorage.getItem('userId') || 'user';
+  });
   const currentRequestIdRef = useRef(0);
   const chatContentRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement | null>(null);
@@ -1462,11 +1464,11 @@ export function LLMChatPage() {
             >
               {/* Chat Header */}
               <div style={{
-                padding: '10px 24px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                padding: '14px 24px',
                 backgroundColor: '#1A222D',
                 display: 'flex',
                 alignItems: 'center',
+                justifyContent: 'center',
                 gap: '12px',
                 position: 'sticky',
                 top: 0,
@@ -1513,15 +1515,24 @@ export function LLMChatPage() {
                   className="custom-scrollbar"
                   style={{
                     height: '100%',
-                    padding: '40px 80px 60px 80px',
+                    padding: '40px 24px 60px 24px',
                     overflowY: 'auto',
+                    display: 'flex',
+                    justifyContent: 'center',
                   }}
                 >
+                  {/* Centered conversation column matching chat input width */}
+                  <div style={{
+                    width: '100%',
+                    maxWidth: '900px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}>
                 {/* Render conversation history */}
                 {conversationHistory.map((message, idx) => (
                   <motion.div
                     key={idx}
-                    ref={idx === conversationHistory.length - 1 ? lastMessageRef : null}
+                        ref={idx === conversationHistory.length - 1 ? lastMessageRef : null}
                     initial={{ opacity: 0, y: 20 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.3 }}
@@ -1550,8 +1561,8 @@ export function LLMChatPage() {
                       )}
                     </div>
                     
-                    {/* Message Content */}
-                    <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: '42px' }}>
+                        {/* Message Content - centered within column */}
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: '42px', maxWidth: '100%' }}>
                       {message.role === 'user' ? (
                         <div style={{ fontSize: '15px', color: '#E2E6F0', lineHeight: 1.6, paddingTop: '8px' }}>
                           {message.content}
@@ -1822,6 +1833,7 @@ export function LLMChatPage() {
                     </div>
                   </motion.div>
                 )}
+                  </div>
               </div>
               
               {/* Gradient Fade */}
@@ -1845,7 +1857,7 @@ export function LLMChatPage() {
                     exit={{ opacity: 0, y: 10 }}
                     transition={{ duration: 0.2 }}
                     onClick={() => {
-                      scrollToLatestMessageTop();
+                        scrollToLatestMessageTop();
                       setShowNewMessageButton(false);
                     }}
                     style={{
@@ -1884,7 +1896,7 @@ export function LLMChatPage() {
             
             {/* Chat Input */}
             <div style={{
-              padding: '24px 80px',
+              padding: '24px 24px',
               backgroundColor: '#141A24',
               display: 'flex',
               flexDirection: 'column',
@@ -1893,7 +1905,7 @@ export function LLMChatPage() {
             }}>
               <div style={{
                 width: '100%',
-                maxWidth: '1000px',
+                maxWidth: '900px',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
@@ -2026,7 +2038,6 @@ function ChatInput({
         border: `1px solid ${isFocused || value.trim() ? 'rgba(91, 158, 255, 0.3)' : 'rgba(255,255,255,0.08)'}`,
         padding: '14px 16px',
         width: '100%',
-        maxWidth: '1000px',
         transition: 'border-color 0.2s ease',
       }}
     >

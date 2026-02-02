@@ -89,7 +89,9 @@ export default function MainDashboard() {
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, sources?: string[], responseTime?: number }>>([]);
   const [, setLocation] = useLocation();
   const [sessionId] = useState(() => generateSessionId());
-  const [userId] = useState("jeff");
+  const [userId] = useState(() => {
+    return localStorage.getItem('userId') || 'user';
+  });
 
   const handlePromptClick = (prompt: PromptData) => {
     const question = `${prompt.title}`;

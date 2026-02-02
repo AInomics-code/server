@@ -8,6 +8,7 @@ import { ToastContainer } from "@/components/Toast";
 import Dashboard from "@/pages/dashboard";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
+import UserIdEntry from "@/pages/user-id-entry";
 import Onboarding from "@/pages/onboarding";
 import OnboardingDataForm from "@/pages/OnboardingDataForm";
 import TableConfigDemo from "@/pages/table-config-demo";
@@ -31,23 +32,33 @@ function RootRoute() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setLocation("/dashboard");
-    // const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+    const userId = localStorage.getItem("userId");
+    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
 
-    // if (isLoggedIn) {
-    //   setLocation("/dashboard");
-    // } else {
-    //   setLocation("/login");
-    // }
+    if (userId && isLoggedIn) {
+      setLocation("/llm-chat");
+    } else {
+      setLocation("/user-id-entry");
+    }
 
     setIsLoading(false);
-  }, []);
+  }, [setLocation]);
 
   // Mostrar un loading mientras se decide la redirección
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f0f23] via-[#1a1a2e] to-[#16213e]">
-        <div className="text-white text-xl">Loading...</div>
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          background: "linear-gradient(to br, #141A24 0%, #1A222D 50%, #141A24 100%)",
+        }}
+      >
+        <div style={{ color: "#E6EAF1", fontSize: "16px", fontFamily: '"Inter", sans-serif' }}>
+          Loading...
+        </div>
       </div>
     );
   }
@@ -59,6 +70,7 @@ function Router() {
   return (
     <Switch>
       <Route path="/" component={RootRoute} />
+      <Route path="/user-id-entry" component={UserIdEntry} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/onboarding" component={Onboarding} />

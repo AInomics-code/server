@@ -9,16 +9,20 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Check if user is logged in (sessionStorage is cleared on refresh)
+    // Check if user has entered their user ID
+    const userId = localStorage.getItem("userId");
     const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-    if (!isLoggedIn) {
-      setLocation("/login");
+    
+    if (!userId || !isLoggedIn) {
+      setLocation("/user-id-entry");
     }
   }, [setLocation]);
 
-  // Only render children if logged in
+  // Only render children if user ID exists
+  const userId = localStorage.getItem("userId");
   const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-  if (!isLoggedIn) {
+  
+  if (!userId || !isLoggedIn) {
     return null; // Don't render anything while redirecting
   }
 

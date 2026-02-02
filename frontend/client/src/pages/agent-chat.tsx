@@ -22,7 +22,9 @@ export default function AgentChat() {
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId] = useState(() => generateSessionId());
-  const [userId] = useState("jeff"); // You can make this dynamic based on logged-in user
+  const [userId] = useState(() => {
+    return localStorage.getItem('userId') || 'user';
+  });
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
