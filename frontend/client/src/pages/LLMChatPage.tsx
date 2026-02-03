@@ -1400,8 +1400,8 @@ export function LLMChatPage() {
                     initial={{ opacity: 0, x: -50, width: 0 }}
                     animate={{ opacity: 1, x: 0, width: 'auto' }}
                     transition={{ 
-                      duration: 1.2, 
-                      delay: 2, // 2s with only the logo, then slide text in
+                      duration: 0.8, 
+                      delay: 1, // 1s with only the logo, then slide text in
                       ease: [0.2, 0.8, 0.2, 1] // very smooth, slick ease
                     }}
                     style={{
@@ -1424,7 +1424,7 @@ export function LLMChatPage() {
               <div style={{
                 width: '100%',
                 maxWidth: '800px',
-                marginBottom: '20px',
+                marginBottom: '34px',
                 display: 'flex',
                 justifyContent: 'center',
               }}>

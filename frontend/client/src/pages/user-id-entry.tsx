@@ -145,36 +145,6 @@ export default function UserIdEntry() {
       });
 
       if (!response.ok) {
-        // If endpoint doesn't exist (404) or server error (500), allow bypassing auth for development
-        if (response.status === 404 || response.status === 500) {
-          console.warn(`Authentication endpoint returned ${response.status}. Proceeding without JWT token (development mode).`);
-          console.warn("⚠️ This is a development bypass. Fix backend authentication for production.");
-          
-          // For development: try to use a default dev token if available
-          // You can set this in localStorage manually: localStorage.setItem('dev_token', 'your-dev-token')
-          const devToken = localStorage.getItem('dev_token');
-          if (devToken) {
-            setAuthToken(devToken);
-            console.log("✅ Using dev token from localStorage");
-          } else {
-            console.warn("⚠️ No dev token found. Proceeding without authentication token.");
-          }
-          
-          // Store user ID (email) in localStorage without token
-          localStorage.setItem("userId", email.trim());
-          localStorage.setItem("userEmail", email.trim());
-          if (userName.trim()) {
-            localStorage.setItem("userName", userName.trim());
-          }
-          sessionStorage.setItem("isLoggedIn", "true");
-
-          // Smooth transition with animation
-          setTimeout(() => {
-            setLocation("/llm-chat");
-          }, 300);
-          return;
-        }
-        
         // Read response body only once - get text first, then try to parse as JSON
         let errorMessage = `Authentication failed: ${response.status} ${response.statusText}`;
         
