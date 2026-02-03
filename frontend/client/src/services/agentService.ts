@@ -112,7 +112,8 @@ export const agentService = {
         // The backend extracts user_id from the JWT token automatically
         const requestBody: any = {
             query,
-            session_id: sessionId || undefined
+            // Only include session_id if it's not empty (for continuing conversations)
+            ...(sessionId && { session_id: sessionId })
         };
 
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.QUERY_ENDPOINT}`, {

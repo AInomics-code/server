@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { agentService, generateSessionId, QueryResponse } from "@/services/agentService";
+import { agentService, QueryResponse } from "@/services/agentService";
 import ReactMarkdown from "react-markdown";
 
 interface Message {
@@ -21,7 +21,8 @@ export default function AgentChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(() => generateSessionId());
+  // Don't generate session_id - let backend create it for new conversations
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [userId] = useState(() => {
     return localStorage.getItem('userId') || 'user';
   });
@@ -67,8 +68,13 @@ export default function AgentChat() {
       const response = await agentService.sendQuery(
         inputValue,
         userId,
-        sessionId
+        sessionId || ''
       );
+
+      // Save the session_id from the backend for subsequent messages
+      if (response.metadata?.session_id && !sessionId) {
+        setSessionId(response.metadata.session_id);
+      }
 
       const assistantMessage: Message = {
         id: `assistant-${Date.now()}`,

@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { kpiData, promptData, type KpiData, type PromptData } from "@/lib/mockData";
-import { agentService, generateSessionId } from "@/services/agentService";
+import { agentService } from "@/services/agentService";
 import { MarkdownRenderer } from "@/components/MarkdownRenderer";
 
 function TypewriterText({ text, speed = 20 }: { text: string; speed?: number }) {
@@ -88,7 +88,8 @@ export default function MainDashboard() {
   const [chatMode, setChatMode] = useState(false);
   const [messages, setMessages] = useState<Array<{ role: 'user' | 'assistant', content: string, sources?: string[], responseTime?: number }>>([]);
   const [, setLocation] = useLocation();
-  const [sessionId] = useState(() => generateSessionId());
+  // Don't generate session_id - let backend create it for new conversations
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [userId] = useState(() => {
     return localStorage.getItem('userId') || 'user';
   });
@@ -115,10 +116,15 @@ export default function MainDashboard() {
       const startTime = Date.now();
 
       // Call the agent API
-      const response = await agentService.sendQuery(currentQuery, userId, sessionId);
+      const response = await agentService.sendQuery(currentQuery, userId, sessionId || '');
 
       const endTime = Date.now();
       const responseTime = endTime - startTime;
+
+      // Save the session_id from the backend for subsequent messages
+      if (response.metadata?.session_id && !sessionId) {
+        setSessionId(response.metadata.session_id);
+      }
 
       // Add AI response
       const aiResponse = {
@@ -144,6 +150,8 @@ export default function MainDashboard() {
   const handleBackToDashboard = () => {
     setChatMode(false);
     setMessages([]);
+    // Reset session_id for new conversation
+    setSessionId(null);
   };
 
   if (chatMode) {

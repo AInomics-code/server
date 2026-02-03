@@ -7,7 +7,6 @@ import { GetStartedCards } from '@/components/GetStartedCards';
 import { t, getCurrentLanguage, setCurrentLanguage, type Language } from '@/config/i18n';
 import { 
   agentService, 
-  generateSessionId, 
   Component,
   ChartComponent,
   PieChartComponent,
@@ -369,7 +368,8 @@ export function LLMChatPage() {
   const [copiedMessageIdx, setCopiedMessageIdx] = useState<number | null>(null);
   
   // Backend integration
-  const [sessionId] = useState(() => generateSessionId());
+  // Don't generate session_id - let backend create it for new conversations
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [userId] = useState(() => {
     // Use the auth utility to get user ID
     const userId = localStorage.getItem('userId');
@@ -433,12 +433,17 @@ export function LLMChatPage() {
     
     try {
       // Call the real backend API
-      const response = await agentService.sendQuery(question, userId, sessionId);
+      const response = await agentService.sendQuery(question, userId, sessionId || '');
 
       // If a newer request was started (e.g. user went back), ignore this response
       if (currentRequestIdRef.current !== requestId) return;
       
       setIsWaitingForResponse(false);
+      
+      // Save the session_id from the backend for subsequent messages
+      if (response.metadata?.session_id && !sessionId) {
+        setSessionId(response.metadata.session_id);
+      }
       
       // New API format: response.message is an array of components
       // Add assistant response to history with components
@@ -473,12 +478,17 @@ export function LLMChatPage() {
     
     try {
       // Call the real backend API
-      const response = await agentService.sendQuery(question, userId, sessionId);
+      const response = await agentService.sendQuery(question, userId, sessionId || '');
 
       // If a newer request was started (e.g. user went back), ignore this response
       if (currentRequestIdRef.current !== requestId) return;
       
       setIsWaitingForResponse(false);
+      
+      // Save the session_id from the backend for subsequent messages
+      if (response.metadata?.session_id && !sessionId) {
+        setSessionId(response.metadata.session_id);
+      }
       
       // New API format: response.message is an array of components
       // Add assistant response to history with components
@@ -509,6 +519,8 @@ export function LLMChatPage() {
     setConversationHistory([]);
     setSubmittedQuestion('');
     setShowGetStarted(true);
+    // Reset session_id for new conversation
+    setSessionId(null);
   };
   
   // Copy message
