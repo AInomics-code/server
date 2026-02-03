@@ -316,11 +316,11 @@ export function ChatMessage({ message, index, isLast }: ChatMessageProps) {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <SiSap size={16} color="#0FAAFF" />
-                  <SiSalesforce size={16} color="#00A1E0" />
-                  <SiSnowflake size={16} color="#29B5E8" />
-                  <FaFileExcel size={14} color="#217346" />
-                  <Database size={14} color="#6366F1" />
+                  <SiSap size={16} color="#677C99" />
+                  <SiSalesforce size={16} color="#677C99" />
+                  <SiSnowflake size={16} color="#677C99" />
+                  <FaFileExcel size={14} color="#677C99" />
+                  <Database size={14} color="#677C99" />
                 </div>
                 <span style={{ fontSize: '12px', color: '#677C99' }}>5 sources</span>
               </div>

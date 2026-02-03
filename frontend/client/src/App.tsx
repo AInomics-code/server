@@ -8,6 +8,7 @@ import { ToastContainer } from "@/components/Toast";
 import Dashboard from "@/pages/dashboard";
 import Login from "@/pages/login";
 import Signup from "@/pages/signup";
+import UserIdEntry from "@/pages/user-id-entry";
 import Onboarding from "@/pages/onboarding";
 import OnboardingDataForm from "@/pages/OnboardingDataForm";
 import TableConfigDemo from "@/pages/table-config-demo";
@@ -24,40 +25,44 @@ import ProtectedRoute from "@/components/protected-route";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import "./utils/env-check";
+// Import storage utilities (makes them available in console for debugging)
+import "./utils/clearStorage";
 
 // Componente para manejar la ruta raíz con lógica de autenticación
 function RootRoute() {
   const [, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    setLocation("/dashboard");
-    // const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+    // Check authentication
+    const userId = localStorage.getItem("userId");
+    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+    const jwtToken = localStorage.getItem("jwt_token");
+    
+    const isAuthenticated = userId && (isLoggedIn === "true" || jwtToken);
+    
+    if (isAuthenticated) {
+      setLocation("/llm-chat");
+    } else {
+      // Not authenticated - go to login
+      setLocation("/user-id-entry");
+    }
+  }, [setLocation]);
 
-    // if (isLoggedIn) {
-    //   setLocation("/dashboard");
-    // } else {
-    //   setLocation("/login");
-    // }
-
-    setIsLoading(false);
-  }, []);
-
-  // Mostrar un loading mientras se decide la redirección
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-[#0f0f23] via-[#1a1a2e] to-[#16213e]">
-        <div className="text-white text-xl">Loading...</div>
-      </div>
-    );
-  }
-
+  // Show nothing while redirecting (the route will handle rendering)
   return null;
 }
 
 function Router() {
+  const [location] = useLocation();
+  
+  // Debug: log current location
+  useEffect(() => {
+    console.log('📍 Current route:', location);
+  }, [location]);
+  
   return (
     <Switch>
+      <Route path="/user-id-entry" component={UserIdEntry} />
       <Route path="/" component={RootRoute} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />

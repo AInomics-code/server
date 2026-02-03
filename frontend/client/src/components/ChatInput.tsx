@@ -10,6 +10,7 @@ interface ChatInputProps {
 
 export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anything about your business..." }: ChatInputProps) {
   const [value, setValue] = useState('');
+  const [isFocused, setIsFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const handleSubmit = () => {
@@ -32,8 +33,9 @@ export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anythi
         width: '100%',
         backgroundColor: '#202A37',
         borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.08)',
+        border: `1px solid ${isFocused || value.trim() ? 'rgba(91, 158, 255, 0.35)' : 'rgba(91, 158, 255, 0.3)'}`,
         padding: '14px 16px',
+        transition: 'border-color 0.2s ease',
       }}
     >
       {/* Input Area */}
@@ -42,6 +44,8 @@ export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anythi
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
         placeholder={placeholder}
         rows={1}
         style={{

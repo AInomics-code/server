@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
-import { AlertCircle, TrendingUp, Target, X, LucideIcon } from 'lucide-react';
-import { useTranslation } from '@/config/i18n';
+import { LucideIcon } from 'lucide-react';
 
 interface Card {
   id: string;
@@ -14,11 +13,9 @@ interface Card {
 interface GetStartedCardsProps {
   cards: Card[];
   onCardClick: (cardTitle: string, question: string) => void;
-  onClose?: () => void;
 }
 
-export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCardsProps) {
-  const { t } = useTranslation();
+export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
 
   return (
     <motion.div
@@ -28,38 +25,8 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
       transition={{ duration: 0.2 }}
       style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
     >
-      {/* Header */}
-      <div style={{ 
-        display: 'flex', 
-        alignItems: 'center', 
-        justifyContent: 'space-between',
-        marginBottom: '12px',
-        width: '100%',
-        maxWidth: '800px',
-      }}>
-        <span style={{ fontSize: '13px', color: '#9CA5B5', fontWeight: 500, fontFamily: 'Inter, sans-serif' }}>
-          {t('cards.title')}
-        </span>
-        {onClose && (
-          <button
-            onClick={onClose}
-            style={{
-              padding: '4px',
-              borderRadius: '4px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <X size={16} color="#677C99" />
-          </button>
-        )}
-      </div>
       {/* Cards Grid */}
-      <div style={{ display: 'flex', gap: '12px', width: '100%', maxWidth: '800px', justifyContent: 'center' }}>
+      <div style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '800px', justifyContent: 'center', margin: '0 auto' }}>
         {cards.map((card, i) => {
           const Icon = card.icon;
           return (
@@ -69,63 +36,56 @@ export function GetStartedCards({ cards, onCardClick, onClose }: GetStartedCards
               whileHover={{ y: -2 }}
               whileTap={{ scale: 0.98 }}
               style={{
-                flex: 1,
-                padding: '10px 12px',
+                flex: '0 0 auto',
+                padding: '6px 12px',
                 borderRadius: '8px',
-                backgroundColor: '#202A37',
-                border: '1px solid rgba(255,255,255,0.06)',
+                backgroundColor: 'transparent',
+                border: '1px solid rgba(103, 124, 153, 0.2)',
                 cursor: 'pointer',
                 textAlign: 'left',
-                transition: 'all 0.12s ease',
+                transition: 'all 0.25s ease',
                 display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'flex-start',
-                gap: '8px',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: '7px',
+                whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(91, 158, 255, 0.3)';
-                e.currentTarget.style.backgroundColor = '#242E3D';
+                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.35)';
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)';
-                e.currentTarget.style.backgroundColor = '#202A37';
+                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.2)';
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.transform = 'translateY(0)';
               }}
             >
               <div style={{
-                width: '26px',
-                height: '26px',
-                borderRadius: '5px',
-                backgroundColor: 'rgba(91, 158, 255, 0.06)',
+                width: '22px',
+                height: '22px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
-                marginBottom: '2px',
               }}>
-                <Icon size={15} color="rgba(91, 158, 255, 0.7)" strokeWidth={2.2} />
+                <Icon size={16} color="#677C99" strokeWidth={2.2} />
               </div>
               <div style={{ 
                 display: 'flex',
                 flexDirection: 'column',
-                width: '100%',
+                flexShrink: 0,
                 gap: '2px',
               }}>
                 <div style={{ 
-                  fontSize: '13px', 
+                  fontSize: '14px', 
                   fontWeight: 500, 
-                  color: '#E6EAF1', 
+                  color: '#677C99', 
                   fontFamily: 'Inter, sans-serif',
-                  lineHeight: '1.2',
+                  lineHeight: '1.3',
+                  whiteSpace: 'nowrap',
                 }}>
                   {card.title}
-                </div>
-                <div style={{ 
-                  fontSize: '11px', 
-                  color: '#9CA5B5',
-                  fontFamily: 'Inter, sans-serif',
-                  lineHeight: '1.2',
-                }}>
-                  {card.description}
                 </div>
               </div>
             </motion.button>

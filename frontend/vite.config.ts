@@ -35,7 +35,24 @@ export default defineConfig(async ({ mode }) => {
     server: {
       host: true,
       port: 5173,
-      allowedHosts: ['ladona.ainomics.online']
+      allowedHosts: ['ladona.ainomics.online'],
+      proxy: {
+        // Proxy all /api requests to backend to avoid CORS issues
+        '/api': {
+          target: env.VITE_API_URL || env.NEXT_PUBLIC_API_URL || 'http://18.219.47.1:8001',
+          changeOrigin: true,
+          secure: false,
+          rewrite: (path) => path, // Keep the /api prefix
+          configure: (proxy, _options) => {
+            proxy.on('error', (err, _req, _res) => {
+              console.log('Proxy error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, _res) => {
+              console.log('Proxying:', req.method, req.url, '→', proxyReq.path);
+            });
+          },
+        }
+      }
     },
     // Expose environment variables to the client
     define: {
