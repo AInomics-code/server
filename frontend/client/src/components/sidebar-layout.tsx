@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { ArrowUp, Paperclip, Globe, Mic } from "lucide-react";
 import laDonaLogo from "@assets/Screenshot 2025-05-19 alle 15.08.46.png";
 import { TypingMessage } from "./typing-message";
+import { getAuthHeaders } from "../utils/auth";
 
 function Sidebar() {
   return (
@@ -113,12 +114,13 @@ function ChatLayout() {
     setIsTyping(true);
 
     try {
+      // Get auth headers for both requests
+      const authHeaders = getAuthHeaders();
+      
       // Send message to API
       const response = await fetch('/api/conversations/1/messages', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           content: messageContent,
           role: 'user'
@@ -130,7 +132,9 @@ function ChatLayout() {
       }
 
       // Get updated messages including AI response
-      const messagesResponse = await fetch('/api/conversations/1/messages');
+      const messagesResponse = await fetch('/api/conversations/1/messages', {
+        headers: authHeaders,
+      });
       if (messagesResponse.ok) {
         const data = await messagesResponse.json();
         setMessages(data.map((msg: any) => ({

@@ -18,6 +18,7 @@ import {
   FeedbackToast,
 } from "@/components/micro-interactions";
 import { PromptGenerator } from "@/components/prompt-generator";
+import { getAuthHeaders } from "../utils/auth";
 
 interface Message {
   id: string;
@@ -211,12 +212,13 @@ export default function Chat() {
     setIsTyping(true);
 
     try {
+      // Get auth headers for both requests
+      const authHeaders = getAuthHeaders();
+      
       // Send message to API
       const response = await fetch("/api/conversations/1/messages", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           content: messageContent,
           role: "user",
@@ -229,7 +231,9 @@ export default function Chat() {
       }
 
       // Get only the latest AI response instead of all messages
-      const messagesResponse = await fetch("/api/conversations/1/messages");
+      const messagesResponse = await fetch("/api/conversations/1/messages", {
+        headers: authHeaders,
+      });
       if (messagesResponse.ok) {
         const data = await messagesResponse.json();
         // Find the latest AI response

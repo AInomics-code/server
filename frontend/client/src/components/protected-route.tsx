@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useLocation } from "wouter";
+import { getAuthToken } from "@/utils/auth";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   useEffect(() => {
     // Check if user has entered their user ID
+    // JWT token is optional (for development when backend doesn't have auth yet)
     const userId = localStorage.getItem("userId");
     const isLoggedIn = sessionStorage.getItem("isLoggedIn");
     
@@ -19,6 +21,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [setLocation]);
 
   // Only render children if user ID exists
+  // JWT token is optional (for development when backend doesn't have auth yet)
   const userId = localStorage.getItem("userId");
   const isLoggedIn = sessionStorage.getItem("isLoggedIn");
   

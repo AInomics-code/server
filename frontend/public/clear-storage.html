@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clear Storage Utility</title>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(to br, #0D1117 0%, #141A24 50%, #0D1117 100%);
+            color: #E6EAF1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background: #19212C;
+            border-radius: 16px;
+            padding: 40px;
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        h1 {
+            color: #FFFFFF;
+            margin-top: 0;
+            margin-bottom: 24px;
+            font-size: 24px;
+        }
+        .info {
+            background: rgba(91, 158, 255, 0.1);
+            border: 1px solid rgba(91, 158, 255, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        .warning {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        button {
+            width: 100%;
+            padding: 14px;
+            background: #5B9EFF;
+            border: none;
+            border-radius: 8px;
+            color: #19212C;
+            font-size: 15px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+            font-family: 'Inter', sans-serif;
+        }
+        button:hover {
+            background: #4A8EE8;
+            transform: translateY(-1px);
+        }
+        button.danger {
+            background: #F87171;
+            color: #FFFFFF;
+        }
+        button.danger:hover {
+            background: #EF4444;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+            display: none;
+        }
+        .status.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22C55E;
+            display: block;
+        }
+        .status.error {
+            background: rgba(248, 113, 113, 0.1);
+            border: 1px solid rgba(248, 113, 113, 0.3);
+            color: #F87171;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 Storage Cleanup Utility</h1>
+        
+        <div class="info">
+            <strong>What this does:</strong><br>
+            Clears authentication data (tokens, user info) from your browser's storage. This will log you out and you'll need to log in again.
+        </div>
+        
+        <div class="warning">
+            <strong>⚠️ Warning:</strong><br>
+            This will clear your login session. You'll need to log in again after clearing.
+        </div>
+        
+        <button onclick="clearAuthData()">Clear Authentication Data</button>
+        <button onclick="clearEverything()" class="danger">Clear Everything (All Storage)</button>
+        
+        <div id="status" class="status"></div>
+    </div>
+
+    <script>
+        function showStatus(message, type) {
+            const status = document.getElementById('status');
+            status.textContent = message;
+            status.className = 'status ' + type;
+            setTimeout(() => {
+                status.className = 'status';
+            }, 5000);
+        }
+
+        function clearAuthData() {
+            try {
+                // Clear authentication data
+                localStorage.removeItem('jwt_token');
+                localStorage.removeItem('dev_token');
+                localStorage.removeItem('userId');
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userLastName');
+                localStorage.removeItem('isAdmin');
+                sessionStorage.removeItem('isLoggedIn');
+                
+                showStatus('✅ Authentication data cleared! Redirecting to login...', 'success');
+                
+                setTimeout(() => {
+                    window.location.href = '/user-id-entry';
+                }, 1500);
+            } catch (error) {
+                showStatus('❌ Error: ' + error.message, 'error');
+            }
+        }
+
+        function clearEverything() {
+            if (confirm('Are you sure you want to clear ALL storage? This will remove everything including app preferences.')) {
+                try {
+                    localStorage.clear();
+                    sessionStorage.clear();
+                    
+                    showStatus('✅ Everything cleared! Redirecting to login...', 'success');
+                    
+                    setTimeout(() => {
+                        window.location.href = '/user-id-entry';
+                    }, 1500);
+                } catch (error) {
+                    showStatus('❌ Error: ' + error.message, 'error');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

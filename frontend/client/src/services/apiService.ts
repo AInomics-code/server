@@ -1,4 +1,5 @@
 import { API_CONFIG } from '../config/api';
+import { getAuthHeaders } from '../utils/auth';
 
 export interface InvokeRequest {
     message: string;
@@ -16,9 +17,7 @@ export const apiService = {
     async invokeAI(message: string): Promise<InvokeResponse> {
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.INVOKE_ENDPOINT}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ message } as InvokeRequest),
         });
 

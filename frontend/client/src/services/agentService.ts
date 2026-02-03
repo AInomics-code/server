@@ -1,9 +1,9 @@
 import { API_CONFIG } from '../config/api';
+import { getAuthHeaders } from '../utils/auth';
 
 export interface QueryRequest {
     query: string;
-    user_id: string;
-    session_id: string;
+    session_id?: string;  // Optional - user_id comes from JWT token now
 }
 
 // Component types from API docs
@@ -105,24 +105,35 @@ export function generateSessionId(): string {
 export const agentService = {
     /**
      * Send a query to the agent API
+     * NOTE: user_id is no longer sent in the body - it comes from the JWT token
      */
     async sendQuery(query: string, userId: string, sessionId: string): Promise<QueryResponse> {
-        const requestBody: QueryRequest = {
+        // ⚠️ IMPORTANT: user_id is NOT sent in the body anymore
+        // The backend extracts user_id from the JWT token automatically
+        const requestBody: any = {
             query,
-            user_id: userId,
-            session_id: sessionId
+            session_id: sessionId || undefined
         };
 
         const response = await fetch(`${API_CONFIG.BASE_URL}${API_CONFIG.QUERY_ENDPOINT}`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(requestBody),
         });
 
         if (!response.ok) {
             const errorText = await response.text();
+            
+            // If 403, provide helpful message about authentication
+            if (response.status === 403) {
+                const token = localStorage.getItem('jwt_token') || localStorage.getItem('dev_token');
+                if (!token) {
+                    throw new Error(`Authentication required (403). Please log in or set a dev token. Error: ${errorText}`);
+                } else {
+                    throw new Error(`Authentication failed (403). Token may be invalid or expired. Error: ${errorText}`);
+                }
+            }
+            
             throw new Error(`API request failed: ${response.status} - ${errorText}`);
         }
 

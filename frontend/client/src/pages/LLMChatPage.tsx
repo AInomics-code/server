@@ -14,6 +14,7 @@ import {
   BubbleChartComponent,
   RadarChartComponent,
 } from '@/services/agentService';
+import { getUserName } from '@/utils/auth';
 import { 
   Paperclip, 
   ArrowRight, 
@@ -370,7 +371,9 @@ export function LLMChatPage() {
   // Backend integration
   const [sessionId] = useState(() => generateSessionId());
   const [userId] = useState(() => {
-    return localStorage.getItem('userId') || 'user';
+    // Use the auth utility to get user ID
+    const userId = localStorage.getItem('userId');
+    return userId || 'user';
   });
   const currentRequestIdRef = useRef(0);
   const chatContentRef = useRef<HTMLDivElement>(null);
@@ -1127,9 +1130,7 @@ export function LLMChatPage() {
                     key={`y-label-${i}`}
                     x={paddingLeft - 10}
                     y={y + 4}
-                    fontSize={10}
-                    fill="#1A1A1A"
-                    fontWeight="bold"
+                    style={{ fontSize: 10, fill: '#1A1A1A', fontWeight: 'bold' }}
                     textAnchor="end"
                   >
                     {displayValue}
@@ -1198,9 +1199,7 @@ export function LLMChatPage() {
                     key={`x-label-${idx}`}
                     x={labelX}
                     y={labelY}
-                    fontSize={10}
-                    fill="#1A1A1A"
-                    fontWeight="bold"
+                    style={{ fontSize: 10, fill: '#1A1A1A', fontWeight: 'bold' }}
                     textAnchor="middle"
                   >
                     {item.x || item.label || ''}
@@ -1211,9 +1210,7 @@ export function LLMChatPage() {
                     key={`x-value-${idx}`}
                     x={labelX}
                     y={labelY + 14}
-                    fontSize={9}
-                    fill="#666666"
-                    fontWeight="bold"
+                    style={{ fontSize: 9, fill: '#666666', fontWeight: 'bold' }}
                     textAnchor="middle"
                   >
                     {value.toLocaleString()}
@@ -1468,7 +1465,7 @@ export function LLMChatPage() {
                 backgroundColor: '#1A222D',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
+                justifyContent: 'flex-start',
                 gap: '12px',
                 position: 'sticky',
                 top: 0,
@@ -1497,8 +1494,39 @@ export function LLMChatPage() {
                 >
                   {t('chat.back', language)}
                 </button>
-                <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>Vorta</span>
-                <span style={{ fontSize: '14px', color: '#677C99', fontWeight: 400 }}>V.2</span>
+                <span style={{ fontSize: '14px', color: '#677C99', fontWeight: 600 }}>Vorta</span>
+                <span style={{ fontSize: '14px', color: '#677C99', fontWeight: 400, marginLeft: '2px' }}>V.2</span>
+                
+                {/* User Display */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  marginLeft: 'auto',
+                }}>
+                  <div style={{
+                    width: '32px',
+                    height: '32px',
+                    backgroundColor: '#677C99',
+                    borderRadius: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}>
+                    <span style={{ fontSize: '16px', fontWeight: 600, color: '#0E1117' }}>U</span>
+                  </div>
+                  <span style={{
+                    fontSize: '14px',
+                    color: '#E2E6F0',
+                    fontWeight: 400,
+                    display: 'flex',
+                    alignItems: 'center',
+                    height: '32px',
+                  }}>
+                    {getUserName() || localStorage.getItem('userId') || 'User'}
+                  </span>
+                </div>
               </div>
 
               {/* Chat Content */}
@@ -1538,7 +1566,7 @@ export function LLMChatPage() {
                     transition={{ duration: 0.3 }}
                     style={{
                       display: 'flex',
-                      alignItems: 'flex-start',
+                      alignItems: message.role === 'user' ? 'center' : 'flex-start',
                       gap: '16px',
                       marginBottom: '32px',
                     }}
@@ -1562,9 +1590,13 @@ export function LLMChatPage() {
                     </div>
                     
                         {/* Message Content - centered within column */}
-                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', minHeight: '42px', maxWidth: '100%' }}>
+                        <div style={{ flex: 1, display: 'flex', alignItems: message.role === 'user' ? 'center' : 'flex-start', minHeight: '42px', maxWidth: '100%' }}>
                       {message.role === 'user' ? (
-                        <div style={{ fontSize: '15px', color: '#E2E6F0', lineHeight: 1.6, paddingTop: '8px' }}>
+                        <div style={{ 
+                          fontSize: '15px', 
+                          color: '#E2E6F0', 
+                          lineHeight: 1.6,
+                        }}>
                           {message.content}
                         </div>
                       ) : (

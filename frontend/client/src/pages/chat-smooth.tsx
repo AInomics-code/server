@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Send, Loader2 } from "lucide-react";
 import { TypewriterMessage } from "@/components/typewriter-message";
+import { getAuthHeaders } from "../utils/auth";
 
 interface Message {
   id: string;
@@ -44,12 +45,13 @@ export default function SmoothChat() {
     setIsTyping(true);
 
     try {
+      // Get auth headers for both requests
+      const authHeaders = getAuthHeaders();
+      
       // Send message to API
       const response = await fetch('/api/conversations/1/messages', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: authHeaders,
         body: JSON.stringify({
           content: messageContent,
           role: 'user'
@@ -61,7 +63,9 @@ export default function SmoothChat() {
       }
 
       // Get updated messages including AI response
-      const messagesResponse = await fetch('/api/conversations/1/messages');
+      const messagesResponse = await fetch('/api/conversations/1/messages', {
+        headers: authHeaders,
+      });
       if (messagesResponse.ok) {
         const data = await messagesResponse.json();
         setMessages(data.map((msg: any) => ({

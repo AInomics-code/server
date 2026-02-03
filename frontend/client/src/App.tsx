@@ -25,52 +25,45 @@ import ProtectedRoute from "@/components/protected-route";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import "./utils/env-check";
+// Import storage utilities (makes them available in console for debugging)
+import "./utils/clearStorage";
 
 // Componente para manejar la ruta raíz con lógica de autenticación
 function RootRoute() {
   const [, setLocation] = useLocation();
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Check authentication
     const userId = localStorage.getItem("userId");
     const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-
-    if (userId && isLoggedIn) {
+    const jwtToken = localStorage.getItem("jwt_token");
+    
+    const isAuthenticated = userId && (isLoggedIn === "true" || jwtToken);
+    
+    if (isAuthenticated) {
       setLocation("/llm-chat");
     } else {
+      // Not authenticated - go to login
       setLocation("/user-id-entry");
     }
-
-    setIsLoading(false);
   }, [setLocation]);
 
-  // Mostrar un loading mientras se decide la redirección
-  if (isLoading) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(to br, #141A24 0%, #1A222D 50%, #141A24 100%)",
-        }}
-      >
-        <div style={{ color: "#E6EAF1", fontSize: "16px", fontFamily: '"Inter", sans-serif' }}>
-          Loading...
-        </div>
-      </div>
-    );
-  }
-
+  // Show nothing while redirecting (the route will handle rendering)
   return null;
 }
 
 function Router() {
+  const [location] = useLocation();
+  
+  // Debug: log current location
+  useEffect(() => {
+    console.log('📍 Current route:', location);
+  }, [location]);
+  
   return (
     <Switch>
-      <Route path="/" component={RootRoute} />
       <Route path="/user-id-entry" component={UserIdEntry} />
+      <Route path="/" component={RootRoute} />
       <Route path="/login" component={Login} />
       <Route path="/signup" component={Signup} />
       <Route path="/onboarding" component={Onboarding} />
