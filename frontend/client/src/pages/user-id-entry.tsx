@@ -170,9 +170,20 @@ export default function UserIdEntry() {
         
         // Provide more specific error messages based on status
         if (response.status === 500) {
+          console.error('🔴 Backend 500 Error Details:', {
+            status: response.status,
+            statusText: response.statusText,
+            errorMessage: errorMessage,
+            endpoint: endpoint,
+            requestBody: { email: email.trim(), password: '***' }
+          });
+          
           throw new Error(
-            `Backend server error (500). This is a backend issue. ` +
-            `Check backend logs for details. Error: ${errorMessage}`
+            `Backend server error (500). ` +
+            `The backend is having issues processing your login. ` +
+            `Possible causes: database connection issue, user not found, or backend code error. ` +
+            `Error: ${errorMessage}. ` +
+            `Please check backend logs or contact support.`
           );
         }
         

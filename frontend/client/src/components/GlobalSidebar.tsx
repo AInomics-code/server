@@ -1,7 +1,9 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { Settings as SettingsIcon } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Settings as SettingsIcon, LogOut } from 'lucide-react';
 import { useTranslation } from '@/config/i18n';
+import { logout } from '@/utils/auth';
 
 interface GlobalSidebarProps {
   activePage?: 'home' | 'data' | 'playground' | 'llm';
@@ -10,7 +12,30 @@ interface GlobalSidebarProps {
 export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
   const [, setLocation] = useLocation();
   const [isSidebarExpanded] = useState(false); // Keep state for layout but don't allow toggling
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
+
+  // Close settings menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(event.target as Node)) {
+        setIsSettingsOpen(false);
+      }
+    };
+
+    if (isSettingsOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isSettingsOpen]);
+
+  const handleLogout = () => {
+    logout();
+  };
 
   return (
     <div 
@@ -228,29 +253,112 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
 
       {/* Bottom Section - Settings, User, and Aragon */}
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', paddingBottom: '24px', position: 'relative', minHeight: '200px' }}>
-        {/* Settings Icon - Proper Gear (Filled) - Fixed Position */}
-        <button 
-          onClick={() => console.log('Settings clicked')}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '6px',
-            borderRadius: '6px',
-            backgroundColor: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            outline: 'none',
-            position: 'absolute',
-            bottom: '80px',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)'}
-          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-        >
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="#677C99">
-            <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.4-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
-          </svg>
-        </button>
+        {/* Settings Icon with Dropdown Menu */}
+        <div style={{ position: 'absolute', bottom: '70px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} ref={settingsMenuRef}>
+          <button 
+            onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px',
+              borderRadius: '6px',
+              backgroundColor: isSettingsOpen ? 'rgba(42, 58, 82, 0.6)' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              outline: 'none',
+            }}
+            onMouseEnter={(e) => {
+              if (!isSettingsOpen) {
+                e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!isSettingsOpen) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+            }}
+          >
+            <svg width="21" height="21" viewBox="0 0 24 24" fill={isSettingsOpen ? '#5B9EFF' : '#677C99'}>
+              <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.4-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+            </svg>
+          </button>
+
+          {/* Settings Dropdown Menu */}
+          <AnimatePresence>
+          {isSettingsOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+              style={{
+                position: 'absolute',
+                bottom: '20px',
+                left: '76px',
+                backgroundColor: '#1A222D',
+                borderRadius: '12px',
+                border: '1px solid rgba(103, 124, 153, 0.2)',
+                boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
+                minWidth: '200px',
+                padding: '6px',
+                zIndex: 1000,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '2px',
+                backdropFilter: 'blur(10px)',
+              }}
+            >
+              <div style={{
+                padding: '8px 12px',
+                fontSize: '11px',
+                fontWeight: 600,
+                color: '#9CA5B5',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                fontFamily: '"Inter", sans-serif',
+              }}>
+                Settings
+              </div>
+              <div style={{
+                height: '1px',
+                backgroundColor: 'rgba(103, 124, 153, 0.15)',
+                margin: '4px 0',
+              }} />
+              <button
+                onClick={handleLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: 'transparent',
+                  border: 'none',
+                  color: '#F87171',
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  fontFamily: '"Inter", sans-serif',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = 'rgba(248, 113, 113, 0.12)';
+                  e.currentTarget.style.color = '#EF4444';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = 'transparent';
+                  e.currentTarget.style.color = '#F87171';
+                }}
+              >
+                <LogOut size={16} strokeWidth={2.2} />
+                <span>Logout</span>
+              </button>
+            </motion.div>
+          )}
+          </AnimatePresence>
+        </div>
         
         {/* User Circle with U - At Very Bottom */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '20px' }}>

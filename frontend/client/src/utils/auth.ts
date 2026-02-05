@@ -84,7 +84,18 @@ export function clearUserData(): void {
   localStorage.removeItem('userName');
   localStorage.removeItem('userLastName');
   localStorage.removeItem('isAdmin');
+  localStorage.removeItem('dev_token');
+  localStorage.removeItem('lastActivityTime');
   sessionStorage.removeItem('isLoggedIn');
+}
+
+/**
+ * Logout function - clears all user data and redirects to login
+ */
+export function logout(): void {
+  clearUserData();
+  // Redirect to login page
+  window.location.href = '/user-id-entry';
 }
 
 /**

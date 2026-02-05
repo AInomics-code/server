@@ -27,6 +27,7 @@ import { useLocation } from "wouter";
 import "./utils/env-check";
 // Import storage utilities (makes them available in console for debugging)
 import "./utils/clearStorage";
+import { SessionManager } from "./components/SessionManager";
 
 // Componente para manejar la ruta raíz con lógica de autenticación
 function RootRoute() {
@@ -123,6 +124,7 @@ function App() {
           <Toaster />
           <ToastContainer />
           <Router />
+          <SessionManager />
         </TooltipProvider>
       </ThemeProvider>
     </QueryClientProvider>
