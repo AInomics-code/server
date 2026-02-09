@@ -19,6 +19,7 @@ app.add_middleware(
         "http://localhost:5173",
         "http://127.0.0.1:5173",
         "https://ladona.ainomics.online",  # Production frontend
+        "http://18.219.47.1:3030"
         # Add more origins as needed
     ],
     allow_credentials=True,
