@@ -35,7 +35,7 @@ export default defineConfig(async ({ mode }) => {
     server: {
       host: true,
       port: 5173,
-      allowedHosts: ['ladona.ainomics.online'],
+      allowedHosts: true, // allow ladona.ainomics.online and any other host
       proxy: {
         // Proxy all /api requests to backend to avoid CORS issues
         '/api': {
