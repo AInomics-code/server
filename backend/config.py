@@ -1,5 +1,14 @@
+from pathlib import Path
+
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+
+# Resolve .env path relative to project root (parent of backend/), not cwd.
+# This ensures the same .env is always loaded regardless of how the process is started.
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+_ENV_FILE = _PROJECT_ROOT / ".env"
+
 
 class Settings(BaseSettings):
     # Vector DB (main_db) - Solo para búsquedas vectoriales
@@ -42,9 +51,15 @@ class Settings(BaseSettings):
     langchain_tracing_v2: str = "false"
     langchain_api_key: str = ""
     langchain_project: str = "vorta-agent"
-    
+
+    @model_validator(mode="after")
+    def force_postgres_password(self) -> "Settings":
+        """Force only postgres_password to postgres123. All other settings still come from .env/env."""
+        object.__setattr__(self, "postgres_password", "postgres123")
+        return self
+
     class Config:
-        env_file = ".env"
+        env_file = str(_ENV_FILE)
         case_sensitive = False
         extra = "allow"  # Allow extra env vars (e.g., INITIAL_ADMIN_* for PostgreSQL init scripts)
 
