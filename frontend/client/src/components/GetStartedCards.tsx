@@ -40,7 +40,7 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                 padding: '6px 12px',
                 borderRadius: '8px',
                 backgroundColor: 'transparent',
-                border: '1px solid rgba(103, 124, 153, 0.2)',
+                border: '1px solid rgba(103, 124, 153, 0.3)',
                 cursor: 'pointer',
                 textAlign: 'left',
                 transition: 'all 0.25s ease',
@@ -51,12 +51,12 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                 whiteSpace: 'nowrap',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.35)';
+                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.45)';
                 e.currentTarget.style.backgroundColor = 'transparent';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.2)';
+                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.3)';
                 e.currentTarget.style.backgroundColor = 'transparent';
                 e.currentTarget.style.transform = 'translateY(0)';
               }}
