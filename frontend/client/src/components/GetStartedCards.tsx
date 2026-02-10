@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { LucideIcon } from 'lucide-react';
+import { LucideIcon, X } from 'lucide-react';
+import { useState, useEffect } from 'react';
 
 interface Card {
   id: string;
@@ -16,6 +17,21 @@ interface GetStartedCardsProps {
 }
 
 export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
+  const [isVisible, setIsVisible] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  if (!isVisible) {
+    return null;
+  }
 
   return (
     <motion.div
@@ -23,71 +39,136 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2 }}
-      style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center' }}
+      style={{
+        width: '100%',
+        maxWidth: '800px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '12px',
+      }}
     >
-      {/* Cards Grid */}
-      <div style={{ display: 'flex', gap: '8px', width: '100%', maxWidth: '800px', justifyContent: 'center', margin: '0 auto' }}>
+      {/* Header with title and close button */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+      }}>
+        <h3 style={{
+          fontSize: '14px',
+          fontWeight: 500,
+          color: '#9CA3AF',
+          margin: 0,
+          fontFamily: 'Inter, sans-serif',
+        }}>
+          Get Started
+        </h3>
+        <button
+          onClick={() => setIsVisible(false)}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#9CA3AF',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#E5E7EB';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#9CA3AF';
+          }}
+          aria-label="Close Get Started section"
+        >
+          <X size={16} strokeWidth={2} />
+        </button>
+      </div>
+
+      {/* Pills Container */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        gap: '12px',
+        width: '100%',
+      }}>
         {cards.map((card, i) => {
           const Icon = card.icon;
           return (
             <motion.button
               key={i}
               onClick={() => onCardClick(card.title, card.question || `Run ${card.workflow.replace(/_/g, ' ')} check`)}
-              whileHover={{ y: -2 }}
-              whileTap={{ scale: 0.98 }}
+              whileHover={{
+                backgroundColor: '#3A4149',
+                transition: {
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1],
+                },
+              }}
+              whileTap={{ 
+                translateY: 0.5,
+                scale: 0.98,
+                transition: {
+                  duration: 0.15,
+                  ease: [0.4, 0, 0.2, 1],
+                },
+              }}
+              transition={{
+                duration: 0.4,
+                ease: [0.4, 0, 0.2, 1],
+              }}
               style={{
-                flex: '0 0 auto',
-                padding: '6px 12px',
-                borderRadius: '8px',
-                backgroundColor: 'transparent',
-                border: '1px solid rgba(103, 124, 153, 0.3)',
+                height: '40px',
+                padding: '0 14px',
+                borderRadius: '10px',
+                backgroundColor: '#2F343B',
+                border: 'none',
                 cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'all 0.25s ease',
                 display: 'flex',
                 flexDirection: 'row',
                 alignItems: 'center',
-                gap: '7px',
-                whiteSpace: 'nowrap',
+                gap: '8px',
+                position: 'relative',
+                overflow: 'hidden',
+                outline: 'none',
               }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.45)';
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+              onFocus={(e) => {
+                e.currentTarget.style.outline = 'none';
               }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'rgba(103, 124, 153, 0.3)';
-                e.currentTarget.style.backgroundColor = 'transparent';
-                e.currentTarget.style.transform = 'translateY(0)';
+              onBlur={(e) => {
+                e.currentTarget.style.outline = 'none';
               }}
             >
+              {/* Icon */}
               <div style={{
-                width: '22px',
-                height: '22px',
+                width: '18px',
+                height: '18px',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}>
-                <Icon size={16} color="#677C99" strokeWidth={2.2} />
+                <Icon size={16} color="#757C8A" strokeWidth={2} />
               </div>
-              <div style={{ 
-                display: 'flex',
-                flexDirection: 'column',
-                flexShrink: 0,
-                gap: '2px',
+              
+              {/* Text Label */}
+              <span style={{
+                fontSize: '13px',
+                fontWeight: 500,
+                color: '#757C8A',
+                fontFamily: 'Inter, sans-serif',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                flex: 1,
+                textAlign: 'left',
               }}>
-                <div style={{ 
-                  fontSize: '14px', 
-                  fontWeight: 500, 
-                  color: '#677C99', 
-                  fontFamily: 'Inter, sans-serif',
-                  lineHeight: '1.3',
-                  whiteSpace: 'nowrap',
-                }}>
-                  {card.title}
-                </div>
-              </div>
+                {card.title}
+              </span>
             </motion.button>
           );
         })}

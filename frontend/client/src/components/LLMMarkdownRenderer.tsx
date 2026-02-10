@@ -29,6 +29,12 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
           margin-bottom: 0 !important;
           padding-bottom: 0 !important;
         }
+        .llm-markdown-content blockquote {
+          border-left: 3px solid rgba(95, 102, 114, 0.3) !important;
+        }
+        .llm-markdown-content * {
+          border-left-color: rgba(95, 102, 114, 0.3) !important;
+        }
       `}</style>
       <div className="llm-markdown-content" style={{ width: '100%', marginTop: '0', paddingTop: '0', lineHeight: '1.5', display: 'flex', flexDirection: 'column' }}>
       <ReactMarkdown
@@ -86,7 +92,7 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
                 transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
                 style={{
                   fontSize: '12px',
-                  color: '#677C99',
+                  color: '#9CA5B5',
                   fontWeight: 500,
                   textTransform: 'uppercase',
                   letterSpacing: '0.4px',
@@ -329,7 +335,7 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
               style={{
-                borderLeft: '3px solid rgba(91, 158, 255, 0.3)',
+                borderLeft: '3px solid rgba(95, 102, 114, 0.3)',
                 paddingLeft: '16px',
                 marginTop: '16px',
                 marginBottom: '16px',

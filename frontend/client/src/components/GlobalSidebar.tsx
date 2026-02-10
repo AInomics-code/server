@@ -44,8 +44,8 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         left: 0,
         top: 0,
         height: '100%',
-        width: isSidebarExpanded ? '256px' : '76px',
-        backgroundColor: '#202A37',
+        width: isSidebarExpanded ? '256px' : '68px',
+        backgroundColor: '#32373F',
         display: 'flex',
         flexDirection: 'column',
         padding: '24px 0',
@@ -65,31 +65,32 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           {/* Aragon Star Logo */}
           <div style={{
-            padding: '10px',
+            padding: '4px 10px',
             borderRadius: '6px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            marginTop: '-4px',
           }}>
             <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
               {/* Vertical line (0 degrees) */}
               <path 
                 d="M32 8L32 56" 
-                stroke="#5B9EFF" 
+                stroke="#FFFFFF" 
                 strokeWidth="8" 
                 strokeLinecap="square"
               />
               {/* Rotated 60 degrees */}
               <path 
                 d="M52.78 20L11.22 44" 
-                stroke="#5B9EFF" 
+                stroke="#FFFFFF" 
                 strokeWidth="8" 
                 strokeLinecap="square"
               />
               {/* Rotated 120 degrees */}
               <path 
                 d="M11.22 20L52.78 44" 
-                stroke="#5B9EFF" 
+                stroke="#FFFFFF" 
                 strokeWidth="8" 
                 strokeLinecap="square"
               />
@@ -120,16 +121,16 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             cursor: 'not-allowed',
             justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
             outline: 'none',
-            opacity: 0.4,
+            opacity: 0.7,
           }}
         >
           {/* Home Icon */}
-                      <svg width="21" height="21" fill="#677C99" viewBox="0 0 24 24">
+                      <svg width="21" height="21" fill="#535964" viewBox="0 0 24 24">
             <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
             <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
           </svg>
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#677C99' }}>
+            <span style={{ fontSize: '14px', color: '#535964' }}>
               {t('sidebar.home')}
             </span>
           )}
@@ -165,9 +166,9 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         >
           {/* Chat/LLM Icon - Original Design */}
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible' }}>
-            <path d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" fill={activePage === 'llm' ? '#5B9EFF' : '#677C99'}/>
-            <circle cx="21" cy="3" r="5.5" fill="#202A37"/>
-            <circle cx="21" cy="3" r="3.5" fill={activePage === 'llm' ? '#5B9EFF' : '#677C99'}/>
+            <path d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" fill={activePage === 'llm' ? '#FFFFFF' : '#535964'}/>
+            <circle cx="21" cy="3" r="5.5" fill="#32373F"/>
+            <circle cx="21" cy="3" r="3.5" fill={activePage === 'llm' ? '#FFFFFF' : '#535964'}/>
           </svg>
           {/* Active indicator line - vertical bar at the right edge of sidebar */}
           {activePage === 'llm' && (
@@ -178,13 +179,13 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
               transform: 'translateY(-50%)',
               width: '2.5px',
               height: '56px',
-              backgroundColor: '#5B9EFF',
+              backgroundColor: '#FFFFFF',
               borderRadius: '1.5px 0 0 1.5px',
               zIndex: 100,
             }} />
           )}
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: activePage === 'llm' ? '#5B9EFF' : '#DCE7F5' }}>
+            <span style={{ fontSize: '14px', color: activePage === 'llm' ? '#FFFFFF' : '#DCE7F5' }}>
               {t('sidebar.llm')}
             </span>
           )}
@@ -204,15 +205,15 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             cursor: 'not-allowed',
             justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
             outline: 'none',
-            opacity: 0.4,
+            opacity: 0.7,
           }}
         >
           {/* Grid Icon */}
-                      <svg width="21" height="21" fill="#677C99" viewBox="0 0 24 24">
+                      <svg width="21" height="21" fill="#535964" viewBox="0 0 24 24">
             <path fillRule="evenodd" d="M3 6a3 3 0 013-3h2.25a3 3 0 013 3v2.25a3 3 0 01-3 3H6a3 3 0 01-3-3V6zm9.75 0a3 3 0 013-3H18a3 3 0 013 3v2.25a3 3 0 01-3 3h-2.25a3 3 0 01-3-3V6zM3 15.75a3 3 0 013-3h2.25a3 3 0 013 3V18a3 3 0 01-3 3H6a3 3 0 01-3-3v-2.25zm9.75 0a3 3 0 013-3H18a3 3 0 013 3V18a3 3 0 01-3 3h-2.25a3 3 0 01-3-3v-2.25z" clipRule="evenodd" />
           </svg>
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#677C99' }}>
+            <span style={{ fontSize: '14px', color: '#535964' }}>
               {t('sidebar.playground')}
             </span>
           )}
@@ -232,19 +233,19 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             cursor: 'not-allowed',
             justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
             outline: 'none',
-            opacity: 0.4,
+            opacity: 0.7,
           }}
         >
           {/* Database Icon */}
                       <svg width="20" height="20" viewBox="0 0 24 24">
-            <ellipse cx="12" cy="5" rx="9" ry="3" fill="#677C99"/>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" fill="#677C99"/>
-            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#202A37" strokeWidth="1.5"/>
-            <path d="M3 8c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#202A37" strokeWidth="1.5"/>
-            <path d="M3 16c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#202A37" strokeWidth="1.5"/>
+            <ellipse cx="12" cy="5" rx="9" ry="3" fill="#535964"/>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" fill="#535964"/>
+            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#32373F" strokeWidth="1.5"/>
+            <path d="M3 8c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#32373F" strokeWidth="1.5"/>
+            <path d="M3 16c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#32373F" strokeWidth="1.5"/>
           </svg>
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#677C99' }}>
+            <span style={{ fontSize: '14px', color: '#535964' }}>
               {t('sidebar.data')}
             </span>
           )}
@@ -279,7 +280,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
               }
             }}
           >
-            <svg width="21" height="21" viewBox="0 0 24 24" fill={isSettingsOpen ? '#5B9EFF' : '#677C99'}>
+            <svg width="21" height="21" viewBox="0 0 24 24" fill={isSettingsOpen ? '#FFFFFF' : '#535964'}>
               <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.4-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
             </svg>
           </button>
@@ -294,10 +295,10 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
               transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
               style={{
                 position: 'absolute',
-                bottom: '20px',
-                left: '76px',
+                bottom: '-50px',
+                left: '68px',
                 backgroundColor: '#1A222D',
-                borderRadius: '12px',
+                borderRadius: '6px',
                 border: '1px solid rgba(103, 124, 153, 0.2)',
                 boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
                 minWidth: '200px',
@@ -332,7 +333,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
                   alignItems: 'center',
                   gap: '10px',
                   padding: '10px 12px',
-                  borderRadius: '8px',
+                  borderRadius: '4px',
                   backgroundColor: 'transparent',
                   border: 'none',
                   color: '#F87171',
@@ -367,7 +368,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
             width: '32px',
             height: '32px',
             borderRadius: '50%',
-            backgroundColor: '#677C99',
+            backgroundColor: '#535964',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
@@ -388,7 +389,7 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
 // Hook to get sidebar width for layout offset
 export function useSidebarWidth() {
   const [isSidebarExpanded] = useState(false);
-  return isSidebarExpanded ? '256px' : '76px';
+  return isSidebarExpanded ? '256px' : '68px';
 }
 
 export default GlobalSidebar;

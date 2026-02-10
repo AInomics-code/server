@@ -31,9 +31,9 @@ export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anythi
     <div
       style={{
         width: '100%',
-        backgroundColor: '#202A37',
+        backgroundColor: '#2F343B',
         borderRadius: '12px',
-        border: `1px solid ${isFocused || value.trim() ? 'rgba(91, 158, 255, 0.35)' : 'rgba(91, 158, 255, 0.3)'}`,
+        border: `1px solid ${isFocused || value.trim() ? 'rgba(95, 102, 114, 0.4)' : 'rgba(95, 102, 114, 0.3)'}`,
         padding: '14px 16px',
         transition: 'border-color 0.2s ease',
       }}
@@ -54,7 +54,7 @@ export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anythi
           border: 'none',
           outline: 'none',
           resize: 'none',
-          color: '#E6EAF1',
+          color: '#5F6672',
           fontSize: '14px',
           lineHeight: '1.5',
           fontFamily: 'Inter, sans-serif',
@@ -95,7 +95,7 @@ export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anythi
                 e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
               }}
             >
-              <item.icon size={18} color="#9CA5B5" />
+              <item.icon size={18} color="#5F6672" />
             </button>
           ))}
         </div>
@@ -128,7 +128,7 @@ export function ChatInput({ onSend, isLoading = false, placeholder = "Ask anythi
               animation: 'spin 0.8s linear infinite',
             }} />
           ) : (
-            <ArrowRight size={20} color={value.trim() ? 'white' : '#677C99'} />
+            <ArrowRight size={20} color={value.trim() ? 'white' : '#5F6672'} />
           )}
         </motion.button>
       </div>

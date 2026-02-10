@@ -1,10 +1,13 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { motion } from "framer-motion";
 import { User, ArrowRight, Plus, Sparkles, Mail } from "lucide-react";
 import { API_CONFIG } from "../config/api";
 import { setAuthToken } from "../utils/auth";
 
+// ============================================================================
+// Authentication flag - set to false to show the real login screen
+// ============================================================================
 export default function UserIdEntry() {
   const [mode, setMode] = useState<"enter" | "create">("enter");
   const [userId, setUserId] = useState("");
@@ -200,6 +203,15 @@ export default function UserIdEntry() {
         throw new Error("No token received from server");
       }
 
+      // Debug: Log token info (without exposing full token)
+      console.log('✅ Login successful:', {
+        hasToken: !!token,
+        tokenLength: token.length,
+        tokenPreview: `${token.substring(0, 20)}...`,
+        tokenType: data.token_type || 'unknown',
+        user: data.user ? { email: data.user.email, user_id: data.user.user_id } : 'none',
+      });
+
       // Store JWT token
       setAuthToken(token);
 
@@ -239,7 +251,7 @@ export default function UserIdEntry() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        background: "linear-gradient(to br, #0D1117 0%, #141A24 50%, #0D1117 100%)",
+        background: "#1F2227",
         padding: "20px",
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
       }}
@@ -251,7 +263,7 @@ export default function UserIdEntry() {
         style={{
           width: "100%",
           maxWidth: "440px",
-          backgroundColor: "#19212C",
+          backgroundColor: "#32373F",
           borderRadius: "16px",
           padding: "48px 40px",
           boxShadow: "0 20px 60px rgba(0, 0, 0, 0.3)",
@@ -319,7 +331,7 @@ export default function UserIdEntry() {
                   display: "block",
                   fontSize: "13px",
                   fontWeight: 500,
-                  color: "#9CA5B5",
+                  color: "#757C8A",
                   marginBottom: "8px",
                 }}
               >
@@ -336,7 +348,7 @@ export default function UserIdEntry() {
                   width: "100%",
                   padding: "12px 14px",
                   backgroundColor: "transparent",
-                  border: "0.8px solid rgba(153, 168, 198, 0.4)",
+                  border: "1px solid #5F6672",
                   borderRadius: "8px",
                   color: "rgba(255, 255, 255, 0.7)",
                   fontSize: "15px",
@@ -345,11 +357,11 @@ export default function UserIdEntry() {
                   transition: "all 0.2s ease",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+                  e.currentTarget.style.borderColor = "#5F6672";
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
                 onBlur={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+                  e.currentTarget.style.borderColor = "#5F6672";
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
               />
@@ -395,7 +407,7 @@ export default function UserIdEntry() {
                 display: "block",
                 fontSize: "14px",
                 fontWeight: 500,
-                color: "#9CA5B5",
+                color: "#757C8A",
                 marginBottom: "8px",
               }}
             >
@@ -430,8 +442,8 @@ export default function UserIdEntry() {
                 padding: "12px 14px",
                 backgroundColor: "transparent !important",
                 border: error
-                  ? "0.8px solid rgba(248, 113, 113, 0.5)"
-                  : "0.8px solid rgba(153, 168, 198, 0.4)",
+                  ? "1px solid rgba(248, 113, 113, 0.5)"
+                  : "1px solid #5F6672",
                 borderRadius: "8px",
                 color: "rgba(255, 255, 255, 0.7)",
                 fontSize: "15px",
@@ -440,13 +452,13 @@ export default function UserIdEntry() {
                 transition: "all 0.2s ease",
               }}
               onFocus={(e) => {
-                e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+                e.currentTarget.style.borderColor = "#5F6672";
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = error
                   ? "rgba(248, 113, 113, 0.5)"
-                  : "rgba(153, 168, 198, 0.4)";
+                  : "#5F6672";
                 e.currentTarget.style.backgroundColor = "transparent";
               }}
               onInput={(e) => {
@@ -522,7 +534,7 @@ export default function UserIdEntry() {
                   display: "block",
                   fontSize: "14px",
                   fontWeight: 500,
-                  color: "#9CA5B5",
+                  color: "#757C8A",
                   marginBottom: "8px",
                 }}
               >
@@ -549,8 +561,8 @@ export default function UserIdEntry() {
                   padding: "12px 14px",
                   backgroundColor: "transparent",
                   border: error
-                    ? "0.8px solid rgba(248, 113, 113, 0.5)"
-                    : "0.8px solid rgba(153, 168, 198, 0.4)",
+                    ? "1px solid rgba(248, 113, 113, 0.5)"
+                    : "1px solid #5F6672",
                   borderRadius: "8px",
                   color: "rgba(255, 255, 255, 0.7)",
                   fontSize: "15px",
@@ -559,13 +571,13 @@ export default function UserIdEntry() {
                   transition: "all 0.2s ease",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+                  e.currentTarget.style.borderColor = "#5F6672";
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = error
                     ? "rgba(248, 113, 113, 0.5)"
-                    : "rgba(153, 168, 198, 0.4)";
+                    : "#5F6672";
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
               />
@@ -614,7 +626,7 @@ export default function UserIdEntry() {
                   display: "block",
                   fontSize: "14px",
                   fontWeight: 500,
-                  color: "#9CA5B5",
+                  color: "#757C8A",
                   marginBottom: "8px",
                 }}
               >
@@ -640,8 +652,8 @@ export default function UserIdEntry() {
                   padding: "12px 14px",
                   backgroundColor: "transparent",
                   border: error
-                    ? "0.8px solid rgba(248, 113, 113, 0.5)"
-                    : "0.8px solid rgba(153, 168, 198, 0.4)",
+                    ? "1px solid rgba(248, 113, 113, 0.5)"
+                    : "1px solid #5F6672",
                   borderRadius: "8px",
                   color: "rgba(255, 255, 255, 0.7)",
                   fontSize: "15px",
@@ -650,13 +662,13 @@ export default function UserIdEntry() {
                   transition: "all 0.2s ease",
                 }}
                 onFocus={(e) => {
-                  e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+                  e.currentTarget.style.borderColor = "#5F6672";
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
                 onBlur={(e) => {
                   e.currentTarget.style.borderColor = error
                     ? "rgba(248, 113, 113, 0.5)"
-                    : "rgba(153, 168, 198, 0.4)";
+                    : "#5F6672";
                   e.currentTarget.style.backgroundColor = "transparent";
                 }}
               />
@@ -700,19 +712,31 @@ export default function UserIdEntry() {
             style={{
               width: "100%",
               padding: "10px 14px",
-              backgroundColor: "#5B9EFF",
+              backgroundColor: email.trim() && !isSubmitting ? "#E65D5F" : "#9CA5B5",
               border: "none",
               borderRadius: "24px",
-              color: "#19212C",
+              color: "#FFFFFF",
               fontSize: "15px",
               fontWeight: 500,
               cursor: email.trim() && !isSubmitting ? "pointer" : "not-allowed",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              transition: "transform 0.15s ease",
+              transition: "all 0.2s ease",
               fontFamily: '"Inter", sans-serif',
               opacity: email.trim() && !isSubmitting ? 1 : 0.6,
+            }}
+            onMouseEnter={(e) => {
+              if (email.trim() && !isSubmitting) {
+                e.currentTarget.style.backgroundColor = "#E65D5F";
+                e.currentTarget.style.transform = "scale(1.02)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (email.trim() && !isSubmitting) {
+                e.currentTarget.style.backgroundColor = "#E65D5F";
+                e.currentTarget.style.transform = "scale(1)";
+              }
             }}
           >
             {isSubmitting ? (
@@ -859,8 +883,8 @@ export default function UserIdEntry() {
           style={{
             width: "100%",
             padding: "12px 14px",
-            backgroundColor: "#19212C",
-            border: "0.8px solid rgba(153, 168, 198, 0.4)",
+            backgroundColor: "#2F343B",
+            border: "1px solid #5F6672",
             borderRadius: "8px",
             color: "#FFFFFF",
             fontSize: "15px",
@@ -874,12 +898,12 @@ export default function UserIdEntry() {
             fontFamily: '"Inter", sans-serif',
           }}
           onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = "#1F2835";
-            e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+            e.currentTarget.style.backgroundColor = "#32373F";
+            e.currentTarget.style.borderColor = "#5F6672";
           }}
           onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = "#19212C";
-            e.currentTarget.style.borderColor = "rgba(153, 168, 198, 0.4)";
+            e.currentTarget.style.backgroundColor = "#2F343B";
+            e.currentTarget.style.borderColor = "#5F6672";
           }}
         >
           <svg width="20" height="20" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">

@@ -43,21 +43,59 @@ html, body, #root {
 
 /* Chat Input Placeholder */
 .chat-input-textarea::placeholder {
-  color: #677C99;
+  color: #5F6672;
 }
 
 .chat-input-textarea::-webkit-input-placeholder {
-  color: #677C99;
+  color: #5F6672;
 }
 
 .chat-input-textarea::-moz-placeholder {
-  color: #677C99;
+  color: #5F6672;
   opacity: 1;
 }
 
 .chat-input-textarea:-ms-input-placeholder {
-  color: #677C99;
+  color: #5F6672;
 }
+
+/* Premium Composer Halo Ring Effect */
+.composer-shell {
+  position: relative;
+  width: 100%;
+}
+
+.composer-shell::before {
+  content: '';
+  position: absolute;
+  inset: -12px;
+  border-radius: 20px;
+  background: linear-gradient(
+    135deg,
+    rgba(47, 52, 59, 0.6) 0%,
+    rgba(31, 34, 39, 0.5) 50%,
+    rgba(47, 52, 59, 0.6) 100%
+  );
+  border: 1px solid rgba(95, 102, 114, 0.15);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transform: scale(0.985);
+  transition: opacity 0.7s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.composer-shell.composer-active::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
 
 /* Animations */
 @keyframes fadeIn {
@@ -85,6 +123,7 @@ html, body, #root {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }
 }
+
 
 .animate-fadeIn {
   animation: fadeIn 120ms ease-out forwards;
