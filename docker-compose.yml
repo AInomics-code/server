@@ -47,7 +47,7 @@ services:
       -c ssl_key_file=/etc/postgresql/ssl/server.key
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres123
+      - POSTGRES_PASSWORD=YbacxkndJG
       - POSTGRES_DB=client_data
       - POSTGRES_INITDB_ARGS=--encoding=UTF-8
       - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}

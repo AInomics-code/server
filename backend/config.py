@@ -52,11 +52,12 @@ class Settings(BaseSettings):
     langchain_api_key: str = ""
     langchain_project: str = "vorta-agent"
 
-    @model_validator(mode="after")
-    def force_postgres_password(self) -> "Settings":
-        """Force only postgres_password to postgres123. All other settings still come from .env/env."""
-        object.__setattr__(self, "postgres_password", "postgres123")
-        return self
+    # REMOVED: force_postgres_password validator to allow using password from .env
+    # @model_validator(mode="after")
+    # def force_postgres_password(self) -> "Settings":
+    #     """Force only postgres_password to postgres123. All other settings still come from .env/env."""
+    #     object.__setattr__(self, "postgres_password", "postgres123")
+    #     return self
 
     class Config:
         env_file = str(_ENV_FILE)
