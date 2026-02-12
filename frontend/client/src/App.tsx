@@ -32,6 +32,8 @@ import { SessionManager } from "./components/SessionManager";
 // ============================================================================
 // Authentication flag - set to false to require real login
 // ============================================================================
+// TEMPORARY BYPASS - Set to false to require real authentication
+// ============================================================================
 // Componente para manejar la ruta raíz con lógica de autenticación
 function RootRoute() {
   const [, setLocation] = useLocation();

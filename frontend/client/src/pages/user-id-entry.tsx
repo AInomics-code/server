@@ -6,7 +6,7 @@ import { API_CONFIG } from "../config/api";
 import { setAuthToken } from "../utils/auth";
 
 // ============================================================================
-// Authentication flag - set to false to show the real login screen
+// TEMPORARY BYPASS - Set to false to show the real login screen
 // ============================================================================
 export default function UserIdEntry() {
   const [mode, setMode] = useState<"enter" | "create">("enter");
@@ -285,19 +285,19 @@ export default function UserIdEntry() {
             <svg width="40" height="40" viewBox="0 0 64 64" fill="none">
               <path
                 d="M32 8L32 56"
-                stroke="#FFFFFF"
+                stroke="#5ca2f9"
                 strokeWidth="8"
                 strokeLinecap="square"
               />
               <path
                 d="M52.78 20L11.22 44"
-                stroke="#FFFFFF"
+                stroke="#5ca2f9"
                 strokeWidth="8"
                 strokeLinecap="square"
               />
               <path
                 d="M11.22 20L52.78 44"
-                stroke="#FFFFFF"
+                stroke="#5ca2f9"
                 strokeWidth="8"
                 strokeLinecap="square"
               />
@@ -306,7 +306,7 @@ export default function UserIdEntry() {
               style={{
                 fontSize: "32px",
                 fontWeight: 600,
-                color: "#FFFFFF",
+                color: "#5ca2f9",
                 letterSpacing: "0.5px",
               }}
             >
@@ -712,7 +712,7 @@ export default function UserIdEntry() {
             style={{
               width: "100%",
               padding: "10px 14px",
-              backgroundColor: email.trim() && !isSubmitting ? "#E65D5F" : "#9CA5B5",
+              backgroundColor: email.trim() && !isSubmitting ? "#5ca2f9" : "#9CA5B5",
               border: "none",
               borderRadius: "24px",
               color: "#FFFFFF",
@@ -728,13 +728,13 @@ export default function UserIdEntry() {
             }}
             onMouseEnter={(e) => {
               if (email.trim() && !isSubmitting) {
-                e.currentTarget.style.backgroundColor = "#E65D5F";
+                e.currentTarget.style.backgroundColor = "#5ca2f9";
                 e.currentTarget.style.transform = "scale(1.02)";
               }
             }}
             onMouseLeave={(e) => {
               if (email.trim() && !isSubmitting) {
-                e.currentTarget.style.backgroundColor = "#E65D5F";
+                e.currentTarget.style.backgroundColor = "#5ca2f9";
                 e.currentTarget.style.transform = "scale(1)";
               }
             }}

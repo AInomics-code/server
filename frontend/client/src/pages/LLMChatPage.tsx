@@ -385,11 +385,19 @@ export function LLMChatPage() {
   };
 
   const scrollToLatestMessageTop = () => {
-    if (chatContentRef.current) {
-      // Scroll to the bottom of the container with smooth behavior
+    if (lastMessageRef.current && chatContentRef.current) {
+      // Scroll to show the top of the latest message
+      const element = lastMessageRef.current;
       const container = chatContentRef.current;
+      
+      // Get the position of the element relative to the scrollable container
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+      
+      // Scroll to show the element at the top of the viewport
       container.scrollTo({
-        top: container.scrollHeight,
+        top: relativeTop - 20, // 20px padding from top
         behavior: 'smooth'
       });
     }
@@ -1356,22 +1364,6 @@ export function LLMChatPage() {
       workflow: 'sales_health',
       question: t('cards.sales.title', language),
     },
-    {
-      id: 'forecast-tracking',
-      icon: ClipboardCheck,
-      title: t('cards.forecast.title', language),
-      description: t('cards.forecast.description', language),
-      workflow: 'forecast_tracking',
-      question: t('cards.forecast.title', language),
-    },
-    {
-      id: 'generate-reports',
-      icon: Package,
-      title: t('cards.reports.title', language),
-      description: t('cards.reports.description', language),
-      workflow: 'generate_reports',
-      question: t('cards.reports.title', language),
-    },
   ];
 
   // ========== RENDER ==========
@@ -1429,7 +1421,7 @@ export function LLMChatPage() {
                   alignItems: 'center',
                   gap: '10px',
                 }}>
-                  <VortaStarIcon size={56} color="#FFFFFF" />
+                  <VortaStarIcon size={56} color="#5ca2f9" />
                   <motion.span
                     initial={{ opacity: 0, x: -50, width: 0 }}
                     animate={{ opacity: 1, x: 0, width: 'auto' }}
@@ -1441,7 +1433,7 @@ export function LLMChatPage() {
                     style={{
                       fontSize: '44px',
                       fontWeight: 600,
-                      color: '#FFFFFF',
+                      color: '#5ca2f9',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
@@ -1635,7 +1627,7 @@ export function LLMChatPage() {
                       {message.role === 'user' ? (
                         <span style={{ fontSize: '20px', fontWeight: 600, color: '#1F2227' }}>U</span>
                       ) : (
-                        <VortaStarIcon size={24} color="#FFFFFF" />
+                        <VortaStarIcon size={24} color="#5ca2f9" />
                       )}
                     </div>
                     
@@ -1846,7 +1838,7 @@ export function LLMChatPage() {
                             strokeWidth="8"
                             strokeLinecap="square"
                             animate={{
-                              stroke: ['#FFFFFF', '#E6EAF1', '#FFFFFF'],
+                              stroke: ['#5ca2f9', '#7BB3FF', '#5ca2f9'],
                             }}
                             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                           />
@@ -1856,7 +1848,7 @@ export function LLMChatPage() {
                             strokeLinecap="square"
                             transform="rotate(60 32 32)"
                             animate={{
-                              stroke: ['#FFFFFF', '#E6EAF1', '#FFFFFF'],
+                              stroke: ['#5ca2f9', '#7BB3FF', '#5ca2f9'],
                             }}
                             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                           />
@@ -1866,7 +1858,7 @@ export function LLMChatPage() {
                             strokeLinecap="square"
                             transform="rotate(120 32 32)"
                             animate={{
-                              stroke: ['#FFFFFF', '#E6EAF1', '#FFFFFF'],
+                              stroke: ['#5ca2f9', '#7BB3FF', '#5ca2f9'],
                             }}
                             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                           />

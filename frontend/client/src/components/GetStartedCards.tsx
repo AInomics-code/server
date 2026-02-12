@@ -91,10 +91,11 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
 
       {/* Pills Container */}
       <div style={{
-        display: 'grid',
-        gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)',
+        display: 'flex',
+        flexDirection: 'row',
         gap: '12px',
-        width: '100%',
+        width: 'fit-content',
+        justifyContent: 'flex-start',
       }}>
         {cards.map((card, i) => {
           const Icon = card.icon;
@@ -135,6 +136,8 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                 position: 'relative',
                 overflow: 'hidden',
                 outline: 'none',
+                width: '180px',
+                flexShrink: 0,
               }}
               onFocus={(e) => {
                 e.currentTarget.style.outline = 'none';

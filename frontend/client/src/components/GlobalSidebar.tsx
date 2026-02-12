@@ -76,28 +76,28 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
               {/* Vertical line (0 degrees) */}
               <path 
                 d="M32 8L32 56" 
-                stroke="#FFFFFF" 
+                stroke="#5ca2f9" 
                 strokeWidth="8" 
                 strokeLinecap="square"
               />
               {/* Rotated 60 degrees */}
               <path 
                 d="M52.78 20L11.22 44" 
-                stroke="#FFFFFF" 
+                stroke="#5ca2f9" 
                 strokeWidth="8" 
                 strokeLinecap="square"
               />
               {/* Rotated 120 degrees */}
               <path 
                 d="M11.22 20L52.78 44" 
-                stroke="#FFFFFF" 
+                stroke="#5ca2f9" 
                 strokeWidth="8" 
                 strokeLinecap="square"
               />
             </svg>
           </div>
           {isSidebarExpanded && (
-            <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#DCE7F5', margin: 0 }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#5ca2f9', margin: 0 }}>
               Vorta
             </h2>
           )}
@@ -166,9 +166,9 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         >
           {/* Chat/LLM Icon - Original Design */}
           <svg width="21" height="21" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible' }}>
-            <path d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" fill={activePage === 'llm' ? '#FFFFFF' : '#535964'}/>
+            <path d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" fill={activePage === 'llm' ? 'rgba(92, 162, 249, 0.7)' : '#535964'}/>
             <circle cx="21" cy="3" r="5.5" fill="#32373F"/>
-            <circle cx="21" cy="3" r="3.5" fill={activePage === 'llm' ? '#FFFFFF' : '#535964'}/>
+            <circle cx="21" cy="3" r="3.5" fill={activePage === 'llm' ? 'rgba(92, 162, 249, 0.7)' : '#535964'}/>
           </svg>
           {/* Active indicator line - vertical bar at the right edge of sidebar */}
           {activePage === 'llm' && (
@@ -179,13 +179,13 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
               transform: 'translateY(-50%)',
               width: '2.5px',
               height: '56px',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: 'rgba(92, 162, 249, 0.6)',
               borderRadius: '1.5px 0 0 1.5px',
               zIndex: 100,
             }} />
           )}
           {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: activePage === 'llm' ? '#FFFFFF' : '#DCE7F5' }}>
+            <span style={{ fontSize: '14px', color: activePage === 'llm' ? 'rgba(92, 162, 249, 0.8)' : '#DCE7F5' }}>
               {t('sidebar.llm')}
             </span>
           )}
