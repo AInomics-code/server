@@ -22,7 +22,6 @@ import {
   Download,
   Check,
   TrendingUp,
-  ChevronDown,
   Activity,
   BarChart3,
   Calendar,
@@ -386,8 +385,21 @@ export function LLMChatPage() {
   };
 
   const scrollToLatestMessageTop = () => {
-    if (lastMessageRef.current) {
-      lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    if (lastMessageRef.current && chatContentRef.current) {
+      // Scroll to show the top of the latest message
+      const element = lastMessageRef.current;
+      const container = chatContentRef.current;
+      
+      // Get the position of the element relative to the scrollable container
+      const containerRect = container.getBoundingClientRect();
+      const elementRect = element.getBoundingClientRect();
+      const relativeTop = elementRect.top - containerRect.top + container.scrollTop;
+      
+      // Scroll to show the element at the top of the viewport
+      container.scrollTo({
+        top: relativeTop - 20, // 20px padding from top
+        behavior: 'smooth'
+      });
     }
   };
 
@@ -411,9 +423,24 @@ export function LLMChatPage() {
     };
   }, [conversationHistory, chatMode]);
 
-  // Note: we intentionally do NOT auto-scroll on new messages so the view
-  // stays where the user is reading. The "New message" button lets them
-  // jump to the latest message when they want.
+  // Auto-scroll to latest message when new messages arrive
+  useEffect(() => {
+    if (conversationHistory.length > 0) {
+      // Small delay to ensure DOM is updated
+      setTimeout(() => {
+        scrollToLatestMessageTop();
+      }, 150);
+    }
+  }, [conversationHistory.length]);
+
+  // Also scroll when response finishes loading
+  useEffect(() => {
+    if (!isWaitingForResponse && conversationHistory.length > 0) {
+      setTimeout(() => {
+        scrollToLatestMessageTop();
+      }, 200);
+    }
+  }, [isWaitingForResponse, conversationHistory.length]);
 
   // ========== HANDLERS ==========
   
@@ -440,9 +467,9 @@ export function LLMChatPage() {
       
       setIsWaitingForResponse(false);
       
-      // Save the session_id from the backend for subsequent messages
-      if (response.metadata?.session_id && !sessionId) {
-        setSessionId(response.metadata.session_id);
+      // Save the conversation_id from the backend for subsequent messages
+      if (response.metadata?.conversation_id && !sessionId) {
+        setSessionId(response.metadata.conversation_id);
       }
       
       // New API format: response.message is an array of components
@@ -485,9 +512,9 @@ export function LLMChatPage() {
       
       setIsWaitingForResponse(false);
       
-      // Save the session_id from the backend for subsequent messages
-      if (response.metadata?.session_id && !sessionId) {
-        setSessionId(response.metadata.session_id);
+      // Save the conversation_id from the backend for subsequent messages
+      if (response.metadata?.conversation_id && !sessionId) {
+        setSessionId(response.metadata.conversation_id);
       }
       
       // New API format: response.message is an array of components
@@ -1337,22 +1364,6 @@ export function LLMChatPage() {
       workflow: 'sales_health',
       question: t('cards.sales.title', language),
     },
-    {
-      id: 'forecast-tracking',
-      icon: ClipboardCheck,
-      title: t('cards.forecast.title', language),
-      description: t('cards.forecast.description', language),
-      workflow: 'forecast_tracking',
-      question: t('cards.forecast.title', language),
-    },
-    {
-      id: 'generate-reports',
-      icon: Package,
-      title: t('cards.reports.title', language),
-      description: t('cards.reports.description', language),
-      workflow: 'generate_reports',
-      question: t('cards.reports.title', language),
-    },
   ];
 
   // ========== RENDER ==========
@@ -1360,7 +1371,7 @@ export function LLMChatPage() {
     <div style={{
       display: 'flex',
       minHeight: '100vh',
-      backgroundColor: '#141A24',
+      backgroundColor: '#1F2227',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
       <GlobalSidebar activePage="llm" />
@@ -1369,7 +1380,7 @@ export function LLMChatPage() {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginLeft: '72px',
+        marginLeft: '64px',
       }}>
         <AnimatePresence mode="wait">
           {!chatMode && conversationHistory.length === 0 && !isWaitingForResponse ? (
@@ -1379,7 +1390,10 @@ export function LLMChatPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ 
+                duration: 0.5,
+                ease: [0.4, 0, 0.2, 1]
+              }}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -1387,7 +1401,7 @@ export function LLMChatPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: '40px',
-                paddingTop: '10px',
+                paddingTop: '0px',
               }}
             >
               {/* Aragon Logo - Static */}
@@ -1396,7 +1410,7 @@ export function LLMChatPage() {
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  marginBottom: '32px',
+                  marginBottom: '24px',
                   position: 'relative',
                   overflow: 'hidden',
                   width: '100%',
@@ -1407,7 +1421,7 @@ export function LLMChatPage() {
                   alignItems: 'center',
                   gap: '10px',
                 }}>
-                  <VortaStarIcon size={56} color="#5B9EFF" />
+                  <VortaStarIcon size={56} color="#5ca2f9" />
                   <motion.span
                     initial={{ opacity: 0, x: -50, width: 0 }}
                     animate={{ opacity: 1, x: 0, width: 'auto' }}
@@ -1419,7 +1433,7 @@ export function LLMChatPage() {
                     style={{
                       fontSize: '44px',
                       fontWeight: 600,
-                      color: '#5B9EFF',
+                      color: '#5ca2f9',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
@@ -1436,7 +1450,7 @@ export function LLMChatPage() {
               <div style={{
                 width: '100%',
                 maxWidth: '800px',
-                marginBottom: '34px',
+                marginBottom: '20px',
                 display: 'flex',
                 justifyContent: 'center',
               }}>
@@ -1462,19 +1476,24 @@ export function LLMChatPage() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
+              transition={{ 
+                duration: 0.5,
+                ease: [0.4, 0, 0.2, 1]
+              }}
               style={{
                 height: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
-                background: '#141A24',
+                background: '#1F2227',
                 overflow: 'hidden',
               }}
             >
               {/* Chat Header */}
               <div style={{
                 padding: '14px 24px',
-                backgroundColor: '#1A222D',
+                backgroundColor: 'rgba(47, 52, 59, 0.6)',
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'flex-start',
@@ -1490,24 +1509,24 @@ export function LLMChatPage() {
                     backgroundColor: 'transparent',
                     border: '1px solid rgba(255,255,255,0.1)',
                     borderRadius: '4px',
-                    color: '#677C99',
+                    color: '#FFFFFF',
                     fontSize: '11px',
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                   }}
                   onMouseEnter={(e) => {
                     e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                    e.currentTarget.style.color = '#E2E6F0';
+                    e.currentTarget.style.color = '#FFFFFF';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#677C99';
+                    e.currentTarget.style.color = '#FFFFFF';
                   }}
                 >
                   {t('chat.back', language)}
                 </button>
-                <span style={{ fontSize: '14px', color: '#677C99', fontWeight: 600 }}>Vorta</span>
-                <span style={{ fontSize: '14px', color: '#677C99', fontWeight: 400, marginLeft: '2px' }}>V.2</span>
+                <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>Vorta</span>
+                <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 400, marginLeft: '2px' }}>V.2</span>
                 
                 {/* User Display */}
                 <div style={{
@@ -1519,18 +1538,18 @@ export function LLMChatPage() {
                   <div style={{
                     width: '32px',
                     height: '32px',
-                    backgroundColor: '#677C99',
+                    backgroundColor: '#9CA5B5',
                     borderRadius: '4px',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     flexShrink: 0,
                   }}>
-                    <span style={{ fontSize: '16px', fontWeight: 600, color: '#0E1117' }}>U</span>
+                    <span style={{ fontSize: '16px', fontWeight: 600, color: '#1F2227' }}>U</span>
                   </div>
                   <span style={{
                     fontSize: '14px',
-                    color: '#E2E6F0',
+                    color: '#FFFFFF',
                     fontWeight: 400,
                     display: 'flex',
                     alignItems: 'center',
@@ -1549,16 +1568,26 @@ export function LLMChatPage() {
                   flex: 1,
                   overflowY: 'auto',
                   position: 'relative',
+                  padding: '0 24px 16px 24px',
                 }}
               >
+                {/* Subtle fade overlay at bottom edge - positioned at bottom of viewport */}
+                <div style={{
+                  position: 'sticky',
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  height: '60px',
+                  background: 'linear-gradient(to top, rgba(31, 34, 39, 0.9) 0%, rgba(31, 34, 39, 0.4) 50%, rgba(31, 34, 39, 0) 100%)',
+                  pointerEvents: 'none',
+                  zIndex: 5,
+                }} />
                 <div
-                  className="custom-scrollbar"
                   style={{
-                    height: '100%',
-                    padding: '40px 24px 60px 24px',
-                    overflowY: 'auto',
                     display: 'flex',
                     justifyContent: 'center',
+                    position: 'relative',
+                    minHeight: '100%',
                   }}
                 >
                   {/* Centered conversation column matching chat input width */}
@@ -1567,6 +1596,7 @@ export function LLMChatPage() {
                     maxWidth: '900px',
                     display: 'flex',
                     flexDirection: 'column',
+                    margin: '0 auto',
                   }}>
                 {/* Render conversation history */}
                 {conversationHistory.map((message, idx) => (
@@ -1587,7 +1617,7 @@ export function LLMChatPage() {
                     <div style={{
                       width: '42px',
                       height: '42px',
-                      backgroundColor: message.role === 'user' ? '#677C99' : '#324053',
+                      backgroundColor: message.role === 'user' ? '#9CA5B5' : '#32373F',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
@@ -1595,9 +1625,9 @@ export function LLMChatPage() {
                       flexShrink: 0,
                     }}>
                       {message.role === 'user' ? (
-                        <span style={{ fontSize: '20px', fontWeight: 600, color: '#0E1117' }}>U</span>
+                        <span style={{ fontSize: '20px', fontWeight: 600, color: '#1F2227' }}>U</span>
                       ) : (
-                        <VortaStarIcon size={24} color="#5B9EFF" />
+                        <VortaStarIcon size={24} color="#5ca2f9" />
                       )}
                     </div>
                     
@@ -1672,7 +1702,7 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: copiedMessageIdx === idx ? '#4ADE80' : '#677C99',
+                                color: copiedMessageIdx === idx ? '#4ADE80' : '#9CA5B5',
                                 fontSize: '12px',
                                 fontWeight: 500,
                               }}
@@ -1707,7 +1737,7 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#677C99',
+                                color: '#9CA5B5',
                                 fontSize: '12px',
                                 fontWeight: 500,
                               }}
@@ -1728,12 +1758,12 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#677C99',
+                                color: '#9CA5B5',
                                 fontSize: '12px',
                                 transition: 'color 0.2s',
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#4ADE80'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#677C99'}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#BFD4FF'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
                             >
                               <ThumbsUp size={16} />
                             </button>
@@ -1748,12 +1778,12 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#677C99',
+                                color: '#9CA5B5',
                                 fontSize: '12px',
                                 transition: 'color 0.2s',
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#F87171'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#677C99'}
+                              onMouseEnter={(e) => e.currentTarget.style.color = '#FCA5A5'}
+                              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
                             >
                               <ThumbsDown size={16} />
                             </button>
@@ -1782,7 +1812,7 @@ export function LLMChatPage() {
                       style={{
                       width: '42px',
                       height: '42px',
-                      backgroundColor: '#324053',
+                      backgroundColor: '#32373F',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
@@ -1808,7 +1838,7 @@ export function LLMChatPage() {
                             strokeWidth="8"
                             strokeLinecap="square"
                             animate={{
-                              stroke: ['#5B9EFF', '#7BB3FF', '#5B9EFF'],
+                              stroke: ['#5ca2f9', '#7BB3FF', '#5ca2f9'],
                             }}
                             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                           />
@@ -1818,7 +1848,7 @@ export function LLMChatPage() {
                             strokeLinecap="square"
                             transform="rotate(60 32 32)"
                             animate={{
-                              stroke: ['#5B9EFF', '#7BB3FF', '#5B9EFF'],
+                              stroke: ['#5ca2f9', '#7BB3FF', '#5ca2f9'],
                             }}
                             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                           />
@@ -1828,7 +1858,7 @@ export function LLMChatPage() {
                             strokeLinecap="square"
                             transform="rotate(120 32 32)"
                             animate={{
-                              stroke: ['#5B9EFF', '#7BB3FF', '#5B9EFF'],
+                              stroke: ['#5ca2f9', '#7BB3FF', '#5ca2f9'],
                             }}
                             transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                           />
@@ -1877,71 +1907,15 @@ export function LLMChatPage() {
                     </div>
                   </motion.div>
                 )}
-                  </div>
               </div>
-              
-              {/* Gradient Fade */}
-              <div style={{
-                position: 'absolute',
-                bottom: 0,
-                left: 0,
-                right: 0,
-                height: '30px',
-                background: 'linear-gradient(to top, #141A24 0%, rgba(20, 26, 36, 0.8) 50%, transparent 100%)',
-                pointerEvents: 'none',
-                zIndex: 5,
-              }} />
-              
-              {/* New Message Button */}
-              <AnimatePresence>
-                {showNewMessageButton && (
-                  <motion.button
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 10 }}
-                    transition={{ duration: 0.2 }}
-                    onClick={() => {
-                        scrollToLatestMessageTop();
-                      setShowNewMessageButton(false);
-                    }}
-                    style={{
-                      position: 'fixed',
-                      left: 'calc(50% - 70px)',
-                      bottom: '110px',
-                      zIndex: 30,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '8px',
-                      padding: '8px 16px',
-                      backgroundColor: '#1F2835',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '8px',
-                      color: '#9CA5B5',
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                    }}
-                    onMouseEnter={(e) => {
-                      e.currentTarget.style.backgroundColor = '#252F3E';
-                      e.currentTarget.style.color = '#E6EAF1';
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.backgroundColor = '#1F2835';
-                      e.currentTarget.style.color = '#9CA5B5';
-                    }}
-                  >
-                    <ChevronDown size={16} />
-                    New message
-                  </motion.button>
-                )}
-              </AnimatePresence>
+                </div>
             </div>
             
             {/* Chat Input */}
             <div style={{
-              padding: '24px 24px',
-              backgroundColor: '#141A24',
+              padding: '0 24px 24px 24px',
+              backgroundColor: 'transparent',
+              border: 'none',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -1954,6 +1928,8 @@ export function LLMChatPage() {
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: '12px',
+                position: 'relative',
+                zIndex: 2,
               }}>
                 <ChatInput
                   onSend={handleQuestionSubmit}
@@ -1996,7 +1972,7 @@ function IconButton({ Icon, size }: { Icon: React.ComponentType<any>; size: numb
         transition: 'all 0.2s ease',
       }}
     >
-      <Icon size={size} color={isHovered ? '#5B9EFF' : '#677C99'} />
+      <Icon size={size} color={isHovered ? '#5B9EFF' : '#5F6672'} />
     </button>
   );
 }
@@ -2021,7 +1997,7 @@ function LanguageToggleButton({
         borderRadius: '999px',
         border: 'none',
         backgroundColor: 'transparent',
-        color: isHovered ? '#5B9EFF' : '#677C99',
+        color: isHovered ? '#5B9EFF' : '#5F6672',
         fontSize: '13px',
         fontWeight: 600,
         lineHeight: '1',
@@ -2074,21 +2050,35 @@ function ChatInput({
     }
   }, [value]);
   
+  const hasText = value.trim().length > 0;
+  const isActive = isFocused || hasText;
+  
   return (
+    <div
+      className={`composer-shell ${isActive ? 'composer-active' : ''}`}
+      style={{
+        position: 'relative',
+        width: '100%',
+      }}
+    >
     <motion.div
       style={{
-        backgroundColor: '#19212C',
+          backgroundColor: '#2F343B',
         borderRadius: '12px',
-        border: `1px solid ${isFocused || value.trim() ? 'rgba(91, 158, 255, 0.3)' : 'rgba(255,255,255,0.08)'}`,
+          border: `1px solid ${isActive ? 'rgba(255, 255, 255, 0.25)' : 'rgba(95, 102, 114, 0.3)'}`,
         padding: '14px 16px',
         width: '100%',
         transition: 'border-color 0.2s ease',
+          boxShadow: isActive ? '0 0 0 1px rgba(255, 255, 255, 0.1)' : 'none',
+          position: 'relative',
+          zIndex: 2,
       }}
     >
+      <div style={{ position: 'relative', zIndex: 2 }}>
       <textarea
         ref={inputRef}
         value={value}
-        onChange={(e) => setValue(e.target.value)}
+          onChange={(e) => setValue(e.target.value)}
         onKeyDown={handleKeyDown}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
@@ -2101,19 +2091,21 @@ function ChatInput({
           border: 'none',
           outline: 'none',
           resize: 'none',
-          color: '#E6EAF1',
+          color: isFocused || value.trim() ? '#FFFFFF' : '#5F6672',
           fontSize: '15px',
           lineHeight: '1.5',
           fontFamily: 'Inter, sans-serif',
           marginBottom: '12px',
+          transition: 'color 0.2s ease',
         }}
       />
       <style>{`
         textarea::placeholder {
-          color: #677C99;
+            color: #5F6672;
         }
       `}</style>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', paddingLeft: '0' }}>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '8px', paddingLeft: '0', position: 'relative', zIndex: 2 }}>
         <div style={{ display: 'flex', gap: '6px', paddingLeft: '0', marginLeft: '0' }}>
           {/* Globe */}
           <IconButton Icon={Globe} size={18} />
@@ -2141,7 +2133,7 @@ function ChatInput({
             width: '40px',
             height: '40px',
             borderRadius: '10px',
-            backgroundColor: value.trim() ? '#5B9EFF' : '#2A3544',
+            backgroundColor: value.trim() ? '#4A5568' : '#2F343B',
             border: 'none',
             cursor: value.trim() && !isLoading ? 'pointer' : 'not-allowed',
             display: 'flex',
@@ -2160,10 +2152,11 @@ function ChatInput({
               animation: 'spin 0.8s linear infinite',
             }} />
           ) : (
-            <ArrowRight size={20} color={value.trim() ? 'white' : '#677C99'} />
+            <ArrowRight size={20} color={value.trim() ? 'white' : '#5F6672'} />
           )}
         </motion.button>
       </div>
     </motion.div>
+    </div>
   );
 }

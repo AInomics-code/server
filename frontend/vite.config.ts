@@ -39,7 +39,7 @@ export default defineConfig(async ({ mode }) => {
       proxy: {
         // Proxy all /api requests to backend to avoid CORS issues
         '/api': {
-          target: env.VITE_API_URL || env.NEXT_PUBLIC_API_URL || 'http://18.219.47.1:8001',
+          target: env.VITE_API_URL || env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path, // Keep the /api prefix

@@ -10,24 +10,16 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Check if user has entered their user ID
-    // JWT token is optional (for development when backend doesn't have auth yet)
+    // Authentication check
+    const token = getAuthToken();
     const userId = localStorage.getItem("userId");
-    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-    
-    if (!userId || !isLoggedIn) {
+    const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
+
+    if (!token || !userId || !isLoggedIn) {
       setLocation("/user-id-entry");
     }
   }, [setLocation]);
 
-  // Only render children if user ID exists
-  // JWT token is optional (for development when backend doesn't have auth yet)
-  const userId = localStorage.getItem("userId");
-  const isLoggedIn = sessionStorage.getItem("isLoggedIn");
-  
-  if (!userId || !isLoggedIn) {
-    return null; // Don't render anything while redirecting
-  }
-
+  // While the redirect happens, just render children; the route will change if unauthenticated
   return <>{children}</>;
 }

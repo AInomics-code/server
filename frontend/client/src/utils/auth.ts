@@ -94,7 +94,6 @@ export function clearUserData(): void {
  */
 export function logout(): void {
   clearUserData();
-  // Redirect to login page
   window.location.href = '/user-id-entry';
 }
 

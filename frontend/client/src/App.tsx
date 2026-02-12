@@ -29,12 +29,17 @@ import "./utils/env-check";
 import "./utils/clearStorage";
 import { SessionManager } from "./components/SessionManager";
 
+// ============================================================================
+// Authentication flag - set to false to require real login
+// ============================================================================
+// TEMPORARY BYPASS - Set to false to require real authentication
+// ============================================================================
 // Componente para manejar la ruta raíz con lógica de autenticación
 function RootRoute() {
   const [, setLocation] = useLocation();
 
   useEffect(() => {
-    // Check authentication
+    // Authentication check
     const userId = localStorage.getItem("userId");
     const isLoggedIn = sessionStorage.getItem("isLoggedIn");
     const jwtToken = localStorage.getItem("jwt_token");
@@ -44,7 +49,6 @@ function RootRoute() {
     if (isAuthenticated) {
       setLocation("/llm-chat");
     } else {
-      // Not authenticated - go to login
       setLocation("/user-id-entry");
     }
   }, [setLocation]);

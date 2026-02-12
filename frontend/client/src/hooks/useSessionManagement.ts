@@ -67,7 +67,7 @@ export function useSessionManagement() {
   };
 
   useEffect(() => {
-    // Check if user is logged in
+    // Authentication check
     const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true' || localStorage.getItem('jwt_token');
     
     if (!isLoggedIn) {

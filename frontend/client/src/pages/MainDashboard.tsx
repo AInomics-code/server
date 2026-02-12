@@ -121,9 +121,9 @@ export default function MainDashboard() {
       const endTime = Date.now();
       const responseTime = endTime - startTime;
 
-      // Save the session_id from the backend for subsequent messages
-      if (response.metadata?.session_id && !sessionId) {
-        setSessionId(response.metadata.session_id);
+      // Save the conversation_id from the backend for subsequent messages
+      if (response.metadata?.conversation_id && !sessionId) {
+        setSessionId(response.metadata.conversation_id);
       }
 
       // Add AI response

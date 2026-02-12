@@ -83,45 +83,47 @@ export function ChatChart({ chartData }: ChatChartProps) {
       chartInstanceRef.current.destroy();
     }
 
-    // Dark theme colors
+    // Dark theme colors - light blue/neonish lines/bars on dark background
+    // Slightly darker blue to better match the page
+    const lightBlue = '#3B82F6';
     const darkThemeColors = {
       bar: {
-        backgroundColor: 'rgba(91, 158, 255, 0.2)',
-        borderColor: '#5B9EFF',
+        backgroundColor: 'rgba(59, 130, 246, 0.2)',
+        borderColor: lightBlue,
       },
       line: {
-        backgroundColor: 'rgba(91, 158, 255, 0.1)',
-        borderColor: '#5B9EFF',
-        pointBackgroundColor: '#5B9EFF',
-        pointBorderColor: '#E6EAF1',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderColor: lightBlue,
+        pointBackgroundColor: lightBlue,
+        pointBorderColor: '#32373F',
       },
       area: {
-        backgroundColor: 'rgba(91, 158, 255, 0.15)',
-        borderColor: '#5B9EFF',
-        pointBackgroundColor: '#5B9EFF',
-        pointBorderColor: '#E6EAF1',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        borderColor: lightBlue,
+        pointBackgroundColor: lightBlue,
+        pointBorderColor: '#32373F',
       },
       scatter: {
-        backgroundColor: 'rgba(91, 158, 255, 0.6)',
-        borderColor: '#5B9EFF',
+        backgroundColor: 'rgba(59, 130, 246, 0.6)',
+        borderColor: lightBlue,
       },
       bubble: {
-        backgroundColor: 'rgba(91, 158, 255, 0.4)',
-        borderColor: '#5B9EFF',
+        backgroundColor: 'rgba(59, 130, 246, 0.4)',
+        borderColor: lightBlue,
       },
       radar: {
-        backgroundColor: 'rgba(91, 158, 255, 0.2)',
-        borderColor: '#5B9EFF',
-        pointBackgroundColor: '#5B9EFF',
-        pointBorderColor: '#E6EAF1',
+        backgroundColor: 'rgba(59, 130, 246, 0.15)',
+        borderColor: lightBlue,
+        pointBackgroundColor: lightBlue,
+        pointBorderColor: '#32373F',
       },
       pie: [
-        'rgba(91, 158, 255, 0.8)',
-        'rgba(74, 222, 128, 0.8)',
-        'rgba(251, 191, 36, 0.8)',
-        'rgba(248, 113, 113, 0.8)',
-        'rgba(139, 92, 246, 0.8)',
-        'rgba(236, 72, 153, 0.8)',
+        'rgba(59, 130, 246, 0.8)',
+        'rgba(59, 130, 246, 0.6)',
+        'rgba(59, 130, 246, 0.4)',
+        'rgba(59, 130, 246, 0.7)',
+        'rgba(59, 130, 246, 0.5)',
+        'rgba(59, 130, 246, 0.9)',
       ],
     };
 
@@ -134,7 +136,7 @@ export function ChatChart({ chartData }: ChatChartProps) {
           ...baseConfig,
           backgroundColor: dataset.backgroundColor || darkThemeColors.bar.backgroundColor,
           borderColor: dataset.borderColor || darkThemeColors.bar.borderColor,
-          borderWidth: dataset.borderWidth || 1,
+          borderWidth: dataset.borderWidth || 2,
         };
       }
 
@@ -143,13 +145,13 @@ export function ChatChart({ chartData }: ChatChartProps) {
           ...baseConfig,
           backgroundColor: dataset.backgroundColor || darkThemeColors.line.backgroundColor,
           borderColor: dataset.borderColor || darkThemeColors.line.borderColor,
-          borderWidth: dataset.borderWidth || 2,
+          borderWidth: dataset.borderWidth || 2.5,
           fill: chartData.type === 'area' ? true : (dataset.fill !== undefined ? dataset.fill : false),
           tension: 0.4,
           pointBackgroundColor: darkThemeColors.line.pointBackgroundColor,
           pointBorderColor: darkThemeColors.line.pointBorderColor,
-          pointRadius: 4,
-          pointHoverRadius: 6,
+          pointRadius: 5,
+          pointHoverRadius: 7,
         };
       }
 
@@ -158,13 +160,13 @@ export function ChatChart({ chartData }: ChatChartProps) {
           ...baseConfig,
           backgroundColor: dataset.backgroundColor || darkThemeColors.area.backgroundColor,
           borderColor: dataset.borderColor || darkThemeColors.area.borderColor,
-          borderWidth: dataset.borderWidth || 2,
+          borderWidth: dataset.borderWidth || 2.5,
           fill: true,
           tension: 0.4,
           pointBackgroundColor: darkThemeColors.area.pointBackgroundColor,
           pointBorderColor: darkThemeColors.area.pointBorderColor,
-          pointRadius: 4,
-          pointHoverRadius: 6,
+          pointRadius: 5,
+          pointHoverRadius: 7,
         };
       }
 
@@ -205,7 +207,7 @@ export function ChatChart({ chartData }: ChatChartProps) {
         return {
           ...baseConfig,
           backgroundColor: dataset.backgroundColor || darkThemeColors.pie,
-          borderColor: '#202A37',
+          borderColor: '#32373F',
           borderWidth: 2,
         };
       }
@@ -229,6 +231,14 @@ export function ChatChart({ chartData }: ChatChartProps) {
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        backgroundColor: '#32373F',
+        animation: {
+          duration: 0, // Disable animations to prevent lag
+        },
+        interaction: {
+          intersect: false,
+          mode: 'index' as const,
+        },
         plugins: {
           legend: {
             display: true,
@@ -270,11 +280,11 @@ export function ChatChart({ chartData }: ChatChartProps) {
         scales: chartData.type !== 'pie' && chartData.type !== 'doughnut' && chartData.type !== 'polarArea' && chartData.type !== 'radar' ? {
           x: {
             grid: {
-              color: 'rgba(255, 255, 255, 0.06)',
+              color: '#5F6672',
               drawBorder: false,
             },
             ticks: {
-              color: '#677C99',
+              color: '#9CA5B5',
               font: {
                 family: '"Inter", sans-serif',
                 size: 11,
@@ -283,11 +293,11 @@ export function ChatChart({ chartData }: ChatChartProps) {
           },
           y: {
             grid: {
-              color: 'rgba(255, 255, 255, 0.06)',
+              color: '#5F6672',
               drawBorder: false,
             },
             ticks: {
-              color: '#677C99',
+              color: '#9CA5B5',
               font: {
                 family: '"Inter", sans-serif',
                 size: 11,
@@ -318,12 +328,25 @@ export function ChatChart({ chartData }: ChatChartProps) {
       marginTop: '20px',
       marginBottom: '16px',
       padding: '20px',
-      backgroundColor: '#1A2332',
+      backgroundColor: '#32373F',
       borderRadius: '12px',
-      border: '1px solid rgba(255, 255, 255, 0.06)',
+      border: '1px solid rgba(95, 102, 114, 0.2)',
+      willChange: 'auto',
+      contain: 'layout style paint',
     }}>
-      <div style={{ position: 'relative', height: '400px', width: '100%' }}>
-        <canvas ref={canvasRef} />
+      <div style={{ 
+        position: 'relative', 
+        height: '400px', 
+        width: '100%',
+        willChange: 'auto',
+        transform: 'translateZ(0)',
+      }}>
+        <canvas 
+          ref={canvasRef}
+          style={{
+            willChange: 'auto',
+          }}
+        />
       </div>
     </div>
   );
