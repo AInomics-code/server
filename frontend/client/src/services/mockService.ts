@@ -77,7 +77,7 @@ function generateBackorderResponse(sessionId: string): QueryResponse {
       }
     ],
     metadata: {
-      session_id: sessionId,
+      conversation_id: sessionId,
       query_type: 'simple',
       latency_ms: 1234.56,
       type: 'simple_agent'
@@ -148,7 +148,7 @@ function generateSalesResponse(sessionId: string): QueryResponse {
       }
     ],
     metadata: {
-      session_id: sessionId,
+      conversation_id: sessionId,
       query_type: 'dynamic',
       latency_ms: 2345.67,
       type: 'dynamic'
@@ -348,7 +348,7 @@ function generateGenericResponse(query: string, sessionId: string): QueryRespons
       }
     ],
     metadata: {
-      session_id: sessionId,
+      conversation_id: sessionId,
       query_type: 'simple',
       latency_ms: 1234.56,
       type: 'simple_agent'

@@ -467,9 +467,9 @@ export function LLMChatPage() {
       
       setIsWaitingForResponse(false);
       
-      // Save the session_id from the backend for subsequent messages
-      if (response.metadata?.session_id && !sessionId) {
-        setSessionId(response.metadata.session_id);
+      // Save the conversation_id from the backend for subsequent messages
+      if (response.metadata?.conversation_id && !sessionId) {
+        setSessionId(response.metadata.conversation_id);
       }
       
       // New API format: response.message is an array of components
@@ -512,9 +512,9 @@ export function LLMChatPage() {
       
       setIsWaitingForResponse(false);
       
-      // Save the session_id from the backend for subsequent messages
-      if (response.metadata?.session_id && !sessionId) {
-        setSessionId(response.metadata.session_id);
+      // Save the conversation_id from the backend for subsequent messages
+      if (response.metadata?.conversation_id && !sessionId) {
+        setSessionId(response.metadata.conversation_id);
       }
       
       // New API format: response.message is an array of components

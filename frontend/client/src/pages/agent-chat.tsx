@@ -71,9 +71,9 @@ export default function AgentChat() {
         sessionId || ''
       );
 
-      // Save the session_id from the backend for subsequent messages
-      if (response.metadata?.session_id && !sessionId) {
-        setSessionId(response.metadata.session_id);
+      // Save the conversation_id from the backend for subsequent messages
+      if (response.metadata?.conversation_id && !sessionId) {
+        setSessionId(response.metadata.conversation_id);
       }
 
       const assistantMessage: Message = {
@@ -191,7 +191,7 @@ export default function AgentChat() {
             </div>
           </div>
           <Badge variant="outline" className="text-xs">
-            Session: {sessionId.substring(0, 15)}...
+            Session: {sessionId ? sessionId.substring(0, 15) + '...' : 'New chat'}
           </Badge>
         </div>
       </div>

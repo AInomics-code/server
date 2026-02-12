@@ -89,7 +89,7 @@ export type Component =
 export interface QueryResponse {
     message: Component[];
     metadata: {
-        session_id: string;
+        conversation_id: string;
         query_type: 'simple' | 'dynamic';
         latency_ms: number;
         type: 'simple_agent' | 'dynamic';
