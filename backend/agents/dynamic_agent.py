@@ -4,6 +4,7 @@ from langgraph.prebuilt import create_react_agent
 from config import get_settings
 from prompts import load_prompt_with_date
 from typing import Dict, Any, List
+import json
 
 settings = get_settings()
 
@@ -80,7 +81,7 @@ class DynamicAgent:
             create_commercial_goals_performance_tool,
             create_commercial_goals_by_month_tool,
             create_sales_health_tool,
-            create_backorder_health_tool
+            create_inventory_health_tool
         )
         from agents.tools.advanced_sql_tools import (
             create_client_sales_analysis_tool,
@@ -140,7 +141,7 @@ class DynamicAgent:
         
         # Health monitoring tools - NEW
         self.tools.append(create_sales_health_tool(self.queries_executed))
-        self.tools.append(create_backorder_health_tool(self.queries_executed))
+        self.tools.append(create_inventory_health_tool(self.queries_executed))
         
         # Dynamic SQL and vector search
         self.tools.append(create_sql_tool(self.queries_executed))
@@ -220,12 +221,31 @@ class DynamicAgent:
             # Find where the agent's reasoning starts
             start_idx = len(messages)  # Start after all input messages
             
+            # Track files from tool responses
+            extracted_files = []
+            
             for msg in final_messages[start_idx:]:
                 if hasattr(msg, 'tool_calls') and msg.tool_calls:
                     for tool_call in msg.tool_calls:
                         print(f"\nInvoking: `{tool_call['name']}` with `{tool_call['args']}`")
                 elif hasattr(msg, 'content') and isinstance(msg.content, str):
                     if msg.type == 'tool':
+                        # Check if tool response contains file information
+                        try:
+                            tool_response = json.loads(msg.content)
+                            if isinstance(tool_response, dict) and 'file' in tool_response:
+                                file_info = tool_response['file']
+                                if file_info.get('url') and file_info.get('filename'):
+                                    extracted_files.append({
+                                        "type": "file",
+                                        "data": {
+                                            "url": file_info['url'],
+                                            "filename": file_info['filename']
+                                        }
+                                    })
+                                    print(f"[FILE EXTRACTED] {file_info['filename']}")
+                        except (json.JSONDecodeError, TypeError):
+                            pass
                         print(f"\n{msg.content}\n")
                     elif msg.type == 'ai' and msg.content:
                         print(f"{msg.content}\n")
@@ -237,6 +257,11 @@ class DynamicAgent:
             
             # Parse and validate structured response
             message_components = self._parse_structured_response(answer)
+            
+            # Add extracted files as separate components at the end
+            if extracted_files:
+                message_components.extend(extracted_files)
+                print(f"[FILES] Added {len(extracted_files)} file(s) to response")
             
             print("\n> Finished chain.\n")
             print(f"{'='*70}")
@@ -288,7 +313,7 @@ class DynamicAgent:
             valid_types = {
                 "text", "area_chart", "bar_chart", "bubble_chart", 
                 "pie_chart", "line_chart", "polar_chart", "mixed_chart", 
-                "radar_chart", "scatter_chart"
+                "radar_chart", "scatter_chart", "file"
             }
             
             validated_components = []

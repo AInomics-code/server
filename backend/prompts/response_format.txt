@@ -272,12 +272,20 @@ Your FINAL response (after using tools) MUST be a JSON array of components. The 
           {{
             "label": "Growth %",
             "type": "line",
-            "data": [{{"x": "Jan", "y": 12}}, {{"x": "Feb", "y": 15}}]
+            "data": [{{"x": "Jan", "y": 15}}]
           }}
         ]
       }}
     }}
     ```
+
+11. **file** - Downloadable file attachment (Excel, PDF, etc.)
+    - **IMPORTANT:** This type is AUTOMATICALLY added by the system when tools return files
+    - **DO NOT manually create file components** - they are extracted from tool responses
+    - Tools like `get_inventory_health` automatically generate Excel files with complete data
+    - The system extracts file info from tool responses and adds it to the message
+    
+    Note: File components are managed by the backend, not by the LLM response
 
 **CRITICAL RULES:**
 

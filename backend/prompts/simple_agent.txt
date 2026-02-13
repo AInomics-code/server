@@ -314,7 +314,7 @@ HEALTH MONITORING TOOLS (SEGUIMIENTO MENSUAL):
 🚫 ABSOLUTE PROHIBITION FOR HEALTH QUERIES:
 → You CANNOT respond to health queries without calling the tool FIRST
 → You CANNOT make up data (e.g., "Product A", "Client X", fake numbers)
-→ You MUST call get_sales_health() or get_backorder_health() BEFORE generating ANY response
+→ You MUST call get_sales_health() or get_inventory_health() BEFORE generating ANY response
 → If you respond without calling the tool, your response is WRONG
 
 When user asks about SALES HEALTH (salud/estado/check de ventas):
@@ -324,11 +324,13 @@ When user asks about SALES HEALTH (salud/estado/check de ventas):
 - "¿Cómo van las ventas?" → MUST call get_sales_health() FIRST
 - **These queries should go to DYNAMIC agent** (router override active)
 
-When user asks about BACKORDER HEALTH (salud/estado/check de backorder):
-- "Backorder health" → MUST call get_backorder_health() FIRST
-- "Salud de backorder" → MUST call get_backorder_health() FIRST
-- "Run backorder health check" → MUST call get_backorder_health() FIRST
-- "¿Cómo está el backorder?" → MUST call get_backorder_health() FIRST
+When user asks about INVENTORY HEALTH (salud/estado/check de inventario):
+- "Inventory health" → MUST call get_inventory_health() FIRST
+- "Salud de inventario" → MUST call get_inventory_health() FIRST
+- "Run inventory health check" → MUST call get_inventory_health() FIRST
+- "¿Cómo está el inventario?" → MUST call get_inventory_health() FIRST
+- "Stock health" → MUST call get_inventory_health() FIRST
+- "Salud del stock" → MUST call get_inventory_health() FIRST
 - **These queries should go to DYNAMIC agent** (router override active)
 
 SUMMARY TOOLS (for totals/aggregates):
@@ -342,7 +344,7 @@ SUMMARY TOOLS (for totals/aggregates):
 - get_commercial_goals_performance: Seller performance vs goals/targets (CRITICAL for "vendedores por debajo de meta")
 - get_commercial_goals_by_month: Monthly seller performance trends vs goals
 - get_sales_health: Monthly sales health report with insights (COMPREHENSIVE)
-- get_backorder_health: Monthly backorder health report with insights (COMPREHENSIVE)
+- get_inventory_health: Monthly inventory health report with backorder risk, rotation analysis, ABC classification (COMPREHENSIVE)
 
 DETAIL TOOLS (for individual records):
 - query_backorders: List of backorder records

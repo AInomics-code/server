@@ -3,6 +3,10 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, date
 import asyncpg
 import json
+import boto3
+import pandas as pd
+import uuid
+from io import BytesIO
 from config import get_settings
 
 settings = get_settings()
@@ -27,6 +31,80 @@ async def get_client_db_pool():
         min_size=1,
         max_size=5
     )
+
+def upload_excel_to_s3_and_get_url(df: pd.DataFrame, filename: str, expiration: int = 604800) -> Dict[str, str]:
+    """
+    Upload DataFrame as Excel to S3 and return presigned URL
+    
+    Args:
+        df: DataFrame to upload
+        filename: Suggested filename (without extension)
+        expiration: URL expiration time in seconds (default: 7 days = 604800s)
+    
+    Returns:
+        Dict with 'url' and 'filename' keys
+    """
+    try:
+        # Generate unique filename to avoid conflicts
+        unique_id = str(uuid.uuid4())[:8]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_filename = f"{filename}_{timestamp}_{unique_id}.xlsx"
+        
+        # Convert DataFrame to Excel in memory
+        excel_buffer = BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            df.to_excel(writer, index=False, sheet_name='Data')
+        
+        # Get size before seeking (buffer is closed after 'with' but data is still accessible)
+        excel_data = excel_buffer.getvalue()
+        file_size = len(excel_data)
+        
+        # Create new buffer with the data for upload
+        upload_buffer = BytesIO(excel_data)
+        
+        # Initialize S3 client
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+            region_name=settings.aws_region
+        )
+        
+        # Upload to S3
+        bucket_name = 'ainomics-temp'
+        s3_client.upload_fileobj(
+            upload_buffer,
+            bucket_name,
+            full_filename,
+            ExtraArgs={'ContentType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+        )
+        
+        # Generate presigned URL (valid for 7 days)
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': full_filename},
+            ExpiresIn=expiration
+        )
+        
+        print(f"[S3 UPLOAD] ✅ File uploaded successfully: {full_filename}")
+        print(f"[S3 UPLOAD]    Bucket: {bucket_name}")
+        print(f"[S3 UPLOAD]    Size: {file_size:,} bytes ({file_size / 1024:.2f} KB)")
+        
+        return {
+            'url': presigned_url,
+            'filename': full_filename
+        }
+    except Exception as e:
+        print(f"[S3 UPLOAD] ❌ ERROR uploading to S3: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return error info instead of raising to allow partial response
+        return {
+            'url': None,
+            'filename': None,
+            'error': str(e)
+        }
+
 
 async def get_vector_db_pool():
     """Get connection pool to main_db (vector database)"""
@@ -4242,21 +4320,21 @@ def create_sales_health_tool(queries_executed: List[Dict]):
     return get_sales_health
 
 
-def create_backorder_health_tool(queries_executed: List[Dict]):
-    """Tool for monthly backorder health monitoring"""
+def create_inventory_health_tool(queries_executed: List[Dict]):
+    """Tool for monthly inventory health monitoring"""
     
     @tool
-    async def get_backorder_health(
+    async def get_inventory_health(
         year: Optional[int] = None,
         month: Optional[int] = None,
         location_id: Optional[str] = None
     ) -> str:
         """
-        MANDATORY TOOL for backorder health/check/status queries. ALWAYS call this tool when user mentions "backorder" + "health"/"check"/"status"/"report".
+        MANDATORY TOOL for inventory health/check/status queries. ALWAYS call this tool when user mentions "inventory" + "health"/"check"/"status"/"report".
         
         ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
-        - User asks "Backorder health" (ENGLISH) → Respond in ENGLISH (all titles, text, follow-up questions)
-        - User asks "Salud de backorder" (SPANISH) → Respond in SPANISH (all titles, text, follow-up questions)
+        - User asks "Inventory health" (ENGLISH) → Respond in ENGLISH (all titles, text, follow-up questions)
+        - User asks "Salud de inventario" (SPANISH) → Respond in SPANISH (all titles, text, follow-up questions)
         - NEVER mix languages in your response
         
         ⚠️ CRITICAL: You MUST call this tool FIRST before responding.
@@ -4264,36 +4342,43 @@ def create_backorder_health_tool(queries_executed: List[Dict]):
         - DO NOT invent data or make up product/client names
         - ONLY use the real data returned by this tool
         
-        REQUIRED for: "backorder health", "salud de backorder", "backorder check", "estado de backorder", 
-        "run backorder health check", "how is backorder", "cómo está el backorder", "backorder report", "backorder dashboard"
+        REQUIRED for: "inventory health", "salud de inventario", "inventory check", "estado de inventario", 
+        "run inventory health check", "how is inventory", "cómo está el inventario", "inventory report", "inventory dashboard",
+        "stock health", "salud del stock"
         
         Args:
             year: Optional year (defaults to most recent)
             month: Optional month 1-12 (defaults to most recent)
             location_id: Optional location filter
         
-        Returns: JSON with monthly backorder metrics, comparisons, top products/clients, aging analysis, alerts
+        Returns: JSON with inventory metrics, backorder risk analysis, rotation analysis, ABC classification, top products, alerts
+        
+        IMPORTANT - File field:
+        - The response ALWAYS includes a "file" field with complete data in Excel format
+        - Structure: {"url": "presigned_s3_url", "filename": "suggested_filename.xlsx"}
+        - URL valid for 7 days
+        - YOU MUST ALWAYS mention this file in your response and provide download instructions
         """
         from datetime import datetime, timedelta
         from dateutil.relativedelta import relativedelta
         
         pool = await get_client_db_pool()
         
-        # First, find the most recent month with backorder data
+        # First, find the most recent month with transaction data
         try:
             async with pool.acquire() as conn:
                 latest_data = await conn.fetchrow("""
                     SELECT 
                         EXTRACT(YEAR FROM MAX(date))::int as latest_year,
                         EXTRACT(MONTH FROM MAX(date))::int as latest_month
-                    FROM backorder
-                    WHERE backorder_qty > 0
+                    FROM transactions
+                    WHERE transaction_type = 'SALE'
                 """)
                 
                 if not latest_data or not latest_data['latest_year']:
                     return json.dumps({
                         "has_data": False,
-                        "message": "No backorder data available in the database."
+                        "message": "No transaction data available in the database."
                     })
                 
                 # Use provided year/month or default to latest available
@@ -4314,155 +4399,167 @@ def create_backorder_health_tool(queries_executed: List[Dict]):
         prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
         prev_month_end = month_start - timedelta(days=1)
         
-        # Same month last year
-        try:
-            same_month_last_year_start = datetime(target_year - 1, target_month, 1).date()
-            if target_month == 12:
-                same_month_last_year_end = datetime(target_year, 1, 1).date() - timedelta(days=1)
-            else:
-                same_month_last_year_end = datetime(target_year - 1, target_month + 1, 1).date() - timedelta(days=1)
-        except:
-            same_month_last_year_start = None
-            same_month_last_year_end = None
         
-        # Build location filter if provided
+        # Build location filter if provided (use parameterized query)
         location_filter = ""
+        location_param_num = 3
         if location_id:
-            location_filter = f"AND b.location_id = '{location_id}'"
+            location_filter = f"AND inv.location_id = ${location_param_num}"
         
-        # Query 1: Current month backorder
-        sql_current_month = f"""
-            SELECT 
-                COALESCE(SUM(b.backorder_qty), 0) as total_qty,
-                COALESCE(SUM(b.total), 0) as total_value,
-                COUNT(DISTINCT b.product_id) as unique_products,
-                COUNT(DISTINCT b.client_id) as unique_clients,
-                COUNT(*) as order_count,
-                AVG(b.days_delayed) as avg_days_delayed
-            FROM backorder b
-            WHERE b.date >= $1
-              AND b.date <= $2
-              AND b.backorder_qty > 0
-              {location_filter}
-        """
-        
-        # Query 2: Previous month backorder
-        sql_prev_month = f"""
-            SELECT 
-                COALESCE(SUM(b.backorder_qty), 0) as total_qty,
-                COALESCE(SUM(b.total), 0) as total_value
-            FROM backorder b
-            WHERE b.date >= $1
-              AND b.date <= $2
-              AND b.backorder_qty > 0
-              {location_filter}
-        """
-        
-        # Query 3: Same month last year
-        sql_same_month_last_year = f"""
-            SELECT 
-                COALESCE(SUM(b.backorder_qty), 0) as total_qty,
-                COALESCE(SUM(b.total), 0) as total_value
-            FROM backorder b
-            WHERE b.date >= $1
-              AND b.date <= $2
-              AND b.backorder_qty > 0
-              {location_filter}
-        """
-        
-        # Query 4: Top products this month
-        sql_top_products = f"""
-            SELECT 
-                p.product_name,
-                p.brand,
-                SUM(b.backorder_qty) as quantity,
-                SUM(b.total) as value,
-                AVG(b.days_delayed) as avg_days_delayed
-            FROM backorder b
-            JOIN products p ON b.product_id = p.product_id
-            WHERE b.date >= $1
-              AND b.date <= $2
-              AND b.backorder_qty > 0
-              {location_filter}
-            GROUP BY p.product_name, p.brand
-            ORDER BY quantity DESC
-            LIMIT 5
-        """
-        
-        # Query 5: Top clients this month
-        sql_top_clients = f"""
-            SELECT 
-                c.client_name,
-                c.client_group,
-                SUM(b.backorder_qty) as quantity,
-                SUM(b.total) as value,
-                COUNT(*) as orders
-            FROM backorder b
-            JOIN clients c ON b.client_id = c.client_id
-            WHERE b.date >= $1
-              AND b.date <= $2
-              AND b.backorder_qty > 0
-              {location_filter}
-            GROUP BY c.client_name, c.client_group
-            ORDER BY value DESC
-            LIMIT 5
-        """
-        
-        # Query 6: Aging analysis
-        sql_aging = f"""
-            SELECT 
-                age_bucket,
-                order_count,
-                quantity,
-                value
-            FROM (
-                SELECT 
-                    CASE 
-                        WHEN b.days_delayed <= 7 THEN '0-7 days'
-                        WHEN b.days_delayed <= 14 THEN '8-14 days'
-                        WHEN b.days_delayed <= 30 THEN '15-30 days'
-                        ELSE '30+ days'
-                    END as age_bucket,
-                    CASE 
-                        WHEN b.days_delayed <= 7 THEN 1
-                        WHEN b.days_delayed <= 14 THEN 2
-                        WHEN b.days_delayed <= 30 THEN 3
-                        ELSE 4
-                    END as sort_order,
-                    COUNT(*) as order_count,
-                    SUM(b.backorder_qty) as quantity,
-                    SUM(b.total) as value
-                FROM backorder b
-                WHERE b.date >= $1
-                  AND b.date <= $2
-                  AND b.backorder_qty > 0
-                  {location_filter}
-                GROUP BY 
-                    CASE 
-                        WHEN b.days_delayed <= 7 THEN '0-7 days'
-                        WHEN b.days_delayed <= 14 THEN '8-14 days'
-                        WHEN b.days_delayed <= 30 THEN '15-30 days'
-                        ELSE '30+ days'
-                    END,
-                    CASE 
-                        WHEN b.days_delayed <= 7 THEN 1
-                        WHEN b.days_delayed <= 14 THEN 2
-                        WHEN b.days_delayed <= 30 THEN 3
-                        ELSE 4
-                    END
-            ) sub
-            ORDER BY sort_order
+        # Main inventory health query based on provided SQL
+        sql_inventory_health = f"""
+            WITH month_sales AS (
+                SELECT
+                    location_id, product_id, AVG(unit_price) AS avg_unit_price,
+                    SUM(quantity) AS sum_quantity, AVG(unit_cost) AS avg_unit_cost,
+                    SUM(gross_amount) AS sum_gross_amount, SUM(net_amount) AS sum_net_amount
+                FROM transactions
+                WHERE date BETWEEN $1 AND $2
+                GROUP BY location_id, product_id
+            ),
+            previous_month AS (
+                SELECT
+                    location_id, product_id,
+                    SUM(quantity) AS prev_quantity,
+                    SUM(net_amount) AS prev_net_amount
+                FROM transactions
+                WHERE date BETWEEN '{prev_month_start}' AND '{prev_month_end}'
+                GROUP BY location_id, product_id
+            ),
+            daily_sales AS (
+                SELECT
+                    location_id, 
+                    product_id, 
+                    date, 
+                    SUM(quantity) AS daily_quantity
+                FROM transactions
+                WHERE date BETWEEN $1 AND $2
+                GROUP BY location_id, product_id, date
+            ),
+            avg_daily_demand AS (
+                SELECT
+                    location_id,
+                    product_id,
+                    AVG(daily_quantity) AS avg_daily_sales,
+                    COUNT(DISTINCT date) AS days_with_sales
+                FROM daily_sales
+                GROUP BY location_id, product_id
+            ),
+            base_data AS (
+                SELECT
+                    inv.location_id AS bodega,
+                    inv.location_name AS nombre_bodega,
+                    inv.city AS ciudad,
+                    ms.product_id AS producto,
+                    p.product_name AS nombre_producto,
+                    p.category AS categoria,
+                    p.subcategory AS subcategoria,
+                    p.brand AS marca,
+                    p.state AS producto_activo,
+                    inv.inventory_qty AS cantidad_disponible,
+                    ROUND(inv.inventory_qty * ms.avg_unit_cost, 2) AS valor_inventario_costo,
+                    ROUND(inv.inventory_qty * ms.avg_unit_price, 2) AS valor_inventario_venta,
+                    CASE
+                        WHEN add.avg_daily_sales > 0 
+                        THEN ROUND(inv.inventory_qty / add.avg_daily_sales, 1)
+                        ELSE NULL
+                    END AS dias_inventario_restante,
+                    CASE
+                        WHEN add.avg_daily_sales IS NULL OR add.avg_daily_sales = 0 THEN 'SIN_VENTAS'
+                        WHEN add.avg_daily_sales > 0 AND inv.inventory_qty / add.avg_daily_sales < 7 THEN 'CRITICO'
+                        WHEN add.avg_daily_sales > 0 AND inv.inventory_qty / add.avg_daily_sales < 15 THEN 'BAJO'
+                        WHEN add.avg_daily_sales > 0 AND inv.inventory_qty / add.avg_daily_sales < 30 THEN 'NORMAL'
+                        WHEN add.avg_daily_sales > 0 THEN 'ALTO'
+                        ELSE 'SIN_DATOS'
+                    END AS riesgo_backorder,
+                    ROUND(add.avg_daily_sales * 7, 0) AS stock_seguridad,
+                    ROUND(add.avg_daily_sales * 12, 0) AS punto_reorden,
+                    CASE
+                        WHEN add.avg_daily_sales > 0 AND inv.inventory_qty <= ROUND(add.avg_daily_sales * 12, 0)
+                        THEN 'SI'
+                        WHEN add.avg_daily_sales > 0
+                        THEN 'NO'
+                        ELSE NULL
+                    END AS requiere_reorden,
+                    COALESCE(bo.cantidad_backorder, 0) AS cantidad_en_backorder,
+                    ms.sum_quantity AS cantidad_total_vendida,
+                    ms.sum_gross_amount AS total_ventas_brutas,
+                    ms.sum_net_amount AS total_ventas_netas,
+                    ROUND(add.avg_daily_sales, 2) AS promedio_ventas_diarias,
+                    add.days_with_sales AS dias_con_venta,
+                    pm.prev_quantity AS ventas_mes_anterior,
+                    pm.prev_net_amount AS ventas_netas_mes_anterior,
+                    ROUND(((ms.sum_quantity - COALESCE(pm.prev_quantity, 0)) / 
+                           NULLIF(pm.prev_quantity, 0)) * 100, 2) AS variacion_cantidad_pct,
+                    ROUND(((ms.sum_net_amount - COALESCE(pm.prev_net_amount, 0)) / 
+                           NULLIF(pm.prev_net_amount, 0)) * 100, 2) AS variacion_ventas_pct,
+                    ROUND(ms.avg_unit_price, 2) AS promedio_precio_unitario,
+                    ROUND(ms.avg_unit_cost, 2) AS promedio_costo,
+                    ROUND(ms.sum_net_amount - (ms.avg_unit_cost * ms.sum_quantity), 2) AS utilidad_total,
+                    ROUND(((ms.avg_unit_price - ms.avg_unit_cost) / 
+                           NULLIF(ms.avg_unit_price, 0)) * 100, 2) AS margen_porcentual,
+                    CASE
+                        WHEN inv.inventory_qty > 0
+                        THEN ROUND(ms.sum_quantity / NULLIF(inv.inventory_qty, 0), 2)
+                        ELSE NULL
+                    END AS rotacion_inventario,
+                    CASE
+                        WHEN add.days_with_sales < 5 AND inv.inventory_qty > 0 THEN 'BAJA_ROTACION'
+                        WHEN add.avg_daily_sales > 0 AND add.avg_daily_sales < 1 AND inv.inventory_qty > 50 THEN 'POSIBLE_OBSOLETO'
+                        WHEN add.avg_daily_sales > 0 THEN 'NORMAL'
+                        ELSE 'SIN_VENTAS_RECIENTES'
+                    END AS alerta_rotacion
+                FROM inventory inv
+                INNER JOIN month_sales ms
+                    ON ms.location_id = inv.location_id AND ms.product_id = inv.product_id
+                LEFT JOIN avg_daily_demand add
+                    ON add.location_id = inv.location_id AND add.product_id = inv.product_id
+                LEFT JOIN previous_month pm
+                    ON pm.location_id = ms.location_id AND pm.product_id = ms.product_id
+                LEFT JOIN products p
+                    ON p.product_id = ms.product_id
+                LEFT JOIN (
+                    SELECT 
+                        product_id,
+                        location_id,
+                        SUM(backorder_qty) AS cantidad_backorder
+                    FROM backorder
+                    GROUP BY product_id, location_id
+                ) bo
+                    ON bo.product_id = ms.product_id AND bo.location_id = ms.location_id
+                WHERE 1=1
+                    {location_filter}
+            )
+            SELECT
+                *,
+                SUM(total_ventas_netas) OVER (
+                    ORDER BY total_ventas_netas DESC
+                    ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                ) / NULLIF(SUM(total_ventas_netas) OVER (), 0) * 100 AS pct_acumulado_ventas,
+                CASE
+                    WHEN SUM(total_ventas_netas) OVER (
+                        ORDER BY total_ventas_netas DESC
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                    ) / NULLIF(SUM(total_ventas_netas) OVER (), 0) <= 0.80 THEN 'A'
+                    WHEN SUM(total_ventas_netas) OVER (
+                        ORDER BY total_ventas_netas DESC
+                        ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+                    ) / NULLIF(SUM(total_ventas_netas) OVER (), 0) <= 0.95 THEN 'B'
+                    ELSE 'C'
+                END AS clasificacion_abc
+            FROM base_data
+            ORDER BY total_ventas_netas DESC
         """
         
         queries_executed.append({
             "type": "sql_health_check",
             "database": "client_data",
-            "query": "backorder_health_monthly",
+            "query": "inventory_health_monthly",
             "source": "simple_agent_tool"
         })
         
         print(f"\n{'='*70}")
-        print(f"[BACKORDER HEALTH] Executing for {target_year}-{target_month:02d}")
+        print(f"[INVENTORY HEALTH] Executing for {target_year}-{target_month:02d}")
         print(f"  Month range: {month_start} to {month_end}")
         print(f"  Prev month: {prev_month_start} to {prev_month_end}")
         print(f"  Location filter: {location_filter if location_filter else 'None'}")
@@ -4470,168 +4567,291 @@ def create_backorder_health_tool(queries_executed: List[Dict]):
         
         try:
             async with pool.acquire() as conn:
-                # Execute all queries with their respective date ranges
-                print("[BACKORDER HEALTH] Executing queries...")
-                current_month_data = await conn.fetchrow(sql_current_month, month_start, month_end)
-                print(f"  ✓ Current month data: {current_month_data['order_count'] if current_month_data else 0} orders")
+                # Execute main inventory health query
+                print("[INVENTORY HEALTH] Executing comprehensive inventory analysis...")
                 
-                prev_month_data = await conn.fetchrow(sql_prev_month, prev_month_start, prev_month_end)
-                print(f"  ✓ Prev month data: fetched")
+                if location_id:
+                    inventory_data = await conn.fetch(sql_inventory_health, month_start, month_end, location_id)
+                else:
+                    inventory_data = await conn.fetch(sql_inventory_health, month_start, month_end)
                 
-                same_month_last_year_data = None
-                if same_month_last_year_start:
-                    same_month_last_year_data = await conn.fetchrow(sql_same_month_last_year, same_month_last_year_start, same_month_last_year_end)
-                    print(f"  ✓ Same month last year: fetched")
+                print(f"  ✓ Retrieved {len(inventory_data)} inventory records")
                 
-                top_products = await conn.fetch(sql_top_products, month_start, month_end)
-                print(f"  ✓ Top products: {len(top_products)} found")
-                
-                top_clients = await conn.fetch(sql_top_clients, month_start, month_end)
-                print(f"  ✓ Top clients: {len(top_clients)} found")
-                
-                aging_data = await conn.fetch(sql_aging, month_start, month_end)
-                print(f"  ✓ Aging data: {len(aging_data)} buckets")
-                
-                # Calculate totals
-                current_month_qty = float(current_month_data['total_qty']) if current_month_data['total_qty'] else 0.0
-                current_month_value = float(current_month_data['total_value']) if current_month_data['total_value'] else 0.0
-                prev_month_qty = float(prev_month_data['total_qty']) if prev_month_data['total_qty'] else 0.0
-                prev_month_value = float(prev_month_data['total_value']) if prev_month_data['total_value'] else 0.0
-                same_month_last_year_qty = float(same_month_last_year_data['total_qty']) if same_month_last_year_data and same_month_last_year_data['total_qty'] else 0.0
-                same_month_last_year_value = float(same_month_last_year_data['total_value']) if same_month_last_year_data and same_month_last_year_data['total_value'] else 0.0
-                
-                # CRITICAL: Check if there's any data for this month
-                has_data = current_month_data and (current_month_data['order_count'] is not None and int(current_month_data['order_count']) > 0)
-                
-                if not has_data:
+                # Check if there's any data
+                if not inventory_data or len(inventory_data) == 0:
                     return json.dumps({
                         "year": target_year,
                         "month": target_month,
                         "has_data": False,
-                        "message": f"No backorder data available for {target_year}-{target_month:02d}."
+                        "message": f"No inventory data available for {target_year}-{target_month:02d}."
                     })
                 
-                # Calculate comparisons
-                vs_prev_month_qty_pct = ((current_month_qty - prev_month_qty) / prev_month_qty * 100) if prev_month_qty > 0 else 0
-                vs_prev_month_value_pct = ((current_month_value - prev_month_value) / prev_month_value * 100) if prev_month_value > 0 else 0
-                vs_same_month_last_year_qty_pct = ((current_month_qty - same_month_last_year_qty) / same_month_last_year_qty * 100) if same_month_last_year_qty > 0 else 0
-                vs_same_month_last_year_value_pct = ((current_month_value - same_month_last_year_value) / same_month_last_year_value * 100) if same_month_last_year_value > 0 else 0
+                # Calculate summary metrics
+                total_inventory_value_cost = sum(float(row['valor_inventario_costo'] or 0) for row in inventory_data)
+                total_inventory_value_sale = sum(float(row['valor_inventario_venta'] or 0) for row in inventory_data)
+                total_inventory_qty = sum(float(row['cantidad_disponible'] or 0) for row in inventory_data)
+                total_sales_value = sum(float(row['total_ventas_netas'] or 0) for row in inventory_data)
+                total_profit = sum(float(row['utilidad_total'] or 0) for row in inventory_data)
                 
-                # Generate alerts (data only, no text)
+                # Count products by backorder risk
+                risk_distribution = {
+                    'CRITICO': 0,
+                    'BAJO': 0,
+                    'NORMAL': 0,
+                    'ALTO': 0,
+                    'SIN_VENTAS': 0,
+                    'SIN_DATOS': 0
+                }
+                
+                for row in inventory_data:
+                    risk = row['riesgo_backorder']
+                    if risk in risk_distribution:
+                        risk_distribution[risk] += 1
+                
+                # Count products requiring reorder
+                products_requiring_reorder = sum(1 for row in inventory_data if row['requiere_reorden'] == 'SI')
+                
+                # Count by rotation alert
+                rotation_alerts = {
+                    'BAJA_ROTACION': 0,
+                    'POSIBLE_OBSOLETO': 0,
+                    'NORMAL': 0,
+                    'SIN_VENTAS_RECIENTES': 0
+                }
+                
+                for row in inventory_data:
+                    alert = row['alerta_rotacion']
+                    if alert in rotation_alerts:
+                        rotation_alerts[alert] += 1
+                
+                # Count by ABC classification
+                abc_distribution = {'A': 0, 'B': 0, 'C': 0}
+                for row in inventory_data:
+                    classification = row['clasificacion_abc']
+                    if classification in abc_distribution:
+                        abc_distribution[classification] += 1
+                
+                # Get top 10 products by sales
+                top_products_by_sales = sorted(
+                    inventory_data,
+                    key=lambda x: float(x['total_ventas_netas'] or 0),
+                    reverse=True
+                )[:10]
+                
+                # Get top 10 critical products (riesgo CRITICO)
+                critical_products = [row for row in inventory_data if row['riesgo_backorder'] == 'CRITICO']
+                critical_products = sorted(
+                    critical_products,
+                    key=lambda x: float(x['dias_inventario_restante'] or 999),
+                    reverse=False
+                )[:10]
+                
+                # Get products with low rotation issues
+                low_rotation_products = [row for row in inventory_data if row['alerta_rotacion'] in ['BAJA_ROTACION', 'POSIBLE_OBSOLETO']]
+                low_rotation_products = sorted(
+                    low_rotation_products,
+                    key=lambda x: float(x['valor_inventario_costo'] or 0),
+                    reverse=True
+                )[:10]
+                
+                # Generate alerts
                 alerts = []
-                avg_days = float(current_month_data['avg_days_delayed']) if current_month_data['avg_days_delayed'] else 0
                 
-                if vs_prev_month_qty_pct > 15:
-                    alerts.append({
-                        "type": "warning",
-                        "metric": "backorder_increase_vs_prev_month",
-                        "value": vs_prev_month_qty_pct
-                    })
-                elif vs_prev_month_qty_pct < -15:
-                    alerts.append({
-                        "type": "success",
-                        "metric": "backorder_decrease_vs_prev_month",
-                        "value": abs(vs_prev_month_qty_pct)
-                    })
-                
-                if avg_days > 14:
+                if risk_distribution['CRITICO'] > 0:
                     alerts.append({
                         "type": "critical",
-                        "metric": "high_avg_delay",
-                        "value": avg_days
+                        "metric": "critical_backorder_risk",
+                        "value": risk_distribution['CRITICO'],
+                        "description": "Products with critical backorder risk (< 7 days inventory)"
                     })
                 
-                if current_month_data['unique_products'] and int(current_month_data['unique_products']) > 50:
+                if risk_distribution['BAJO'] > 10:
                     alerts.append({
                         "type": "warning",
-                        "metric": "high_product_variety",
-                        "value": int(current_month_data['unique_products'])
+                        "metric": "low_inventory_risk",
+                        "value": risk_distribution['BAJO'],
+                        "description": "Products with low inventory (< 15 days)"
                     })
                 
-                if vs_same_month_last_year_qty_pct > 20 and same_month_last_year_qty > 0:
+                if products_requiring_reorder > 0:
                     alerts.append({
                         "type": "warning",
-                        "metric": "backorder_increase_vs_last_year",
-                        "value": vs_same_month_last_year_qty_pct
+                        "metric": "reorder_required",
+                        "value": products_requiring_reorder,
+                        "description": "Products requiring reorder"
                     })
                 
-                # Build result
+                if rotation_alerts['POSIBLE_OBSOLETO'] > 0:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "possible_obsolete_inventory",
+                        "value": rotation_alerts['POSIBLE_OBSOLETO'],
+                        "description": "Products with possible obsolete inventory"
+                    })
+                
+                if rotation_alerts['BAJA_ROTACION'] > 5:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "low_rotation_products",
+                        "value": rotation_alerts['BAJA_ROTACION'],
+                        "description": "Products with low rotation"
+                    })
+                
+                avg_profit_margin = (total_profit / total_sales_value * 100) if total_sales_value > 0 else 0
+                if avg_profit_margin < 15:
+                    alerts.append({
+                        "type": "warning",
+                        "metric": "low_profit_margin",
+                        "value": round(avg_profit_margin, 2),
+                        "description": "Overall profit margin below 15%"
+                    })
+                
+                # Build comprehensive result
                 result = {
                     "year": target_year,
                     "month": target_month,
                     "period": f"{target_year}-{target_month:02d}",
                     "has_data": True,
                     "summary": {
-                        "total_quantity": current_month_qty,
-                        "total_value": current_month_value,
-                        "unique_products": int(current_month_data['unique_products']) if current_month_data['unique_products'] else 0,
-                        "unique_clients": int(current_month_data['unique_clients']) if current_month_data['unique_clients'] else 0,
-                        "order_count": int(current_month_data['order_count']) if current_month_data['order_count'] else 0,
-                        "avg_days_delayed": avg_days
+                        "total_products": len(inventory_data),
+                        "total_inventory_qty": round(total_inventory_qty, 2),
+                        "total_inventory_value_cost": round(total_inventory_value_cost, 2),
+                        "total_inventory_value_sale": round(total_inventory_value_sale, 2),
+                        "total_sales_value": round(total_sales_value, 2),
+                        "total_profit": round(total_profit, 2),
+                        "avg_profit_margin_pct": round(avg_profit_margin, 2),
+                        "products_requiring_reorder": products_requiring_reorder
                     },
-                    "comparisons": {
-                        "vs_prev_month": {
-                            "quantity": prev_month_qty,
-                            "value": prev_month_value,
-                            "qty_change_pct": vs_prev_month_qty_pct,
-                            "value_change_pct": vs_prev_month_value_pct,
-                            "trend": "up" if vs_prev_month_qty_pct > 0 else "down" if vs_prev_month_qty_pct < 0 else "flat"
-                        },
-                        "vs_same_month_last_year": {
-                            "quantity": same_month_last_year_qty,
-                            "value": same_month_last_year_value,
-                            "qty_change_pct": vs_same_month_last_year_qty_pct,
-                            "value_change_pct": vs_same_month_last_year_value_pct,
-                            "trend": "up" if vs_same_month_last_year_qty_pct > 0 else "down" if vs_same_month_last_year_qty_pct < 0 else "flat"
-                        } if same_month_last_year_qty > 0 else None
-                    },
-                    "top_products": [
+                    "risk_distribution": risk_distribution,
+                    "rotation_alerts": rotation_alerts,
+                    "abc_classification": abc_distribution,
+                    "top_products_by_sales": [
                         {
-                            "product_name": row['product_name'],
-                            "brand": row['brand'],
-                            "quantity": float(row['quantity']) if row['quantity'] else 0.0,
-                            "value": float(row['value']) if row['value'] else 0.0,
-                            "avg_days_delayed": float(row['avg_days_delayed']) if row['avg_days_delayed'] else 0.0,
-                            "pct_of_total": (float(row['quantity']) / current_month_qty * 100) if current_month_qty > 0 and row['quantity'] else 0
+                            "location_id": row['bodega'],
+                            "location_name": row['nombre_bodega'],
+                            "product_id": row['producto'],
+                            "product_name": row['nombre_producto'],
+                            "brand": row['marca'],
+                            "category": row['categoria'],
+                            "inventory_qty": float(row['cantidad_disponible'] or 0),
+                            "inventory_days_remaining": float(row['dias_inventario_restante'] or 0),
+                            "backorder_risk": row['riesgo_backorder'],
+                            "sales_value": float(row['total_ventas_netas'] or 0),
+                            "profit": float(row['utilidad_total'] or 0),
+                            "profit_margin_pct": float(row['margen_porcentual'] or 0),
+                            "abc_class": row['clasificacion_abc']
                         }
-                        for row in top_products
+                        for row in top_products_by_sales
                     ],
-                    "top_clients": [
+                    "critical_products": [
                         {
-                            "client_name": row['client_name'],
-                            "client_group": row['client_group'],
-                            "quantity": float(row['quantity']) if row['quantity'] else 0.0,
-                            "value": float(row['value']) if row['value'] else 0.0,
-                            "orders": int(row['orders']) if row['orders'] else 0,
-                            "pct_of_total": (float(row['value']) / current_month_value * 100) if current_month_value > 0 and row['value'] else 0
+                            "location_id": row['bodega'],
+                            "location_name": row['nombre_bodega'],
+                            "product_id": row['producto'],
+                            "product_name": row['nombre_producto'],
+                            "brand": row['marca'],
+                            "inventory_qty": float(row['cantidad_disponible'] or 0),
+                            "days_remaining": float(row['dias_inventario_restante'] or 0),
+                            "avg_daily_sales": float(row['promedio_ventas_diarias'] or 0),
+                            "safety_stock": float(row['stock_seguridad'] or 0),
+                            "reorder_point": float(row['punto_reorden'] or 0),
+                            "requires_reorder": row['requiere_reorden'],
+                            "backorder_qty": float(row['cantidad_en_backorder'] or 0)
                         }
-                        for row in top_clients
+                        for row in critical_products
                     ],
-                    "aging_analysis": [
+                    "low_rotation_products": [
                         {
-                            "age_bucket": row['age_bucket'],
-                            "order_count": int(row['order_count']) if row['order_count'] else 0,
-                            "quantity": float(row['quantity']) if row['quantity'] else 0.0,
-                            "value": float(row['value']) if row['value'] else 0.0,
-                            "pct_of_total": (float(row['value']) / current_month_value * 100) if current_month_value > 0 and row['value'] else 0
+                            "location_id": row['bodega'],
+                            "location_name": row['nombre_bodega'],
+                            "product_id": row['producto'],
+                            "product_name": row['nombre_producto'],
+                            "brand": row['marca'],
+                            "inventory_qty": float(row['cantidad_disponible'] or 0),
+                            "inventory_value_cost": float(row['valor_inventario_costo'] or 0),
+                            "days_with_sales": int(row['dias_con_venta'] or 0),
+                            "avg_daily_sales": float(row['promedio_ventas_diarias'] or 0),
+                            "rotation_alert": row['alerta_rotacion'],
+                            "rotation_rate": float(row['rotacion_inventario'] or 0)
                         }
-                        for row in aging_data
+                        for row in low_rotation_products
                     ],
                     "alerts": alerts
                 }
                 
+                # Generate Excel with FULL data
+                print("[INVENTORY HEALTH] Generating Excel file with complete data...")
+                df_data = []
+                for row in inventory_data:
+                    df_data.append({
+                        'Bodega': row['bodega'],
+                        'Nombre Bodega': row['nombre_bodega'],
+                        'Ciudad': row['ciudad'],
+                        'Producto ID': row['producto'],
+                        'Nombre Producto': row['nombre_producto'],
+                        'Categoria': row['categoria'],
+                        'Subcategoria': row['subcategoria'],
+                        'Marca': row['marca'],
+                        'Producto Activo': row['producto_activo'],
+                        'Cantidad Disponible': float(row['cantidad_disponible'] or 0),
+                        'Valor Inventario (Costo)': float(row['valor_inventario_costo'] or 0),
+                        'Valor Inventario (Venta)': float(row['valor_inventario_venta'] or 0),
+                        'Dias Inventario Restante': float(row['dias_inventario_restante'] or 0) if row['dias_inventario_restante'] else None,
+                        'Riesgo Backorder': row['riesgo_backorder'],
+                        'Stock Seguridad': float(row['stock_seguridad'] or 0) if row['stock_seguridad'] else None,
+                        'Punto Reorden': float(row['punto_reorden'] or 0) if row['punto_reorden'] else None,
+                        'Requiere Reorden': row['requiere_reorden'],
+                        'Cantidad en Backorder': float(row['cantidad_en_backorder'] or 0),
+                        'Cantidad Total Vendida': float(row['cantidad_total_vendida'] or 0),
+                        'Total Ventas Brutas': float(row['total_ventas_brutas'] or 0),
+                        'Total Ventas Netas': float(row['total_ventas_netas'] or 0),
+                        'Promedio Ventas Diarias': float(row['promedio_ventas_diarias'] or 0) if row['promedio_ventas_diarias'] else None,
+                        'Dias con Venta': int(row['dias_con_venta'] or 0) if row['dias_con_venta'] else None,
+                        'Ventas Mes Anterior': float(row['ventas_mes_anterior'] or 0) if row['ventas_mes_anterior'] else None,
+                        'Ventas Netas Mes Anterior': float(row['ventas_netas_mes_anterior'] or 0) if row['ventas_netas_mes_anterior'] else None,
+                        'Variacion Cantidad %': float(row['variacion_cantidad_pct'] or 0) if row['variacion_cantidad_pct'] else None,
+                        'Variacion Ventas %': float(row['variacion_ventas_pct'] or 0) if row['variacion_ventas_pct'] else None,
+                        'Promedio Precio Unitario': float(row['promedio_precio_unitario'] or 0),
+                        'Promedio Costo': float(row['promedio_costo'] or 0),
+                        'Utilidad Total': float(row['utilidad_total'] or 0),
+                        'Margen Porcentual': float(row['margen_porcentual'] or 0) if row['margen_porcentual'] else None,
+                        'Rotacion Inventario': float(row['rotacion_inventario'] or 0) if row['rotacion_inventario'] else None,
+                        'Alerta Rotacion': row['alerta_rotacion'],
+                        '% Acumulado Ventas': float(row['pct_acumulado_ventas'] or 0),
+                        'Clasificacion ABC': row['clasificacion_abc']
+                    })
+                
+                df = pd.DataFrame(df_data)
+                
+                # Upload to S3 and get presigned URL
+                filename_base = f"inventory_health_{target_year}_{target_month:02d}"
+                if location_id:
+                    filename_base += f"_loc_{location_id}"
+                
+                file_info = upload_excel_to_s3_and_get_url(df, filename_base)
+                
+                # Add file info to result
+                result["file"] = file_info
+                
                 result_json = json.dumps(result)
-                print(f"\n[BACKORDER HEALTH] ✅ Success - returning {len(result_json)} chars")
+                print(f"\n[INVENTORY HEALTH] ✅ Success - returning {len(result_json)} chars")
                 print(f"  Period: {result['period']}, Has data: {result['has_data']}")
-                print(f"  Total value: ${result['summary']['total_value']:,.2f}\n")
+                print(f"  Total products: {result['summary']['total_products']}")
+                print(f"  Total inventory value (cost): ${result['summary']['total_inventory_value_cost']:,.2f}")
+                print(f"  Critical products: {len(critical_products)}")
+                if file_info.get('url'):
+                    print(f"  Excel file: {file_info['filename']}\n")
+                else:
+                    print(f"  Excel file: ERROR - {file_info.get('error', 'Unknown error')}\n")
                 return result_json
         except Exception as e:
-            print(f"\n[BACKORDER HEALTH] ❌ ERROR: {e}")
+            print(f"\n[INVENTORY HEALTH] ❌ ERROR: {e}")
             import traceback
             traceback.print_exc()
             raise
         finally:
             await pool.close()
     
-    return get_backorder_health
+    return get_inventory_health
+
 
