@@ -4,7 +4,9 @@ import { GlobalSidebar } from '@/components/GlobalSidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
 import { GetStartedCards } from '@/components/GetStartedCards';
+import ExperimentalReportView from '@/components/ExperimentalReportView';
 import { t, getCurrentLanguage, setCurrentLanguage, type Language } from '@/config/i18n';
+import { USE_EXPERIMENTAL_REPORT_LAYOUT } from '@/config/features';
 import { 
   agentService, 
   Component,
@@ -34,6 +36,8 @@ import {
   FileText,
   Package,
   ClipboardCheck,
+  Network,
+  Layers,
 } from 'lucide-react';
 import { SiSap, SiSalesforce, SiSnowflake } from 'react-icons/si';
 import { FaFileExcel } from 'react-icons/fa';
@@ -247,7 +251,7 @@ interface Message {
 }
 
 // ========== ICONS ==========
-const VortaStarIcon = ({ size = 64, color = '#5B9EFF' }: { size?: number; color?: string }) => (
+export const VortaStarIcon = ({ size = 64, color = '#5B9EFF' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
     <path 
       d="M32 8L32 56" 
@@ -354,6 +358,7 @@ export function LLMChatPage() {
   // ========== STATE MANAGEMENT ==========
   const [language, setLanguage] = useState<Language>(getCurrentLanguage());
   const [showGetStarted, setShowGetStarted] = useState(true);
+  const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   
   // Chat mode state
   const [chatMode, setChatMode] = useState(false);
@@ -423,24 +428,7 @@ export function LLMChatPage() {
     };
   }, [conversationHistory, chatMode]);
 
-  // Auto-scroll to latest message when new messages arrive
-  useEffect(() => {
-    if (conversationHistory.length > 0) {
-      // Small delay to ensure DOM is updated
-      setTimeout(() => {
-        scrollToLatestMessageTop();
-      }, 150);
-    }
-  }, [conversationHistory.length]);
-
-  // Also scroll when response finishes loading
-  useEffect(() => {
-    if (!isWaitingForResponse && conversationHistory.length > 0) {
-      setTimeout(() => {
-        scrollToLatestMessageTop();
-      }, 200);
-    }
-  }, [isWaitingForResponse, conversationHistory.length]);
+  // Auto-scroll disabled - user can stay at their current scroll position
 
   // ========== HANDLERS ==========
   
@@ -1349,20 +1337,22 @@ export function LLMChatPage() {
   // Card data
   const cards = [
     {
-      id: 'backorder-health',
-      icon: Activity,
-      title: t('cards.backorder.title', language),
+      id: 'inventory-health',
+      icon: Package,
+      title: 'Inventory Health',
       description: t('cards.backorder.description', language),
-      workflow: 'backorder_health',
-      question: t('cards.backorder.title', language),
+      workflow: 'inventory_health',
+      question: 'Inventory Health',
+      healthScore: 84,
     },
     {
       id: 'sales-health',
-      icon: BarChart3,
-      title: t('cards.sales.title', language),
+      icon: Network,
+      title: 'Sales Health',
       description: t('cards.sales.description', language),
       workflow: 'sales_health',
-      question: t('cards.sales.title', language),
+      question: 'Sales Health',
+      healthScore: 62,
     },
   ];
 
@@ -1484,8 +1474,7 @@ export function LLMChatPage() {
                 height: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
-                background: '#1F2227',
-                overflow: 'hidden',
+                overflow: 'visible',
               }}
             >
               {/* Chat Header */}
@@ -1567,27 +1556,23 @@ export function LLMChatPage() {
                 style={{
                   flex: 1,
                   overflowY: 'auto',
+                  overflowX: 'visible',
                   position: 'relative',
-                  padding: '0 24px 16px 24px',
+                  padding: '0 0 120px 0',
+                  backgroundColor: 'transparent',
+                  clipPath: 'none',
+                  width: '100%',
                 }}
               >
-                {/* Subtle fade overlay at bottom edge - positioned at bottom of viewport */}
-                <div style={{
-                  position: 'sticky',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '60px',
-                  background: 'linear-gradient(to top, rgba(31, 34, 39, 0.9) 0%, rgba(31, 34, 39, 0.4) 50%, rgba(31, 34, 39, 0) 100%)',
-                  pointerEvents: 'none',
-                  zIndex: 5,
-                }} />
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'center',
                     position: 'relative',
                     minHeight: '100%',
+                    overflow: 'visible',
+                    width: '100%',
+                    padding: '0',
                   }}
                 >
                   {/* Centered conversation column matching chat input width */}
@@ -1597,6 +1582,8 @@ export function LLMChatPage() {
                     display: 'flex',
                     flexDirection: 'column',
                     margin: '0 auto',
+                    overflow: 'visible',
+                    padding: '0 24px',
                   }}>
                 {/* Render conversation history */}
                 {conversationHistory.map((message, idx) => (
@@ -1608,44 +1595,72 @@ export function LLMChatPage() {
                     transition={{ duration: 0.3 }}
                     style={{
                       display: 'flex',
-                      alignItems: message.role === 'user' ? 'center' : 'flex-start',
-                      gap: '16px',
+                      flexDirection: message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? 'column' : 'row',
+                      justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
+                      alignItems: message.role === 'user' ? 'center' : (message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? 'flex-start' : 'flex-start'),
+                      gap: message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? '8px' : '16px',
                       marginBottom: '32px',
                     }}
                   >
-                    {/* Avatar */}
+                    {/* Avatar - for user, show on right; for assistant, show on left */}
+                    {message.role === 'user' ? (
+                      <>
+                        {/* Message Content for user - on left */}
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: '42px', maxWidth: '100%' }}>
+                          <div style={{ 
+                            fontSize: '15px', 
+                            color: '#E2E6F0', 
+                            lineHeight: 1.6,
+                            textAlign: 'right',
+                          }}>
+                            {message.content}
+                          </div>
+                        </div>
+                        {/* U icon on right */}
                     <div style={{
                       width: '42px',
                       height: '42px',
-                      backgroundColor: message.role === 'user' ? '#9CA5B5' : '#32373F',
+                          backgroundColor: '#9CA5B5',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      {message.role === 'user' ? (
-                        <span style={{ fontSize: '20px', fontWeight: 600, color: '#1F2227' }}>U</span>
-                      ) : (
-                        <VortaStarIcon size={24} color="#5ca2f9" />
-                      )}
+                          <span style={{ fontSize: '20px', fontWeight: 600, color: '#1F2227' }}>U</span>
                     </div>
-                    
-                        {/* Message Content - centered within column */}
-                        <div style={{ flex: 1, display: 'flex', alignItems: message.role === 'user' ? 'center' : 'flex-start', minHeight: '42px', maxWidth: '100%' }}>
-                      {message.role === 'user' ? (
-                        <div style={{ 
-                          fontSize: '15px', 
-                          color: '#E2E6F0', 
-                          lineHeight: 1.6,
-                        }}>
-                          {message.content}
-                        </div>
-                      ) : (
-                        <div style={{ width: '100%', paddingTop: '8px' }}>
-                          {/* Render components if available, otherwise fall back to content */}
+                      </>
+                    ) : (
+                      <>
+                        {message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? (
+                          // Experimental layout: Everything on one line - Icon, 84, pie, status, title
+                          <ExperimentalReportView 
+                            components={message.components} 
+                            conversationHistory={conversationHistory}
+                            messageIdx={idx}
+                            onModalStateChange={setIsProductModalOpen}
+                          />
+                        ) : (
+                          <>
+                            {/* Aragon icon on left for assistant */}
+                            <div style={{
+                              width: '42px',
+                              height: '42px',
+                              backgroundColor: '#32373F',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              <VortaStarIcon size={24} color="#5ca2f9" />
+                            </div>
+                            {/* Message Content for assistant */}
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', minHeight: '42px', maxWidth: '100%', width: 'auto' }}>
+                              <div style={{ width: '100%', paddingTop: '8px' }}>
+                                {/* Component-based format - render each component (normal view) */}
                           {message.components && message.components.length > 0 ? (
-                            // New component-based format - render each component
+                                  // New component-based format - render each component (normal view)
                             message.components.map((component, compIdx) => {
                               if (component.type === 'text') {
                                 // Render text component using markdown renderer
@@ -1677,23 +1692,24 @@ export function LLMChatPage() {
                             <ChatChart chartData={message.chartData} />
                           )}
                           
-                          {/* Action Buttons */}
+                                {/* Action Buttons - only for assistant messages */}
+                                {message.role === 'assistant' && (
                           <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'center' }}>
                             <button
-                              onClick={() => {
-                                // Extract all text content from message
-                                let fullContent = '';
-                                if (message.components && message.components.length > 0) {
-                                  // Get all text components and join them
-                                  fullContent = message.components
-                                    .filter(c => c.type === 'text')
-                                    .map(c => c.data as string)
-                                    .join('\n\n');
-                                } else if (message.content) {
-                                  fullContent = message.content;
-                                }
-                                handleCopyMessage(fullContent, idx);
-                              }}
+                                      onClick={() => {
+                                        // Extract all text content from message
+                                        let fullContent = '';
+                                        if (message.components && message.components.length > 0) {
+                                          // Get all text components and join them
+                                          fullContent = message.components
+                                            .filter(c => c.type === 'text')
+                                            .map(c => c.data as string)
+                                            .join('\n\n');
+                                        } else if (message.content) {
+                                          fullContent = message.content;
+                                        }
+                                        handleCopyMessage(fullContent, idx);
+                                      }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1702,33 +1718,33 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: copiedMessageIdx === idx ? '#4ADE80' : '#9CA5B5',
+                                        color: copiedMessageIdx === idx ? '#4ADE80' : '#9CA5B5',
                                 fontSize: '12px',
                                 fontWeight: 500,
                               }}
                             >
                               {copiedMessageIdx === idx ? (
-                                <><Check size={14} /><span>{t('chat.copied', language)}</span></>
+                                        <><Check size={14} /><span>{t('chat.copied', language)}</span></>
                               ) : (
-                                <><Copy size={14} /><span>{t('chat.copy', language)}</span></>
+                                        <><Copy size={14} /><span>{t('chat.copy', language)}</span></>
                               )}
                             </button>
                             
                             <button
-                              onClick={() => {
-                                // Extract all text content from message
-                                let fullContent = '';
-                                if (message.components && message.components.length > 0) {
-                                  // Get all text components and join them
-                                  fullContent = message.components
-                                    .filter(c => c.type === 'text')
-                                    .map(c => c.data as string)
-                                    .join('\n\n');
-                                } else if (message.content) {
-                                  fullContent = message.content;
-                                }
-                                handleDownloadText(fullContent, message.components);
-                              }}
+                                      onClick={() => {
+                                        // Extract all text content from message
+                                        let fullContent = '';
+                                        if (message.components && message.components.length > 0) {
+                                          // Get all text components and join them
+                                          fullContent = message.components
+                                            .filter(c => c.type === 'text')
+                                            .map(c => c.data as string)
+                                            .join('\n\n');
+                                        } else if (message.content) {
+                                          fullContent = message.content;
+                                        }
+                                        handleDownloadText(fullContent, message.components);
+                                      }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1737,13 +1753,13 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#9CA5B5',
+                                        color: '#9CA5B5',
                                 fontSize: '12px',
                                 fontWeight: 500,
                               }}
                             >
                               <Download size={14} />
-                              <span>{t('chat.download', language)}</span>
+                                      <span>{t('chat.download', language)}</span>
                             </button>
                             
                             <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
@@ -1758,12 +1774,12 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#9CA5B5',
+                                        color: '#9CA5B5',
                                 fontSize: '12px',
                                 transition: 'color 0.2s',
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#BFD4FF'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#BFD4FF'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
                             >
                               <ThumbsUp size={16} />
                             </button>
@@ -1778,19 +1794,23 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#9CA5B5',
+                                        color: '#9CA5B5',
                                 fontSize: '12px',
                                 transition: 'color 0.2s',
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#FCA5A5'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#FCA5A5'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
                             >
                               <ThumbsDown size={16} />
                             </button>
-                          </div>
                         </div>
                       )}
                     </div>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
                   </motion.div>
                 ))}
                 
@@ -1810,14 +1830,19 @@ export function LLMChatPage() {
                     {/* Static square container + subtle neon-like brightness pulse on inner Vorta star */}
                     <div
                       style={{
-                      width: '42px',
-                      height: '42px',
+                      width: '48px',
+                      height: '48px',
+                      minWidth: '48px',
+                      maxWidth: '48px',
+                      minHeight: '48px',
+                      maxHeight: '48px',
                       backgroundColor: '#32373F',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
+                      boxSizing: 'border-box',
                       }}
                     >
                       <motion.div
@@ -1828,8 +1853,8 @@ export function LLMChatPage() {
                         }}
                       >
                         <svg
-                          width={24}
-                          height={24}
+                          width={28}
+                          height={28}
                           viewBox="0 0 64 64"
                           fill="none"
                         >
@@ -1913,36 +1938,26 @@ export function LLMChatPage() {
             
             {/* Chat Input */}
             <div style={{
+              width: '100%',
+              maxWidth: '900px',
+              margin: '0 auto',
               padding: '0 24px 24px 24px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              position: 'relative',
+              zIndex: 2,
+              filter: isProductModalOpen ? 'blur(4px)' : 'none',
+              transition: 'filter 0.2s ease',
+              pointerEvents: isProductModalOpen ? 'none' : 'auto',
             }}>
-              <div style={{
-                width: '100%',
-                maxWidth: '900px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                position: 'relative',
-                zIndex: 2,
-              }}>
-                <ChatInput
-                  onSend={handleQuestionSubmit}
-                  isLoading={isWaitingForResponse}
-                  placeholder={
-                    conversationHistory.length > 0
-                      ? t('chat.input.placeholder.followup', language)
-                      : t('chat.input.placeholder', language)
-                  }
-                  language={language}
-                  onLanguageChange={handleLanguageChange}
-                />
-              </div>
+              <ChatInput
+                onSend={handleQuestionSubmit}
+                isLoading={isWaitingForResponse}
+                placeholder={
+                  conversationHistory.length > 0
+                    ? t('chat.input.placeholder.followup', language)
+                    : t('chat.input.placeholder', language)
+                }
+                language={language}
+                onLanguageChange={handleLanguageChange}
+              />
             </div>
           </motion.div>
           )}
@@ -2055,9 +2070,7 @@ function ChatInput({
   
   return (
     <div
-      className={`composer-shell ${isActive ? 'composer-active' : ''}`}
       style={{
-        position: 'relative',
         width: '100%',
       }}
     >
