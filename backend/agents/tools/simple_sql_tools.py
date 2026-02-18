@@ -106,6 +106,65 @@ def upload_excel_to_s3_and_get_url(df: pd.DataFrame, filename: str, expiration: 
         }
 
 
+def upload_excel_multi_sheet_to_s3_and_get_url(
+    sheets: List[tuple],
+    filename: str,
+    expiration: int = 604800
+) -> Dict[str, str]:
+    """
+    Upload multiple DataFrames as Excel sheets to S3 and return presigned URL.
+
+    Args:
+        sheets: List of (sheet_name, pd.DataFrame) tuples. Sheet names are truncated to 31 chars for Excel.
+        filename: Suggested filename (without extension)
+        expiration: URL expiration time in seconds (default: 7 days = 604800s)
+
+    Returns:
+        Dict with 'url' and 'filename' keys, or 'error' on failure.
+    """
+    try:
+        unique_id = str(uuid.uuid4())[:8]
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        full_filename = f"{filename}_{timestamp}_{unique_id}.xlsx"
+
+        excel_buffer = BytesIO()
+        with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
+            for sheet_name, df in sheets:
+                safe_name = (sheet_name[:31]) if len(sheet_name) > 31 else sheet_name
+                # header=True ensures column names appear in the first row of the Excel
+                df.to_excel(writer, index=False, sheet_name=safe_name, header=True)
+
+        excel_data = excel_buffer.getvalue()
+        file_size = len(excel_data)
+        upload_buffer = BytesIO(excel_data)
+
+        s3_client = boto3.client(
+            's3',
+            aws_access_key_id=settings.aws_access_key_id,
+            aws_secret_access_key=settings.aws_secret_access_key,
+            region_name=settings.aws_region
+        )
+        bucket_name = 'ainomics-temp'
+        s3_client.upload_fileobj(
+            upload_buffer,
+            bucket_name,
+            full_filename,
+            ExtraArgs={'ContentType': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}
+        )
+        presigned_url = s3_client.generate_presigned_url(
+            'get_object',
+            Params={'Bucket': bucket_name, 'Key': full_filename},
+            ExpiresIn=expiration
+        )
+        print(f"[S3 UPLOAD] ✅ Multi-sheet file uploaded: {full_filename} ({len(sheets)} sheets, {file_size:,} bytes)")
+        return {'url': presigned_url, 'filename': full_filename}
+    except Exception as e:
+        print(f"[S3 UPLOAD] ❌ ERROR uploading multi-sheet to S3: {e}")
+        import traceback
+        traceback.print_exc()
+        return {'url': None, 'filename': None, 'error': str(e)}
+
+
 async def get_vector_db_pool():
     """Get connection pool to main_db (vector database)"""
     return await asyncpg.create_pool(
@@ -4015,308 +4074,534 @@ def create_commercial_goals_by_month_tool(queries_executed: List[Dict]):
 
 
 def create_sales_health_tool(queries_executed: List[Dict]):
-    """Tool for monthly sales health monitoring (MTD - Month To Date)"""
-    
+    """Tool for monthly sales health monitoring with 5 report sheets (Vendedores, Clientes RFM, Productos, Backorder por Cliente, Grupos)."""
+
+    # SQL queries use: $1,$2 = month_start, month_end; $3,$4 = prev_month_start, prev_month_end; $5,$6 = prev_year_month_start, prev_year_month_end
+    SQL_VENDEDORES = """
+    with vendedor_ventas as (
+        select
+            seller_code as codigo_vendedor,
+            seller_name as nombre_vendedor,
+            seller_province_name as provincia_vendedor,
+            date_trunc('month', date) as mes,
+            sum(net_amount) as total_vendido,
+            sum(quantity) as unidades_vendidas,
+            count(distinct client_id) as clientes_activos,
+            count(*) as num_ordenes,
+            avg(net_amount) as ticket_promedio,
+            count(distinct product_id) as productos_unicos_vendidos,
+            avg(case when unit_price > 0 then ((unit_price - unit_cost) / nullif(unit_price, 0)) * 100 else 0 end) as margen_promedio,
+            sum(net_amount - (unit_cost * quantity)) as utilidad_total,
+            avg(case when line_discount > 0 and gross_amount > 0 then (line_discount / nullif(gross_amount, 0)) * 100 else 0 end) as pct_descuento_promedio
+        from transactions
+        where date between $1 and $2 and transaction_type = 'SALE'
+        group by seller_code, seller_name, seller_province_name, date_trunc('month', date)
+    ),
+    nuevos_clientes as (
+        select seller_code, count(distinct client_id) as clientes_nuevos
+        from (
+            select seller_code, client_id, min(date) as primera_compra
+            from transactions
+            where transaction_type = 'SALE'
+            group by seller_code, client_id
+        ) primeras
+        where primera_compra between $1 and $2
+        group by seller_code
+    ),
+    metas_vendedor as (
+        select commercial_id as codigo_vendedor, date_trunc('month', date) as mes, sum(goal) as meta_mensual
+        from commercial_goals
+        where date between $1 and $2
+        group by commercial_id, date_trunc('month', date)
+    ),
+    ventas_mes_anterior as (
+        select seller_code, sum(net_amount) as ventas_mes_anterior
+        from transactions
+        where date between $3 and $4 and transaction_type = 'SALE'
+        group by seller_code
+    ),
+    ventas_anio_anterior as (
+        select seller_code, sum(net_amount) as ventas_anio_anterior
+        from transactions
+        where date between $5 and $6 and transaction_type = 'SALE'
+        group by seller_code
+    )
+    select
+        v.codigo_vendedor, v.nombre_vendedor, v.provincia_vendedor,
+        round(coalesce(m.meta_mensual, 0)::numeric, 2) as meta_mensual,
+        round(v.total_vendido::numeric, 2) as total_vendido,
+        round((v.total_vendido / nullif(m.meta_mensual, 0) * 100)::numeric, 2) as pct_cumplimiento,
+        round((v.total_vendido - coalesce(m.meta_mensual, 0))::numeric, 2) as brecha_vs_meta,
+        rank() over (order by v.total_vendido desc) as ranking,
+        v.clientes_activos, coalesce(nc.clientes_nuevos, 0) as clientes_nuevos,
+        v.num_ordenes, round(v.ticket_promedio::numeric, 2) as ticket_promedio,
+        v.productos_unicos_vendidos, round(v.margen_promedio::numeric, 2) as margen_promedio,
+        round(v.utilidad_total::numeric, 2) as utilidad_total,
+        round(v.pct_descuento_promedio::numeric, 2) as pct_descuento_promedio,
+        round(coalesce(vma.ventas_mes_anterior, 0)::numeric, 2) as ventas_mes_anterior,
+        round(((v.total_vendido - coalesce(vma.ventas_mes_anterior, 0)) / nullif(vma.ventas_mes_anterior, 0) * 100)::numeric, 2) as variacion_vs_mes_anterior,
+        round(coalesce(vaa.ventas_anio_anterior, 0)::numeric, 2) as ventas_anio_anterior,
+        round(((v.total_vendido - coalesce(vaa.ventas_anio_anterior, 0)) / nullif(vaa.ventas_anio_anterior, 0) * 100)::numeric, 2) as variacion_vs_anio_anterior,
+        case
+            when m.meta_mensual is null or m.meta_mensual = 0 then 'Sin Meta'
+            when (v.total_vendido / nullif(m.meta_mensual, 0)) >= 1.10 then 'Excelente'
+            when (v.total_vendido / nullif(m.meta_mensual, 0)) >= 0.90 then 'Bueno'
+            when (v.total_vendido / nullif(m.meta_mensual, 0)) >= 0.70 then 'Regular'
+            else 'Bajo'
+        end as performance_level
+    from vendedor_ventas v
+    left join metas_vendedor m on m.codigo_vendedor = v.codigo_vendedor and m.mes = v.mes
+    left join nuevos_clientes nc on nc.seller_code = v.codigo_vendedor
+    left join ventas_mes_anterior vma on vma.seller_code = v.codigo_vendedor
+    left join ventas_anio_anterior vaa on vaa.seller_code = v.codigo_vendedor
+    order by ranking
+    """
+    SQL_CLIENTES_RFM = """
+    with clientes_relevantes as (
+        select distinct client_id from transactions
+        where transaction_type = 'SALE'
+          and (date >= current_date - interval '12 months' or client_id in (select client_id from accounts_receivable))
+    ),
+    cliente_rfm as (
+        select t.client_id, max(t.date) as ultima_compra, current_date - max(t.date) as dias_desde_ultima_compra,
+               count(*) as total_compras, sum(t.net_amount) as valor_total_historico, avg(t.net_amount) as ticket_promedio, min(t.date) as primera_compra
+        from transactions t
+        join clientes_relevantes cr on cr.client_id = t.client_id
+        where t.transaction_type = 'SALE'
+        group by t.client_id
+    ),
+    ventas_periodo_actual as (
+        select client_id, count(*) as compras_mes_actual, sum(net_amount) as valor_mes_actual
+        from transactions
+        where date between $1 and $2 and transaction_type = 'SALE'
+        group by client_id
+    ),
+    ventas_mes_anterior as (
+        select client_id, sum(net_amount) as valor_mes_anterior
+        from transactions
+        where date between $3 and $4 and transaction_type = 'SALE'
+        group by client_id
+    ),
+    cartera_cliente as (
+        select client_id, sum(balance) as saldo_pendiente, count(*) as documentos_pendientes,
+               avg(days_overdue) as dias_mora_promedio, max(aging_bucket) as aging_maximo
+        from accounts_receivable
+        group by client_id
+    ),
+    scores_rfm as (
+        select client_id, dias_desde_ultima_compra, total_compras, valor_total_historico,
+               ntile(5) over (order by dias_desde_ultima_compra asc) as score_r,
+               ntile(5) over (order by total_compras desc) as score_f,
+               ntile(5) over (order by valor_total_historico desc) as score_m
+        from cliente_rfm
+    )
+    select c.client_id as codigo_cliente, cl.client_name as nombre_cliente, cl.client_group as grupo_cliente, cl.state as provincia, cl.city as ciudad,
+           rfm.dias_desde_ultima_compra, rfm.total_compras, round(rfm.valor_total_historico::numeric, 2) as valor_total_historico,
+           rfm.score_r, rfm.score_f, rfm.score_m, (rfm.score_r::text || rfm.score_f::text || rfm.score_m::text) as score_rfm_combinado,
+           case when rfm.score_r >= 4 and rfm.score_f >= 4 and rfm.score_m >= 4 then 'VIP'
+                when rfm.score_r >= 3 and rfm.score_f >= 3 and rfm.score_m >= 3 then 'Leal'
+                when rfm.score_r <= 2 and rfm.score_f >= 3 and rfm.score_m >= 3 then 'En Riesgo'
+                when rfm.score_r <= 2 and rfm.score_f <= 2 then 'Dormido'
+                when rfm.dias_desde_ultima_compra > 180 then 'Perdido'
+                when rfm.total_compras <= 2 then 'Nuevo' else 'Potencial' end as segmento_rfm,
+           case when sum(rfm.valor_total_historico) over (order by rfm.valor_total_historico desc) / nullif(sum(rfm.valor_total_historico) over (), 0) <= 0.80 then 'A'
+                when sum(rfm.valor_total_historico) over (order by rfm.valor_total_historico desc) / nullif(sum(rfm.valor_total_historico) over (), 0) <= 0.95 then 'B' else 'C' end as clasificacion_abc,
+           c.primera_compra, c.ultima_compra,
+           case when rfm.total_compras > 1 then round(((c.ultima_compra - c.primera_compra)::numeric / nullif(rfm.total_compras - 1, 0)), 0) else null end as dias_promedio_entre_compras,
+           round(c.ticket_promedio::numeric, 2) as ticket_promedio,
+           coalesce(vpa.compras_mes_actual, 0) as compras_mes_actual, round(coalesce(vpa.valor_mes_actual, 0)::numeric, 2) as valor_mes_actual,
+           round(((coalesce(vpa.valor_mes_actual, 0) - coalesce(vma.valor_mes_anterior, 0)) / nullif(vma.valor_mes_anterior, 0) * 100)::numeric, 2) as variacion_vs_mes_anterior,
+           round(coalesce(cc.saldo_pendiente, 0)::numeric, 2) as saldo_pendiente, round(coalesce(cc.dias_mora_promedio, 0)::numeric, 0) as dias_mora_promedio,
+           coalesce(cc.aging_maximo, 'SIN_DEUDA') as aging_maximo, coalesce(cc.documentos_pendientes, 0) as documentos_pendientes,
+           case when coalesce(vma.valor_mes_anterior, 0) > 0 and vpa.valor_mes_actual > vma.valor_mes_anterior then 'Creciente'
+                when coalesce(vma.valor_mes_anterior, 0) > 0 and vpa.valor_mes_actual < vma.valor_mes_anterior then 'Decreciente' else 'Estable' end as tendencia_compra,
+           case when rfm.dias_desde_ultima_compra > 90 and rfm.score_m >= 4 then 'Urgente'
+                when rfm.score_r <= 2 and rfm.score_m >= 3 then 'Atención' else 'Normal' end as alerta,
+           case when rfm.dias_desde_ultima_compra > 90 and rfm.score_m >= 4 then 'Reactivar'
+                when rfm.dias_desde_ultima_compra > 60 then 'Visitar'
+                when cc.dias_mora_promedio > 30 then 'Gestionar Cobro'
+                when rfm.score_r >= 4 and rfm.score_m >= 4 then 'Mantener' else 'Llamar' end as accion_recomendada
+    from cliente_rfm c
+    join clients cl on cl.client_id = c.client_id
+    join scores_rfm rfm on rfm.client_id = c.client_id
+    left join ventas_periodo_actual vpa on vpa.client_id = c.client_id
+    left join ventas_mes_anterior vma on vma.client_id = c.client_id
+    left join cartera_cliente cc on cc.client_id = c.client_id
+    order by valor_total_historico desc
+    """
+    SQL_PRODUCTOS = """
+    with ventas_producto as (
+        select product_id, sum(quantity) as unidades_vendidas, sum(gross_amount) as valor_bruto, sum(net_amount) as valor_neto,
+               count(*) as num_transacciones, count(distinct client_id) as clientes_unicos, avg(net_amount) as ticket_promedio,
+               avg(unit_price) as precio_promedio, avg(unit_cost) as costo_promedio,
+               sum(net_amount - (unit_cost * quantity)) as utilidad_total,
+               avg(case when unit_price > 0 then ((unit_price - unit_cost) / nullif(unit_price, 0)) * 100 else 0 end) as margen_porcentual,
+               sum(line_discount) as total_descuentos,
+               avg(case when line_discount > 0 and gross_amount > 0 then (line_discount / nullif(gross_amount, 0)) * 100 else 0 end) as pct_descuento_promedio,
+               count(case when line_discount > 0 then 1 end)::numeric / nullif(count(*), 0) * 100 as frecuencia_descuentos
+        from transactions
+        where date between $1 and $2 and transaction_type = 'SALE'
+        group by product_id
+    ),
+    devoluciones_producto as (
+        select product_id, abs(sum(quantity)) as unidades_devueltas, abs(sum(net_amount)) as valor_devuelto
+        from transactions
+        where date between $1 and $2 and transaction_type_raw = 'NOTA DE CREDITO'
+        group by product_id
+    ),
+    ventas_mes_anterior as (
+        select product_id, sum(quantity) as unidades_mes_anterior, sum(net_amount) as valor_mes_anterior
+        from transactions
+        where date between $3 and $4 and transaction_type = 'SALE'
+        group by product_id
+    ),
+    ventas_anio_anterior as (
+        select product_id, sum(quantity) as unidades_anio_anterior, sum(net_amount) as valor_anio_anterior
+        from transactions
+        where date between $5 and $6 and transaction_type = 'SALE'
+        group by product_id
+    )
+    select p.product_id as codigo_producto, p.product_name as nombre_producto, p.category as categoria, p.subcategory as subcategoria, p.brand as marca,
+           case when p.state then 'Activo' else 'Inactivo' end as estado,
+           v.unidades_vendidas, round(v.valor_bruto::numeric, 2) as valor_bruto, round(v.valor_neto::numeric, 2) as valor_neto,
+           v.num_transacciones, v.clientes_unicos, round(v.ticket_promedio::numeric, 2) as ticket_promedio,
+           round(v.precio_promedio::numeric, 2) as precio_promedio, round(v.costo_promedio::numeric, 2) as costo_promedio,
+           round((v.precio_promedio - v.costo_promedio)::numeric, 2) as margen_unitario, round(v.margen_porcentual::numeric, 2) as margen_porcentual,
+           round(v.utilidad_total::numeric, 2) as utilidad_total,
+           round((v.utilidad_total / nullif(sum(v.utilidad_total) over (), 0) * 100)::numeric, 2) as contribucion_margen_total,
+           rank() over (order by v.unidades_vendidas desc) as ranking_unidades, rank() over (order by v.valor_neto desc) as ranking_valor, rank() over (order by v.utilidad_total desc) as ranking_margen,
+           case when sum(v.valor_neto) over (order by v.valor_neto desc) / nullif(sum(v.valor_neto) over (), 0) <= 0.80 then 'A'
+                when sum(v.valor_neto) over (order by v.valor_neto desc) / nullif(sum(v.valor_neto) over (), 0) <= 0.95 then 'B' else 'C' end as clasificacion_abc,
+           coalesce(d.unidades_devueltas, 0) as unidades_devueltas, round(coalesce(d.valor_devuelto, 0)::numeric, 2) as valor_devuelto,
+           round((coalesce(d.unidades_devueltas, 0)::numeric / nullif(v.unidades_vendidas, 0) * 100)::numeric, 2) as pct_devolucion,
+           round(v.total_descuentos::numeric, 2) as total_descuentos, round(v.pct_descuento_promedio::numeric, 2) as pct_descuento_promedio,
+           round(v.frecuencia_descuentos::numeric, 2) as frecuencia_descuentos,
+           coalesce(vma.unidades_mes_anterior, 0) as unidades_mes_anterior,
+           round(((v.unidades_vendidas - coalesce(vma.unidades_mes_anterior, 0))::numeric / nullif(vma.unidades_mes_anterior, 0) * 100)::numeric, 2) as variacion_cantidad,
+           round(((v.valor_neto - coalesce(vma.valor_mes_anterior, 0)) / nullif(vma.valor_mes_anterior, 0) * 100)::numeric, 2) as variacion_valor,
+           coalesce(vaa.unidades_anio_anterior, 0) as unidades_anio_anterior,
+           round(((v.unidades_vendidas - coalesce(vaa.unidades_anio_anterior, 0))::numeric / nullif(vaa.unidades_anio_anterior, 0) * 100)::numeric, 2) as variacion_vs_anio_anterior,
+           case when vma.valor_mes_anterior > 0 and v.valor_neto > vma.valor_mes_anterior * 1.1 then '↑'
+                when vma.valor_mes_anterior > 0 and v.valor_neto < vma.valor_mes_anterior * 0.9 then '↓' else '→' end as tendencia,
+           case when v.valor_neto > (select avg(valor_neto) from ventas_producto) and v.margen_porcentual > (select avg(margen_porcentual) from ventas_producto) then 'Estrella'
+                when v.valor_neto > (select avg(valor_neto) from ventas_producto) and v.margen_porcentual <= (select avg(margen_porcentual) from ventas_producto) then 'Vaca Lechera'
+                when v.valor_neto <= (select avg(valor_neto) from ventas_producto) and v.margen_porcentual > (select avg(margen_porcentual) from ventas_producto) then 'Interrogante' else 'Perro' end as tipo_producto_bcg,
+           case when v.valor_neto > (select avg(valor_neto) from ventas_producto) and v.margen_porcentual > (select avg(margen_porcentual) from ventas_producto) then 'Empujar'
+                when v.valor_neto > (select avg(valor_neto) from ventas_producto) then 'Mantener'
+                when coalesce(d.unidades_devueltas, 0) > v.unidades_vendidas * 0.1 then 'Revisar'
+                when v.valor_neto < (select avg(valor_neto) from ventas_producto) * 0.3 then 'Descontinuar' else 'Promocionar' end as estrategia_recomendada
+    from products p
+    join ventas_producto v on v.product_id = p.product_id
+    left join devoluciones_producto d on d.product_id = p.product_id
+    left join ventas_mes_anterior vma on vma.product_id = p.product_id
+    left join ventas_anio_anterior vaa on vaa.product_id = p.product_id
+    order by valor_neto desc
+    """
+    SQL_BACKORDER_CLIENTE = """
+    with ventas_cliente as (
+        select client_id, sum(net_amount) as total_vendido, sum(quantity) as unidades_vendidas, count(*) as num_ordenes, avg(net_amount) as ticket_promedio
+        from transactions
+        where date between $1 and $2 and transaction_type = 'SALE'
+        group by client_id
+    ),
+    backorder_cliente as (
+        select client_id, count(distinct order_id) as ordenes_con_backorder, sum(backorder_qty) as unidades_pendientes, sum(backorder_qty * unit_price) as valor_pendiente,
+               count(distinct product_id) as productos_en_backorder, min(date) as backorder_mas_antiguo, current_date - min(date) as dias_esperando_maximo,
+               sum(case when current_date - date <= 7 then backorder_qty else 0 end) as backorder_0_7_dias_qty,
+               sum(case when current_date - date <= 7 then backorder_qty * unit_price else 0 end) as backorder_0_7_dias_valor,
+               sum(case when current_date - date between 8 and 15 then backorder_qty else 0 end) as backorder_8_15_dias_qty,
+               sum(case when current_date - date between 8 and 15 then backorder_qty * unit_price else 0 end) as backorder_8_15_dias_valor,
+               sum(case when current_date - date between 16 and 30 then backorder_qty else 0 end) as backorder_16_30_dias_qty,
+               sum(case when current_date - date between 16 and 30 then backorder_qty * unit_price else 0 end) as backorder_16_30_dias_valor,
+               sum(case when current_date - date > 30 then backorder_qty else 0 end) as backorder_30plus_dias_qty,
+               sum(case when current_date - date > 30 then backorder_qty * unit_price else 0 end) as backorder_30plus_dias_valor,
+               sum(delivery_qty)::numeric / nullif(sum(order_qty), 0) as ratio_cumplimiento, max(seller_code) as seller_code, max(seller_name) as seller_name
+        from backorder
+        group by client_id
+    ),
+    historial_backorder as (
+        select client_id, count(distinct order_id) as backorders_6_meses from backorder where date >= current_date - interval '6 months' group by client_id
+    ),
+    historial_backorder_prev as (
+        select client_id, count(distinct order_id) as backorders_prev from backorder
+        where date between current_date - interval '12 months' and current_date - interval '6 months' group by client_id
+    ),
+    cliente_rfm_simple as (
+        select client_id, ntile(5) over (order by max(date) desc) as score_r, ntile(5) over (order by count(*) desc) as score_f, ntile(5) over (order by sum(net_amount) desc) as score_m
+        from transactions where transaction_type = 'SALE' group by client_id
+    )
+    select c.client_id as codigo_cliente, c.client_name as nombre_cliente, c.client_group as grupo_cliente, c.state as provincia, c.city as ciudad,
+           bc.seller_code as vendedor_codigo, bc.seller_name as vendedor_nombre,
+           case when rfm.score_r >= 4 and rfm.score_f >= 4 and rfm.score_m >= 4 then 'VIP' when rfm.score_r >= 3 and rfm.score_f >= 3 then 'Regular' else 'Normal' end as clasificacion_cliente,
+           round(coalesce(vc.total_vendido, 0)::numeric, 2) as total_vendido, coalesce(vc.unidades_vendidas, 0) as unidades_vendidas, coalesce(vc.num_ordenes, 0) as num_ordenes,
+           round(coalesce(vc.ticket_promedio, 0)::numeric, 2) as ticket_promedio,
+           coalesce(bc.ordenes_con_backorder, 0) as ordenes_con_backorder, coalesce(bc.unidades_pendientes, 0) as unidades_pendientes,
+           round(coalesce(bc.valor_pendiente, 0)::numeric, 2) as valor_pendiente, coalesce(bc.productos_en_backorder, 0) as productos_en_backorder,
+           round((coalesce(bc.valor_pendiente, 0) / nullif(vc.total_vendido, 0) * 100)::numeric, 2) as pct_backorder_vs_ventas,
+           round(coalesce(bc.ratio_cumplimiento, 0)::numeric * 100, 2) as ratio_cumplimiento_pct,
+           bc.backorder_mas_antiguo, bc.dias_esperando_maximo,
+           coalesce(bc.backorder_0_7_dias_qty, 0) as backorder_0_7_dias_qty, round(coalesce(bc.backorder_0_7_dias_valor, 0)::numeric, 2) as backorder_0_7_dias_valor,
+           coalesce(bc.backorder_8_15_dias_qty, 0) as backorder_8_15_dias_qty, round(coalesce(bc.backorder_8_15_dias_valor, 0)::numeric, 2) as backorder_8_15_dias_valor,
+           coalesce(bc.backorder_16_30_dias_qty, 0) as backorder_16_30_dias_qty, round(coalesce(bc.backorder_16_30_dias_valor, 0)::numeric, 2) as backorder_16_30_dias_valor,
+           coalesce(bc.backorder_30plus_dias_qty, 0) as backorder_30plus_dias_qty, round(coalesce(bc.backorder_30plus_dias_valor, 0)::numeric, 2) as backorder_30plus_dias_valor,
+           case when hb.backorders_6_meses > 3 then 'SI' else 'NO' end as backorders_recurrentes, coalesce(hb.backorders_6_meses, 0) as backorders_6_meses,
+           case when hb.backorders_6_meses > coalesce(hbp.backorders_prev, 0) then 'Empeorando'
+                when hb.backorders_6_meses < coalesce(hbp.backorders_prev, 0) then 'Mejorando' else 'Estable' end as tendencia_backorder,
+           case when bc.valor_pendiente > vc.total_vendido * 0.3 then 10 when bc.valor_pendiente > vc.total_vendido * 0.2 then 8
+                when bc.valor_pendiente > vc.total_vendido * 0.1 then 6 when bc.valor_pendiente > 0 then 4 else 1 end as score_insatisfaccion,
+           case when bc.dias_esperando_maximo > 30 and rfm.score_m >= 4 then 'Crítico' when bc.dias_esperando_maximo > 15 then 'Alto' when bc.valor_pendiente > 0 then 'Medio' else 'Bajo' end as nivel_riesgo,
+           case when bc.dias_esperando_maximo > 30 and rfm.score_m >= 4 then 'Alto' when bc.dias_esperando_maximo > 15 then 'Medio' else 'Bajo' end as riesgo_perdida_cliente,
+           case when bc.dias_esperando_maximo > 30 and rfm.score_m >= 4 then 'Urgente' when bc.dias_esperando_maximo > 15 then 'Alta' when bc.valor_pendiente > 0 then 'Media' else 'Baja' end as prioridad_atencion,
+           case when bc.dias_esperando_maximo > 30 and rfm.score_m >= 4 then 'Visitar urgente + Compensar' when bc.dias_esperando_maximo > 15 then 'Llamar'
+                when bc.valor_pendiente > 0 then 'Mantener informado' else 'Seguimiento normal' end as accion_sugerida
+    from clients c
+    left join ventas_cliente vc on vc.client_id = c.client_id
+    left join backorder_cliente bc on bc.client_id = c.client_id
+    left join historial_backorder hb on hb.client_id = c.client_id
+    left join historial_backorder_prev hbp on hbp.client_id = c.client_id
+    left join cliente_rfm_simple rfm on rfm.client_id = c.client_id
+    where vc.client_id is not null or bc.client_id is not null
+    order by valor_pendiente desc nulls last, total_vendido desc
+    """
+    SQL_GRUPOS_CLIENTE = """
+    with ventas_grupo as (
+        select c.client_group, sum(t.net_amount) as total_vendido, sum(t.quantity) as unidades_vendidas, count(distinct t.client_id) as clientes_activos, count(*) as num_ordenes,
+               avg(t.net_amount) as ticket_promedio, sum(t.net_amount - (t.unit_cost * t.quantity)) as utilidad_total,
+               avg(case when t.unit_price > 0 then ((t.unit_price - t.unit_cost) / nullif(t.unit_price, 0)) * 100 else 0 end) as margen_promedio
+        from transactions t join clients c on c.client_id = t.client_id
+        where t.date between $1 and $2 and t.transaction_type = 'SALE'
+        group by c.client_group
+    ),
+    total_clientes_grupo as (select client_group, count(*) as total_clientes from clients group by client_group),
+    nuevos_clientes_grupo as (
+        select c.client_group, count(distinct t.client_id) as clientes_nuevos
+        from transactions t join clients c on c.client_id = t.client_id
+        where t.date between $1 and $2 and t.transaction_type = 'SALE'
+          and not exists (select 1 from transactions t2 where t2.client_id = t.client_id and t2.date < $1)
+        group by c.client_group
+    ),
+    backorder_grupo as (
+        select c.client_group, count(distinct b.client_id) as clientes_con_backorder, sum(b.backorder_qty) as unidades_pendientes,
+               sum(b.backorder_qty * b.unit_price) as valor_pendiente, sum(b.delivery_qty)::numeric / nullif(sum(b.order_qty), 0) as ratio_cumplimiento,
+               avg(current_date - b.date) as dias_promedio_espera
+        from backorder b join clients c on c.client_id = b.client_id
+        group by c.client_group
+    ),
+    ventas_mes_anterior_grupo as (
+        select c.client_group, sum(t.net_amount) as ventas_mes_anterior
+        from transactions t join clients c on c.client_id = t.client_id
+        where t.date between $3 and $4 and t.transaction_type = 'SALE'
+        group by c.client_group
+    ),
+    backorder_mes_anterior_grupo as (
+        select c.client_group, sum(b.backorder_qty * b.unit_price) as backorder_mes_anterior
+        from backorder b join clients c on c.client_id = b.client_id
+        where b.date between $3 and $4
+        group by c.client_group
+    )
+    select vg.client_group as grupo_cliente, tcg.total_clientes, vg.clientes_activos,
+           round((vg.clientes_activos::numeric / nullif(tcg.total_clientes, 0) * 100)::numeric, 2) as pct_clientes_activos,
+           coalesce(ncg.clientes_nuevos, 0) as clientes_nuevos, round(vg.total_vendido::numeric, 2) as total_vendido, vg.unidades_vendidas, vg.num_ordenes,
+           round((vg.total_vendido / nullif(sum(vg.total_vendido) over (), 0) * 100)::numeric, 2) as pct_del_total_ventas,
+           round(vg.ticket_promedio::numeric, 2) as ticket_promedio, round(vg.margen_promedio::numeric, 2) as margen_promedio,
+           round(vg.utilidad_total::numeric, 2) as utilidad_total, round((vg.utilidad_total / nullif(sum(vg.utilidad_total) over (), 0) * 100)::numeric, 2) as pct_contribucion_margen,
+           coalesce(bg.clientes_con_backorder, 0) as clientes_con_backorder,
+           round((coalesce(bg.clientes_con_backorder, 0)::numeric / nullif(vg.clientes_activos, 0) * 100)::numeric, 2) as pct_clientes_afectados,
+           coalesce(bg.unidades_pendientes, 0) as unidades_pendientes, round(coalesce(bg.valor_pendiente, 0)::numeric, 2) as valor_pendiente,
+           round((coalesce(bg.valor_pendiente, 0) / nullif(vg.total_vendido, 0) * 100)::numeric, 2) as pct_backorder_vs_ventas,
+           round(coalesce(bg.ratio_cumplimiento, 0)::numeric * 100, 2) as ratio_cumplimiento_pct,
+           round((1 - coalesce(bg.ratio_cumplimiento, 0))::numeric * 100, 2) as fill_rate_pct,
+           round(coalesce(bg.dias_promedio_espera, 0)::numeric, 0) as dias_promedio_espera_backorder,
+           rank() over (order by coalesce(bg.valor_pendiente, 0) desc) as ranking_grupo_mas_afectado,
+           round(coalesce(vma.ventas_mes_anterior, 0)::numeric, 2) as ventas_mes_anterior,
+           round(((vg.total_vendido - coalesce(vma.ventas_mes_anterior, 0)) / nullif(vma.ventas_mes_anterior, 0) * 100)::numeric, 2) as variacion_ventas,
+           round(coalesce(bma.backorder_mes_anterior, 0)::numeric, 2) as backorder_mes_anterior,
+           round(((coalesce(bg.valor_pendiente, 0) - coalesce(bma.backorder_mes_anterior, 0)) / nullif(bma.backorder_mes_anterior, 0) * 100)::numeric, 2) as variacion_backorder,
+           case when coalesce(bg.valor_pendiente, 0) < coalesce(bma.backorder_mes_anterior, 0) then 'Mejorando'
+                when coalesce(bg.valor_pendiente, 0) > coalesce(bma.backorder_mes_anterior, 0) then 'Empeorando' else 'Estable' end as tendencia_general,
+           round((vg.total_vendido / nullif(sum(vg.total_vendido) over (), 0) * 100)::numeric, 0)::int as importancia_por_ventas,
+           case when coalesce(bg.ratio_cumplimiento, 0) >= 0.95 then 'Excelente' when coalesce(bg.ratio_cumplimiento, 0) >= 0.90 then 'Bueno'
+                when coalesce(bg.ratio_cumplimiento, 0) >= 0.80 then 'Regular' else 'Malo' end as nivel_servicio,
+           case when (vg.total_vendido / nullif(sum(vg.total_vendido) over (), 0)) > 0.15 and coalesce(bg.ratio_cumplimiento, 0) < 0.90 then 'Urgente'
+                when (vg.total_vendido / nullif(sum(vg.total_vendido) over (), 0)) > 0.10 and coalesce(bg.ratio_cumplimiento, 0) < 0.85 then 'Alta'
+                when coalesce(bg.valor_pendiente, 0) > 0 then 'Media' else 'Baja' end as prioridad_atencion
+    from ventas_grupo vg
+    join total_clientes_grupo tcg on tcg.client_group = vg.client_group
+    left join nuevos_clientes_grupo ncg on ncg.client_group = vg.client_group
+    left join backorder_grupo bg on bg.client_group = vg.client_group
+    left join ventas_mes_anterior_grupo vma on vma.client_group = vg.client_group
+    left join backorder_mes_anterior_grupo bma on bma.client_group = vg.client_group
+    order by total_vendido desc
+    """
+
     @tool
     async def get_sales_health(
         year: Optional[int] = None,
-        month: Optional[int] = None,
-        location_id: Optional[str] = None
+        month: Optional[int] = None
     ) -> str:
         """
         MANDATORY TOOL for sales health/check/status queries. ALWAYS call this tool when user mentions "sales" + "health"/"check"/"status"/"report".
-        
-        ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
-        - User asks "Sales health" (ENGLISH) → Respond in ENGLISH (all titles, text, follow-up questions)
-        - User asks "Salud de ventas" (SPANISH) → Respond in SPANISH (all titles, text, follow-up questions)
+
+        CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
+        - User asks "Sales health" (ENGLISH) -> Respond in ENGLISH (all titles, text, follow-up questions)
+        - User asks "Salud de ventas" (SPANISH) -> Respond in SPANISH (all titles, text, follow-up questions)
         - NEVER mix languages in your response
-        
-        ⚠️ CRITICAL: You MUST call this tool FIRST before responding.
+
+        CRITICAL: You MUST call this tool FIRST before responding.
         - DO NOT respond without calling this tool
         - DO NOT invent data or make up product/client names
         - ONLY use the real data returned by this tool
-        
+
         REQUIRED for: "sales health", "salud de ventas", "sales check", "estado de ventas",
         "how are sales", "cómo van las ventas", "sales report", "sales dashboard"
-        
+
         Args:
             year: Optional year (defaults to most recent)
             month: Optional month 1-12 (defaults to most recent)
-            location_id: Optional location filter
-        
-        Returns: JSON with monthly sales metrics, profit margins, comparisons, top products/clients, alerts
+
+        Returns: JSON with sales metrics, 5-sheet Excel (Vendedores, Clientes RFM, Productos, Backorder por Cliente, Grupos), summary, alerts.
+
+        IMPORTANT - File field:
+        - The response ALWAYS includes a "file" field with complete data in Excel format (5 sheets).
+        - Structure: {"url": "presigned_s3_url", "filename": "suggested_filename.xlsx"}
+        - URL valid for 7 days.
+        - YOU MUST ALWAYS mention this file in your response and provide download instructions.
         """
         from datetime import datetime, timedelta
-        from dateutil.relativedelta import relativedelta
-        
+
         pool = await get_client_db_pool()
-        
-        # First, find the most recent month with data
         try:
             async with pool.acquire() as conn:
                 latest_data = await conn.fetchrow("""
-                    SELECT 
-                        EXTRACT(YEAR FROM MAX(date))::int as latest_year,
-                        EXTRACT(MONTH FROM MAX(date))::int as latest_month
-                    FROM transactions
-                    WHERE transaction_type = 'SALE'
+                    SELECT EXTRACT(YEAR FROM MAX(date))::int as latest_year, EXTRACT(MONTH FROM MAX(date))::int as latest_month
+                    FROM transactions WHERE transaction_type = 'SALE'
                 """)
-                
                 if not latest_data or not latest_data['latest_year']:
-                    return json.dumps({
-                        "has_data": False,
-                        "message": "No sales data available in the database."
-                    })
-                
-                # Use provided year/month or default to latest available
+                    return json.dumps({"has_data": False, "message": "No sales data available in the database."})
                 target_year = year if year else latest_data['latest_year']
                 target_month = month if month else latest_data['latest_month']
         except Exception as e:
             await pool.close()
             raise e
-        
-        # Calculate date ranges
+
         month_start = datetime(target_year, target_month, 1).date()
         if target_month == 12:
             month_end = datetime(target_year + 1, 1, 1).date() - timedelta(days=1)
         else:
             month_end = datetime(target_year, target_month + 1, 1).date() - timedelta(days=1)
-        
-        # Previous month
         prev_month_start = (month_start - timedelta(days=1)).replace(day=1)
         prev_month_end = month_start - timedelta(days=1)
-        
-        # Same month last year
-        try:
-            same_month_last_year_start = datetime(target_year - 1, target_month, 1).date()
-            if target_month == 12:
-                same_month_last_year_end = datetime(target_year, 1, 1).date() - timedelta(days=1)
-            else:
-                same_month_last_year_end = datetime(target_year - 1, target_month + 1, 1).date() - timedelta(days=1)
-        except:
-            same_month_last_year_start = None
-            same_month_last_year_end = None
-        
-        # Build location filter if provided
-        location_filter = ""
-        if location_id:
-            location_filter = f"AND t.location_id = '{location_id}'"
-        
-        # Query 1: Current month sales (MTD)
-        sql_current_month = f"""
-            SELECT 
-                COALESCE(SUM(t.net_amount), 0) as total_sales,
-                COALESCE(SUM(t.quantity), 0) as total_quantity,
-                COUNT(DISTINCT t.client_id) as unique_clients,
-                COUNT(DISTINCT DATE(t.date)) as days_with_sales,
-                COUNT(*) as transaction_count,
-                COALESCE(SUM(t.net_amount - (t.unit_cost * t.quantity)), 0) as total_profit,
-                CASE 
-                    WHEN SUM(t.unit_cost * t.quantity) > 0 
-                    THEN ((SUM(t.net_amount - (t.unit_cost * t.quantity)) / SUM(t.unit_cost * t.quantity)) * 100)
-                    ELSE 0
-                END as profit_margin_pct
-            FROM transactions t
-            WHERE t.date >= $1
-              AND t.date <= $2
-              AND t.transaction_type = 'SALE'
-              {location_filter}
-        """
-        
-        # Query 2: Previous month sales
-        sql_prev_month = f"""
-            SELECT 
-                COALESCE(SUM(t.net_amount), 0) as total_sales,
-                COUNT(DISTINCT DATE(t.date)) as days_with_sales
-            FROM transactions t
-            WHERE t.date >= $1
-              AND t.date <= $2
-              AND t.transaction_type = 'SALE'
-              {location_filter}
-        """
-        
-        # Query 3: Same month last year
-        sql_same_month_last_year = f"""
-            SELECT 
-                COALESCE(SUM(t.net_amount), 0) as total_sales,
-                COUNT(DISTINCT DATE(t.date)) as days_with_sales
-            FROM transactions t
-            WHERE t.date >= $1
-              AND t.date <= $2
-              AND t.transaction_type = 'SALE'
-              {location_filter}
-        """
-        
-        # Query 4: Top products this month
-        sql_top_products = f"""
-            SELECT 
-                p.product_name,
-                p.brand,
-                SUM(t.quantity) as quantity,
-                SUM(t.net_amount) as sales
-            FROM transactions t
-            JOIN products p ON t.product_id = p.product_id
-            WHERE t.date >= $1
-              AND t.date <= $2
-              AND t.transaction_type = 'SALE'
-              {location_filter}
-            GROUP BY p.product_name, p.brand
-            ORDER BY sales DESC
-            LIMIT 5
-        """
-        
-        # Query 5: Top clients this month
-        sql_top_clients = f"""
-            SELECT 
-                c.client_name,
-                c.client_group,
-                SUM(t.net_amount) as sales,
-                COUNT(*) as transactions
-            FROM transactions t
-            JOIN clients c ON t.client_id = c.client_id
-            WHERE t.date >= $1
-              AND t.date <= $2
-              AND t.transaction_type = 'SALE'
-              {location_filter}
-            GROUP BY c.client_name, c.client_group
-            ORDER BY sales DESC
-            LIMIT 5
-        """
-        
-        queries_executed.append({
-            "type": "sql_health_check",
-            "database": "client_data",
-            "query": "sales_health_monthly",
-            "source": "simple_agent_tool"
-        })
-        
+        prev_year_month_start = datetime(target_year - 1, target_month, 1).date()
+        if target_month == 12:
+            prev_year_month_end = datetime(target_year, 1, 1).date() - timedelta(days=1)
+        else:
+            prev_year_month_end = datetime(target_year - 1, target_month + 1, 1).date() - timedelta(days=1)
+
+        params = (month_start, month_end, prev_month_start, prev_month_end, prev_year_month_start, prev_year_month_end)
+        params_4 = (month_start, month_end, prev_month_start, prev_month_end)
+        params_2 = (month_start, month_end)
+
+        queries_executed.append({"type": "sql_health_check", "database": "client_data", "query": "sales_health_monthly", "source": "simple_agent_tool"})
+
         try:
             async with pool.acquire() as conn:
-                # Execute all queries with their respective date ranges
-                current_month_data = await conn.fetchrow(sql_current_month, month_start, month_end)
-                prev_month_data = await conn.fetchrow(sql_prev_month, prev_month_start, prev_month_end)
-                
-                same_month_last_year_data = None
-                if same_month_last_year_start:
-                    same_month_last_year_data = await conn.fetchrow(sql_same_month_last_year, same_month_last_year_start, same_month_last_year_end)
-                
-                top_products = await conn.fetch(sql_top_products, month_start, month_end)
-                top_clients = await conn.fetch(sql_top_clients, month_start, month_end)
-                
-                # Calculate totals
-                current_month_sales = float(current_month_data['total_sales']) if current_month_data['total_sales'] else 0.0
-                prev_month_sales = float(prev_month_data['total_sales']) if prev_month_data['total_sales'] else 0.0
-                same_month_last_year_sales = float(same_month_last_year_data['total_sales']) if same_month_last_year_data and same_month_last_year_data['total_sales'] else 0.0
-                
-                days_with_sales = int(current_month_data['days_with_sales']) if current_month_data['days_with_sales'] else 0
-                prev_month_days = int(prev_month_data['days_with_sales']) if prev_month_data['days_with_sales'] else 0
-                
-                # CRITICAL: Check if there's any data for this month
-                has_data = current_month_data and (current_month_data['transaction_count'] is not None and int(current_month_data['transaction_count']) > 0)
-                
+                vendedores = await conn.fetch(SQL_VENDEDORES, *params)
+                clientes_rfm = await conn.fetch(SQL_CLIENTES_RFM, *params_4)
+                productos = await conn.fetch(SQL_PRODUCTOS, *params)
+                backorder_cliente = await conn.fetch(SQL_BACKORDER_CLIENTE, *params_2)
+                grupos_cliente = await conn.fetch(SQL_GRUPOS_CLIENTE, *params_4)
+
+                has_data = len(vendedores) > 0 or len(productos) > 0 or len(clientes_rfm) > 0 or len(backorder_cliente) > 0 or len(grupos_cliente) > 0
                 if not has_data:
                     return json.dumps({
-                        "year": target_year,
-                        "month": target_month,
-                        "has_data": False,
+                        "year": target_year, "month": target_month, "has_data": False,
                         "message": f"No sales data available for {target_year}-{target_month:02d}."
                     })
-                
-                # Calculate comparisons
-                vs_prev_month_pct = ((current_month_sales - prev_month_sales) / prev_month_sales * 100) if prev_month_sales > 0 else 0
-                vs_same_month_last_year_pct = ((current_month_sales - same_month_last_year_sales) / same_month_last_year_sales * 100) if same_month_last_year_sales > 0 else 0
-                
-                # Calculate daily averages
-                daily_avg_current = current_month_sales / days_with_sales if days_with_sales > 0 else 0
-                daily_avg_prev = prev_month_sales / prev_month_days if prev_month_days > 0 else 0
-                
-                # Generate alerts (data only, no text)
+
+                total_vendido = sum(float(r['total_vendido'] or 0) for r in vendedores)
+                total_utilidad = sum(float(r['utilidad_total'] or 0) for r in vendedores)
+                avg_margen = (total_utilidad / total_vendido * 100) if total_vendido > 0 else 0
+                performance_counts = {'Excelente': 0, 'Bueno': 0, 'Regular': 0, 'Bajo': 0, 'Sin Meta': 0}
+                for r in vendedores:
+                    pl = r.get('performance_level')
+                    if pl in performance_counts:
+                        performance_counts[pl] += 1
                 alerts = []
-                if vs_prev_month_pct < -10:
-                    alerts.append({
-                        "type": "warning",
-                        "metric": "sales_decrease_vs_prev_month",
-                        "value": abs(vs_prev_month_pct)
-                    })
-                elif vs_prev_month_pct > 15:
-                    alerts.append({
-                        "type": "success",
-                        "metric": "sales_increase_vs_prev_month",
-                        "value": vs_prev_month_pct
-                    })
-                
-                if current_month_data['profit_margin_pct'] and float(current_month_data['profit_margin_pct']) < 15:
-                    alerts.append({
-                        "type": "warning",
-                        "metric": "low_profit_margin",
-                        "value": float(current_month_data['profit_margin_pct'])
-                    })
-                
-                if vs_same_month_last_year_pct < -15 and same_month_last_year_sales > 0:
-                    alerts.append({
-                        "type": "warning",
-                        "metric": "sales_decrease_vs_last_year",
-                        "value": abs(vs_same_month_last_year_pct)
-                    })
-                
-                # Build result
+                if performance_counts.get('Bajo', 0) > 0:
+                    alerts.append({"type": "warning", "metric": "sellers_below_target", "value": performance_counts['Bajo'], "description": "Sellers below 70% of goal"})
+                if avg_margen < 15 and total_vendido > 0:
+                    alerts.append({"type": "warning", "metric": "low_profit_margin", "value": round(avg_margen, 2), "description": "Overall profit margin below 15%"})
+                top_vendedores = sorted(vendedores, key=lambda x: float(x['total_vendido'] or 0), reverse=True)[:10]
+                critical_backorder = [r for r in backorder_cliente if (r.get('prioridad_atencion') or '') == 'Urgente'][:10]
+
                 result = {
                     "year": target_year,
                     "month": target_month,
                     "period": f"{target_year}-{target_month:02d}",
                     "has_data": True,
                     "summary": {
-                        "total_sales": current_month_sales,
-                        "total_quantity": int(current_month_data['total_quantity']) if current_month_data['total_quantity'] else 0,
-                        "unique_clients": int(current_month_data['unique_clients']) if current_month_data['unique_clients'] else 0,
-                        "transaction_count": int(current_month_data['transaction_count']) if current_month_data['transaction_count'] else 0,
-                        "days_with_sales": days_with_sales,
-                        "total_profit": float(current_month_data['total_profit']) if current_month_data['total_profit'] else 0.0,
-                        "profit_margin_pct": float(current_month_data['profit_margin_pct']) if current_month_data['profit_margin_pct'] else 0.0,
-                        "avg_transaction_value": current_month_sales / int(current_month_data['transaction_count']) if current_month_data['transaction_count'] and int(current_month_data['transaction_count']) > 0 else 0,
-                        "daily_average": daily_avg_current
+                        "total_sales": round(total_vendido, 2),
+                        "total_profit": round(total_utilidad, 2),
+                        "avg_profit_margin_pct": round(avg_margen, 2),
+                        "sellers_count": len(vendedores),
+                        "performance_distribution": performance_counts,
+                        "clients_rfm_count": len(clientes_rfm),
+                        "products_count": len(productos),
+                        "backorder_clients_count": len(backorder_cliente),
+                        "client_groups_count": len(grupos_cliente),
                     },
-                    "comparisons": {
-                        "vs_prev_month": {
-                            "amount": prev_month_sales,
-                            "change_pct": vs_prev_month_pct,
-                            "trend": "up" if vs_prev_month_pct > 0 else "down" if vs_prev_month_pct < 0 else "flat",
-                            "daily_avg": daily_avg_prev,
-                            "daily_avg_change_pct": ((daily_avg_current - daily_avg_prev) / daily_avg_prev * 100) if daily_avg_prev > 0 else 0
-                        },
-                        "vs_same_month_last_year": {
-                            "amount": same_month_last_year_sales,
-                            "change_pct": vs_same_month_last_year_pct,
-                            "trend": "up" if vs_same_month_last_year_pct > 0 else "down" if vs_same_month_last_year_pct < 0 else "flat"
-                        } if same_month_last_year_sales > 0 else None
-                    },
-                    "top_products": [
-                        {
-                            "product_name": row['product_name'],
-                            "brand": row['brand'],
-                            "quantity": int(row['quantity']) if row['quantity'] else 0,
-                            "sales": float(row['sales']) if row['sales'] else 0.0,
-                            "pct_of_total": (float(row['sales']) / current_month_sales * 100) if current_month_sales > 0 and row['sales'] else 0
-                        }
-                        for row in top_products
+                    "top_sellers": [
+                        {"codigo_vendedor": r['codigo_vendedor'], "nombre_vendedor": r['nombre_vendedor'], "total_vendido": float(r['total_vendido'] or 0),
+                         "pct_cumplimiento": float(r['pct_cumplimiento'] or 0), "performance_level": r['performance_level']}
+                        for r in top_vendedores
                     ],
-                    "top_clients": [
-                        {
-                            "client_name": row['client_name'],
-                            "client_group": row['client_group'],
-                            "sales": float(row['sales']) if row['sales'] else 0.0,
-                            "transactions": int(row['transactions']) if row['transactions'] else 0,
-                            "pct_of_total": (float(row['sales']) / current_month_sales * 100) if current_month_sales > 0 and row['sales'] else 0
-                        }
-                        for row in top_clients
+                    "critical_backorder_clients": [
+                        {"codigo_cliente": r['codigo_cliente'], "nombre_cliente": r['nombre_cliente'], "valor_pendiente": float(r['valor_pendiente'] or 0),
+                         "prioridad_atencion": r['prioridad_atencion'], "accion_sugerida": r['accion_sugerida']}
+                        for r in critical_backorder
                     ],
-                    "alerts": alerts
+                    "alerts": alerts,
                 }
-                
-                return json.dumps(result)
+
+                # Build DataFrames from dicts so column names are preserved and visible in Excel
+                def records_to_df(rows):
+                    if not rows:
+                        return pd.DataFrame()
+                    # asyncpg Record -> dict so pandas gets proper column names
+                    data = [dict(r) for r in rows]
+                    df = pd.DataFrame(data)
+                    # Human-readable headers for Excel (e.g. codigo_vendedor -> Codigo Vendedor)
+                    df.columns = [str(c).replace('_', ' ').strip().title() for c in df.columns]
+                    return df
+
+                df_v = records_to_df(vendedores)
+                df_c = records_to_df(clientes_rfm)
+                df_p = records_to_df(productos)
+                df_b = records_to_df(backorder_cliente)
+                df_g = records_to_df(grupos_cliente)
+
+                sheets = [
+                    ("Vendedores", df_v),
+                    ("Clientes RFM", df_c),
+                    ("Productos", df_p),
+                    ("Backorder por Cliente", df_b),
+                    ("Grupos de Cliente", df_g),
+                ]
+                filename_base = f"sales_health_{target_year}_{target_month:02d}"
+                file_info = upload_excel_multi_sheet_to_s3_and_get_url(sheets, filename_base)
+                result["file"] = file_info
+
+                result_json = json.dumps(result)
+                print(f"\n[SALES HEALTH] Success - period {result['period']}, file: {file_info.get('filename')}\n")
+                return result_json
+        except Exception as e:
+            print(f"\n[SALES HEALTH] ERROR: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
         finally:
             await pool.close()
-    
+
     return get_sales_health
 
 
