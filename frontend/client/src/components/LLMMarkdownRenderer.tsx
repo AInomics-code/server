@@ -1,6 +1,7 @@
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { motion } from 'framer-motion';
+import { FileText } from 'lucide-react';
 
 interface LLMMarkdownRendererProps {
   content: string;
@@ -356,6 +357,77 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
               marginBottom: '20px',
             }} />
           ),
+          
+          // Links - Custom styling for download links
+          a: ({ children, href, node }) => {
+            const linkText = String(children).toLowerCase();
+            const isDownloadLink = linkText.includes('download') && (linkText.includes('excel') || linkText.includes('report') || href?.includes('excel') || href?.includes('download'));
+            
+            if (isDownloadLink) {
+              return (
+                <motion.a
+                  href={href}
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '10px',
+                    padding: '10px 16px',
+                    backgroundColor: '#2F343B',
+                    borderRadius: '8px',
+                    border: 'none',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    marginTop: '12px',
+                    marginBottom: '12px',
+                    width: 'fit-content',
+                    transition: 'background-color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = '#3A4149';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = '#2F343B';
+                  }}
+                >
+                  <FileText size={18} color="#33C481" strokeWidth={2} />
+                  <span style={{
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    color: '#E6EAF1',
+                    fontFamily: 'Inter, sans-serif',
+                  }}>
+                    {children}
+                  </span>
+                </motion.a>
+              );
+            }
+            
+            // Default link styling
+            return (
+              <a
+                href={href}
+                style={{
+                  color: '#5B9EFF',
+                  textDecoration: 'none',
+                  borderBottom: '1px solid rgba(91, 158, 255, 0.3)',
+                  transition: 'border-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderBottomColor = 'rgba(91, 158, 255, 0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderBottomColor = 'rgba(91, 158, 255, 0.3)';
+                }}
+              >
+                {children}
+              </a>
+            );
+          },
         }}
       >
         {content}

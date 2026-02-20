@@ -7,9 +7,10 @@ import { logout } from '@/utils/auth';
 
 interface GlobalSidebarProps {
   activePage?: 'home' | 'data' | 'playground' | 'llm';
+  onHomeClick?: () => void;
 }
 
-export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
+export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
   const [, setLocation] = useLocation();
   const [isSidebarExpanded] = useState(false); // Keep state for layout but don't allow toggling
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -62,7 +63,26 @@ export function GlobalSidebar({ activePage }: GlobalSidebarProps) {
         display: 'flex', 
         justifyContent: isSidebarExpanded ? 'flex-start' : 'center' 
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div 
+          style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '12px',
+            cursor: onHomeClick ? 'pointer' : 'default',
+            transition: 'opacity 0.2s ease',
+          }}
+          onClick={onHomeClick}
+          onMouseEnter={(e) => {
+            if (onHomeClick) {
+              e.currentTarget.style.opacity = '0.8';
+            }
+          }}
+          onMouseLeave={(e) => {
+            if (onHomeClick) {
+              e.currentTarget.style.opacity = '1';
+            }
+          }}
+        >
           {/* Aragon Star Logo */}
           <div style={{
             padding: '4px 10px',

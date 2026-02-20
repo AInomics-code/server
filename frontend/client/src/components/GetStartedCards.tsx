@@ -9,7 +9,7 @@ interface Card {
   description: string;
   workflow: string;
   question?: string;
-  healthScore?: number; // Health score (0-100)
+  healthScore?: number; // Health score (0-100), undefined means loading
 }
 
 // Helper function to get health color
@@ -58,8 +58,8 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
       }}
     >
       {/* Header with title and close button */}
-      <div style={{
-        display: 'flex',
+      <div style={{ 
+        display: 'flex', 
         justifyContent: 'space-between',
         alignItems: 'center',
         width: '100%',
@@ -73,16 +73,16 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
         }}>
           Daily Reports
         </h3>
-        <button
+          <button
           onClick={() => setIsVisible(false)}
-          style={{
+            style={{
             background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
+              border: 'none',
+              cursor: 'pointer',
             padding: '4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             color: '#9CA3AF',
             transition: 'color 0.2s ease',
           }}
@@ -93,9 +93,9 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
             e.currentTarget.style.color = '#9CA3AF';
           }}
           aria-label="Close Get Started section"
-        >
+          >
           <X size={16} strokeWidth={2} />
-        </button>
+          </button>
       </div>
 
       {/* Pills Container */}
@@ -110,14 +110,15 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
         {cards.map((card, i) => {
           const Icon = card.icon;
           const isHovered = hoveredCard === card.id;
-          const healthScore = card.healthScore || 0;
-          const healthColor = healthScore > 0 ? getHealthColor(healthScore) : '#5CA2F9';
+          const healthScore = card.healthScore;
+          const isLoading = healthScore === undefined;
+          const healthColor = healthScore !== undefined && healthScore > 0 ? getHealthColor(healthScore) : '#5CA2F9';
           
           return (
             <motion.div
               key={i}
               animate={{
-                height: isHovered && healthScore > 0 ? '64px' : '48px',
+                height: isHovered && healthScore !== undefined && healthScore > 0 ? '64px' : '48px',
               }}
               transition={{
                 duration: isHovered ? 0.5 : 0.2,
@@ -156,9 +157,9 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                   padding: '8px 14px',
                   borderRadius: '10px',
                   border: 'none',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  flexDirection: 'column',
+                cursor: 'pointer',
+                display: 'flex',
+                flexDirection: 'column',
                   position: 'relative',
                   overflow: 'hidden',
                   outline: 'none',
@@ -182,8 +183,8 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
               }}>
                 <motion.div
                   animate={{
-                    height: healthScore > 0 ? '2.5px' : '0px',
-                    opacity: healthScore > 0 ? 1 : 0,
+                    height: (healthScore !== undefined && healthScore > 0) || isLoading ? '2.5px' : '0px',
+                    opacity: (healthScore !== undefined && healthScore > 0) || isLoading ? 1 : 0,
                   }}
                   transition={{
                     duration: 0.3,
@@ -197,15 +198,61 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                     overflow: 'hidden',
                   }}
                 >
-                  {/* Health Bar - Always visible, smooth color transition */}
-                  {healthScore > 0 && (
+                  {/* Loading Animation */}
+                  {isLoading && (
+                    <>
+                      {/* Base elegant fade background */}
+                      <motion.div
+                        animate={{
+                          opacity: [0.1, 0.25, 0.1],
+                        }}
+                        transition={{
+                          duration: 4.5,
+                          repeat: Infinity,
+                          ease: [0.2, 0, 0.8, 1],
+                        }}
+                        style={{
+                          height: '100%',
+                          width: '100%',
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(91, 158, 255, 0.05) 50%, transparent 100%)',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                        }}
+                      />
+                      {/* Elegant smooth line shimmer */}
+                      <motion.div
+                        animate={{
+                          x: ['-100%', '100%'],
+                        }}
+                        transition={{
+                          duration: 4.5,
+                          repeat: Infinity,
+                          ease: [0.12, 0, 0.39, 1],
+                        }}
+                        style={{
+                          height: '100%',
+                          width: '100%',
+                          background: 'linear-gradient(90deg, transparent 0%, rgba(91, 158, 255, 0.1) 35%, rgba(91, 158, 255, 0.5) 50%, rgba(91, 158, 255, 0.1) 65%, transparent 100%)',
+                          position: 'absolute',
+                          top: 0,
+                          left: 0,
+                          filter: 'blur(0.2px)',
+                        }}
+                      />
+                    </>
+                  )}
+                  
+                  {/* Health Bar - Only show when score is loaded */}
+                  {!isLoading && healthScore !== undefined && healthScore > 0 && (
                     <motion.div
+                      initial={{ width: 0 }}
                       animate={{
                         width: `${healthScore}%`,
                         backgroundColor: isHovered ? healthColor : '#5CA2F9',
                       }}
                       transition={{
-                        duration: isHovered ? 0.5 : 0.2,
+                        duration: 0.6,
                         ease: [0.25, 0.46, 0.45, 0.94],
                       }}
                       style={{
@@ -221,62 +268,64 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                 </motion.div>
 
                 {/* Health Label (appears on hover) - Far left, close to bar */}
-                <motion.div
-                  animate={{
-                    opacity: isHovered && healthScore > 0 ? 1 : 0,
-                    height: isHovered && healthScore > 0 ? '14px' : '0px',
-                    marginTop: isHovered && healthScore > 0 ? '3px' : '0px',
-                    marginBottom: isHovered && healthScore > 0 ? '8px' : '0px',
-                  }}
-                  transition={{
-                    opacity: {
-                      duration: isHovered ? 0.5 : 0.2,
-                      ease: [0.25, 0.46, 0.45, 0.94],
-                    },
-                    height: {
-                      duration: isHovered ? 0.5 : 0.2,
-                      ease: [0.25, 0.46, 0.45, 0.94],
-                    },
-                    marginTop: {
-                      duration: isHovered ? 0.5 : 0.2,
-                      ease: [0.25, 0.46, 0.45, 0.94],
-                    },
-                    marginBottom: {
-                      duration: isHovered ? 0.5 : 0.2,
-                      ease: [0.25, 0.46, 0.45, 0.94],
-                    },
-                  }}
-                  style={{
-                    padding: 0,
-                    marginLeft: '0px',
-                    alignSelf: 'flex-start',
-                    overflow: 'hidden',
-                    width: '100%',
-                    textAlign: 'left',
-                    willChange: 'opacity, height, margin-top, margin-bottom',
-                  }}
-                >
-                  <span
+                {!isLoading && healthScore !== undefined && healthScore > 0 && (
+                  <motion.div
+                    animate={{
+                      opacity: isHovered ? 1 : 0,
+                      height: isHovered ? '14px' : '0px',
+                      marginTop: isHovered ? '3px' : '0px',
+                      marginBottom: isHovered ? '8px' : '0px',
+                    }}
+                    transition={{
+                      opacity: {
+                        duration: isHovered ? 0.5 : 0.2,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                      },
+                      height: {
+                        duration: isHovered ? 0.5 : 0.2,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                      },
+                      marginTop: {
+                        duration: isHovered ? 0.5 : 0.2,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                      },
+                      marginBottom: {
+                        duration: isHovered ? 0.5 : 0.2,
+                        ease: [0.25, 0.46, 0.45, 0.94],
+                      },
+                    }}
                     style={{
-                      fontSize: '10px',
-                      fontWeight: 500,
-                      color: healthColor,
-                      fontFamily: 'Inter, sans-serif',
-                      lineHeight: '1.2',
-                      display: 'block',
+                      padding: 0,
+                      marginLeft: '0px',
+                      alignSelf: 'flex-start',
+                      overflow: 'hidden',
+                      width: '100%',
                       textAlign: 'left',
-                      whiteSpace: 'nowrap',
+                      willChange: 'opacity, height, margin-top, margin-bottom',
                     }}
                   >
-                    {healthScore}% health
-                  </span>
-                </motion.div>
+                    <span
+                      style={{
+                        fontSize: '10px',
+                        fontWeight: 500,
+                        color: healthColor,
+                        fontFamily: 'Inter, sans-serif',
+                        lineHeight: '1.2',
+                        display: 'block',
+                        textAlign: 'left',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {healthScore}% health
+                    </span>
+                  </motion.div>
+                )}
               </div>
 
               {/* Icon + Title Row - Always visible at bottom, moves up slightly on hover */}
               <motion.div
                 animate={{
-                  marginBottom: isHovered && healthScore > 0 ? '4px' : '0px',
+                  marginBottom: isHovered && healthScore !== undefined && healthScore > 0 ? '4px' : '0px',
                 }}
                 transition={{
                   duration: isHovered ? 0.5 : 0.2,
@@ -295,21 +344,21 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                 }}
               >
                 {/* Icon */}
-                <div style={{
+              <div style={{ 
                   width: '18px',
                   height: '18px',
-                  display: 'flex',
+                display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   flexShrink: 0,
-                }}>
+              }}>
                   <Icon size={16} color="#757C8A" strokeWidth={2} />
                 </div>
                 
                 {/* Text Label */}
                 <span style={{
-                  fontSize: '13px',
-                  fontWeight: 500,
+                  fontSize: '13px', 
+                  fontWeight: 500, 
                   color: '#757C8A',
                   fontFamily: 'Inter, sans-serif',
                   whiteSpace: 'nowrap',

@@ -5,28 +5,67 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Asterisk, ExternalLink, Download, ChevronDown, Check, X, Copy, X as XIcon } from 'lucide-react';
+import { Asterisk, Download, ChevronDown, Check, X, FileText, Copy, ThumbsUp, ThumbsDown, RefreshCw } from 'lucide-react';
 import { Chart as ChartJS, ArcElement, DoughnutController } from 'chart.js';
 
 import { Component } from '../services/agentService';
 import { parseComponentsToReport } from '../utils/reportParser';
 import { VortaStarIcon } from '../pages/LLMChatPage';
+import { type HealthScoresResponse } from '../services/healthScoresService';
 
 ChartJS.register(ArcElement, DoughnutController);
+
+// Product data structure expected from backend
+export interface ProductData {
+  product: string;
+  location: string;
+  daysLeft: number;
+  monthlySales: number;
+}
+
+// Decision details structure expected from backend
+export interface DecisionDetails {
+  skusBelowThreshold: number;
+  stockoutHours: number;
+  backorderQuantity: number;
+  dailyRevenue: number;
+  backorderIncrease: number;
+}
+
+// Report data structure expected from backend
+export interface ReportData {
+  // Summary metrics
+  totalUnits?: number;
+  costValue?: number;
+  saleValue?: number;
+  revenueAtRisk?: number;
+  topSellingSKUs?: number;
+  
+  // Product lists
+  criticalRiskProducts?: ProductData[];
+  reorderRequiredProducts?: ProductData[];
+  lowRotationProducts?: ProductData[];
+  
+  // Decision details
+  criticalRiskDetails?: DecisionDetails;
+  reorderRequiredDetails?: DecisionDetails;
+  lowRotationDetails?: DecisionDetails;
+}
 
 interface ExperimentalReportViewProps {
   components: Component[];
   conversationHistory?: Array<{ role: string; content?: string }>;
   messageIdx?: number;
-  onModalStateChange?: (isOpen: boolean) => void;
+  healthScoresData?: HealthScoresResponse;
+  reportData?: ReportData; // Backend report data
+  onQuestionClick?: (question: string) => void;
+  onQuestionSelect?: (question: string) => void;
 }
 
-export default function ExperimentalReportView({ components, conversationHistory, messageIdx, onModalStateChange }: ExperimentalReportViewProps) {
+export default function ExperimentalReportView({ components, conversationHistory, messageIdx, healthScoresData, reportData, onQuestionClick, onQuestionSelect }: ExperimentalReportViewProps) {
   const [isAccordionOpen, setIsAccordionOpen] = useState(false);
   const [isAccordion2Open, setIsAccordion2Open] = useState(false);
   const [isAccordion3Open, setIsAccordion3Open] = useState(false);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalData, setModalData] = useState<{ title: string; products: Array<{ product: string; location: string; daysLeft: number; monthlySales: number }> } | null>(null);
   const accordionContentRef = useRef<HTMLDivElement>(null);
   const accordionInnerRef = useRef<HTMLDivElement>(null);
   const accordionContainerRef = useRef<HTMLDivElement>(null);
@@ -41,12 +80,12 @@ export default function ExperimentalReportView({ components, conversationHistory
   const scrollLockIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const parsed = useMemo(() => parseComponentsToReport(components), [components]);
 
-  // Mock-first behavior for design: default to 84 if not detected
-  const score = parsed.healthScore?.value ?? 84;
+  // Use API data if available, otherwise fall back to parsed or default
+  const score = healthScoresData?.inventory?.score ?? parsed.healthScore?.value ?? 84;
   const color = parsed.healthScore?.color ?? (score >= 70 ? '#33C481' : score >= 40 ? '#C48333' : '#DC2626');
   
-  // Determine health status
-  const healthStatus = score >= 70 ? 'Healthy' : score >= 40 ? 'At Risk' : 'Critical';
+  // Determine health status - use API label if available
+  const healthStatus = healthScoresData?.inventory?.label ?? (score >= 70 ? 'Healthy' : score >= 40 ? 'At Risk' : 'Critical');
   const statusColor = score >= 70 ? '#33C481' : score >= 40 ? '#C48333' : '#DC2626';
   
   // Determine title based on user's question
@@ -121,34 +160,126 @@ export default function ExperimentalReportView({ components, conversationHistory
     };
   }, [score, color]);
 
-  // Generate mock summary data based on health score
+  // Generate summary data - use API data when available
   const summaryData = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
+    // If we have report data from backend, use it
+    if (reportData) {
+      const inv = healthScoresData?.inventory;
+      const inputs = inv?.inputs as any;
+      
+      // Get counts from product arrays or calculate from health scores
+      const criticalRisk = reportData.criticalRiskProducts?.length ?? 
+        (inputs?.total_products && inputs?.pct_critico 
+          ? Math.round(inputs.total_products * (inputs.pct_critico / 100)) 
+          : 0);
+      const reorderRequired = reportData.reorderRequiredProducts?.length ?? 
+        (inputs?.total_products && inputs?.pct_requiring_reorder 
+          ? Math.round(inputs.total_products * (inputs.pct_requiring_reorder / 100)) 
+          : 0);
+      const lowRotation = reportData.lowRotationProducts?.length ?? 
+        (inputs?.total_products && inputs?.pct_baja_rotacion 
+          ? Math.round(inputs.total_products * (inputs.pct_baja_rotacion / 100)) 
+          : 0);
+      
+      return {
+        revenueAtRisk: reportData.revenueAtRisk ?? 0,
+        topSellingSKUs: reportData.topSellingSKUs ?? 0,
+        totalUnits: reportData.totalUnits ?? 0,
+        costValue: reportData.costValue ?? 0,
+        saleValue: reportData.saleValue ?? 0,
+        criticalRisk,
+        reorderRequired,
+        lowRotation,
+        profitMargin: inputs?.avg_profit_margin_pct ?? 0,
+      };
+    }
     
-    // Adjust values based on health score
-    const revenueAtRisk = isHealthy ? 125000 : isAtRisk ? 365000 : 565000;
-    const topSellingSKUs = isHealthy ? 2 : isAtRisk ? 3 : 4;
-    const totalUnits = isHealthy ? 425000 : isAtRisk ? 400000 : 375246;
-    const costValue = isHealthy ? 2.85 : isAtRisk ? 2.52 : 2.22;
-    const saleValue = isHealthy ? 4.95 : isAtRisk ? 4.38 : 3.84;
-    const criticalRisk = isHealthy ? 185 : isAtRisk ? 310 : 435;
-    const reorderRequired = isHealthy ? 298 : isAtRisk ? 448 : 598;
-    const lowRotation = isHealthy ? 253 : isAtRisk ? 403 : 553;
-    const profitMargin = isHealthy ? 42.3 : isAtRisk ? 41.2 : 40.1;
+    // If we have health scores API data, calculate from inputs
+    if (healthScoresData?.inventory) {
+      const inv = healthScoresData.inventory;
+      const inputs = inv.inputs as any;
+      
+      const totalProducts = inputs.total_products || 0;
+      const pctCritico = inputs.pct_critico || 0;
+      const pctRequiringReorder = inputs.pct_requiring_reorder || 0;
+      const pctBajaRotacion = inputs.pct_baja_rotacion || 0;
+      const avgProfitMargin = inputs.avg_profit_margin_pct || 0;
+      
+      // Calculate actual numbers from percentages
+      const criticalRisk = Math.round(totalProducts * (pctCritico / 100));
+      const reorderRequired = Math.round(totalProducts * (pctRequiringReorder / 100));
+      const lowRotation = Math.round(totalProducts * (pctBajaRotacion / 100));
+      
+      return {
+        revenueAtRisk: 0,
+        topSellingSKUs: 0,
+        totalUnits: 0,
+        costValue: 0,
+        saleValue: 0,
+        criticalRisk,
+        reorderRequired,
+        lowRotation,
+        profitMargin: avgProfitMargin,
+      };
+    }
     
+    // No data available - return empty structure
     return {
-      revenueAtRisk,
-      topSellingSKUs,
-      totalUnits,
-      costValue,
-      saleValue,
-      criticalRisk,
-      reorderRequired,
-      lowRotation,
-      profitMargin,
+      revenueAtRisk: 0,
+      topSellingSKUs: 0,
+      totalUnits: 0,
+      costValue: 0,
+      saleValue: 0,
+      criticalRisk: 0,
+      reorderRequired: 0,
+      lowRotation: 0,
+      profitMargin: 0,
     };
-  }, [score]);
+  }, [score, healthScoresData, reportData]);
+
+  // Get product data from backend report data
+  const productData = useMemo(() => {
+    return reportData?.criticalRiskProducts?.slice(0, 4) ?? [];
+  }, [reportData]);
+
+  const productData2 = useMemo(() => {
+    return reportData?.reorderRequiredProducts?.slice(0, 4) ?? [];
+  }, [reportData]);
+
+  const productData3 = useMemo(() => {
+    return reportData?.lowRotationProducts?.slice(0, 4) ?? [];
+  }, [reportData]);
+
+  // Get decision details from backend report data
+  const decisionDetails = useMemo(() => {
+    return reportData?.criticalRiskDetails ?? {
+      skusBelowThreshold: 0,
+      stockoutHours: 0,
+      backorderQuantity: 0,
+      dailyRevenue: 0,
+      backorderIncrease: 0,
+    };
+  }, [reportData]);
+
+  const decisionDetails2 = useMemo(() => {
+    return reportData?.reorderRequiredDetails ?? {
+      skusBelowThreshold: 0,
+      stockoutHours: 0,
+      backorderQuantity: 0,
+      dailyRevenue: 0,
+      backorderIncrease: 0,
+    };
+  }, [reportData]);
+
+  const decisionDetails3 = useMemo(() => {
+    return reportData?.lowRotationDetails ?? {
+      skusBelowThreshold: 0,
+      stockoutHours: 0,
+      backorderQuantity: 0,
+      dailyRevenue: 0,
+      backorderIncrease: 0,
+    };
+  }, [reportData]);
 
   // Generate first/most important decision based on health score
   const firstDecision = useMemo(() => {
@@ -179,135 +310,6 @@ export default function ExperimentalReportView({ components, conversationHistory
       department: 'Sales',
     };
   }, [summaryData]);
-
-  // Generate mock product data for the table
-  const productData = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    if (isHealthy) {
-      return [
-        { product: 'MAYONESA 350 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: 4.2, monthlySales: 185420 },
-        { product: 'MAYONESA 200 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: 5.1, monthlySales: 102340 },
-        { product: 'KETCHUP GALON/ 4085 ML/ 6 UDS', location: 'BODEGA CENTRAL', daysLeft: 6.3, monthlySales: 98560 },
-        { product: 'SALSA TOMATE 350 GRS/ 24 UDS', location: 'BODEGA NORTE', daysLeft: 4.8, monthlySales: 87230 },
-      ];
-    } else if (isAtRisk) {
-      return [
-        { product: 'MAYONESA 350 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: 3.1, monthlySales: 214580 },
-        { product: 'MAYONESA 200 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: 3.8, monthlySales: 118920 },
-        { product: 'MAYONESA GALON 3.79 L/ 4 UDS', location: 'BODEGA CENTRAL', daysLeft: 5.2, monthlySales: 112450 },
-        { product: 'KETCHUP GALON/ 4085 ML/ 6 UDS', location: 'BODEGA HTZANETATOS', daysLeft: 2.1, monthlySales: 67890 },
-      ];
-    } else {
-      return [
-        { product: 'MAYONESA 350 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: 2.4, monthlySales: 243810 },
-        { product: 'MAYONESA 200 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: 3.4, monthlySales: 134467 },
-        { product: 'MAYONESA GALON 3.79 L/ 4 UDS', location: 'BODEGA CENTRAL', daysLeft: 5.4, monthlySales: 132854 },
-        { product: 'KETCHUP GALON/ 4085 ML/ 6 UDS', location: 'BODEGA HTZANETATOS', daysLeft: 0.9, monthlySales: 53550 },
-      ];
-    }
-  }, [score]);
-
-  // Generate impact and decision details for first decision
-  const decisionDetails = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    return {
-      skusBelowThreshold: isHealthy ? 8 : isAtRisk ? 12 : 10,
-      stockoutHours: isHealthy ? 48 : isAtRisk ? 12 : 5,
-      backorderQuantity: isHealthy ? 5420 : isAtRisk ? 8920 : 11389.92,
-      dailyRevenue: isHealthy ? 285 : isAtRisk ? 425 : 568,
-      backorderIncrease: isHealthy ? 185.3 : isAtRisk ? 298.5 : 410.62,
-    };
-  }, [score]);
-
-  // Generate mock product data for second accordion (reorder required)
-  const productData2 = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    if (isHealthy) {
-      return [
-        { product: 'ACEITE VEGETAL 1L/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 6.5, monthlySales: 145230 },
-        { product: 'ARROZ EXTRA 1KG/ 20 UDS', location: 'BODEGA NORTE', daysLeft: 7.2, monthlySales: 128450 },
-        { product: 'AZUCAR BLANCA 1KG/ 20 UDS', location: 'BODEGA CENTRAL', daysLeft: 5.8, monthlySales: 112340 },
-        { product: 'FRIJOLES NEGROS 1KG/ 20 UDS', location: 'BODEGA SUR', daysLeft: 6.1, monthlySales: 98560 },
-      ];
-    } else if (isAtRisk) {
-      return [
-        { product: 'ACEITE VEGETAL 1L/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 4.2, monthlySales: 168920 },
-        { product: 'ARROZ EXTRA 1KG/ 20 UDS', location: 'BODEGA NORTE', daysLeft: 4.8, monthlySales: 152340 },
-        { product: 'AZUCAR BLANCA 1KG/ 20 UDS', location: 'BODEGA CENTRAL', daysLeft: 3.5, monthlySales: 135670 },
-        { product: 'FRIJOLES NEGROS 1KG/ 20 UDS', location: 'BODEGA SUR', daysLeft: 3.9, monthlySales: 112450 },
-      ];
-    } else {
-      return [
-        { product: 'ACEITE VEGETAL 1L/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 2.8, monthlySales: 192450 },
-        { product: 'ARROZ EXTRA 1KG/ 20 UDS', location: 'BODEGA NORTE', daysLeft: 3.1, monthlySales: 178920 },
-        { product: 'AZUCAR BLANCA 1KG/ 20 UDS', location: 'BODEGA CENTRAL', daysLeft: 2.2, monthlySales: 158340 },
-        { product: 'FRIJOLES NEGROS 1KG/ 20 UDS', location: 'BODEGA SUR', daysLeft: 2.5, monthlySales: 128560 },
-      ];
-    }
-  }, [score]);
-
-  // Generate mock product data for third accordion (low rotation)
-  const productData3 = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    if (isHealthy) {
-      return [
-        { product: 'SALSA BBQ 500ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 45, monthlySales: 12500 },
-        { product: 'MOSTAZA DIJON 250ML/ 24 UDS', location: 'BODEGA NORTE', daysLeft: 52, monthlySales: 8900 },
-        { product: 'SALSA WORCESTERSHIRE 150ML/ 24 UDS', location: 'BODEGA SUR', daysLeft: 38, monthlySales: 6700 },
-        { product: 'VINAGRE BALSAMICO 250ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 41, monthlySales: 5400 },
-      ];
-    } else if (isAtRisk) {
-      return [
-        { product: 'SALSA BBQ 500ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 38, monthlySales: 15200 },
-        { product: 'MOSTAZA DIJON 250ML/ 24 UDS', location: 'BODEGA NORTE', daysLeft: 44, monthlySales: 11200 },
-        { product: 'SALSA WORCESTERSHIRE 150ML/ 24 UDS', location: 'BODEGA SUR', daysLeft: 32, monthlySales: 8900 },
-        { product: 'VINAGRE BALSAMICO 250ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 35, monthlySales: 7200 },
-      ];
-    } else {
-      return [
-        { product: 'SALSA BBQ 500ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 28, monthlySales: 18200 },
-        { product: 'MOSTAZA DIJON 250ML/ 24 UDS', location: 'BODEGA NORTE', daysLeft: 32, monthlySales: 13400 },
-        { product: 'SALSA WORCESTERSHIRE 150ML/ 24 UDS', location: 'BODEGA SUR', daysLeft: 24, monthlySales: 10200 },
-        { product: 'VINAGRE BALSAMICO 250ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: 26, monthlySales: 8900 },
-      ];
-    }
-  }, [score]);
-
-  // Generate details for second decision (reorder required)
-  const decisionDetails2 = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    return {
-      skusBelowThreshold: isHealthy ? 15 : isAtRisk ? 22 : 28,
-      stockoutHours: isHealthy ? 72 : isAtRisk ? 36 : 18,
-      backorderQuantity: isHealthy ? 3200 : isAtRisk ? 5600 : 7800,
-      dailyRevenue: isHealthy ? 185 : isAtRisk ? 285 : 385,
-      backorderIncrease: isHealthy ? 120.5 : isAtRisk ? 195.2 : 275.8,
-    };
-  }, [score]);
-
-  // Generate details for third decision (low rotation)
-  const decisionDetails3 = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    return {
-      skusBelowThreshold: isHealthy ? 45 : isAtRisk ? 68 : 92,
-      stockoutHours: isHealthy ? 120 : isAtRisk ? 96 : 72,
-      backorderQuantity: isHealthy ? 1200 : isAtRisk ? 2100 : 3200,
-      dailyRevenue: isHealthy ? 95 : isAtRisk ? 145 : 195,
-      backorderIncrease: isHealthy ? 45.2 : isAtRisk ? 78.5 : 112.3,
-    };
-  }, [score]);
 
   // Measure accordion content height for smooth animation
   useEffect(() => {
@@ -369,122 +371,19 @@ export default function ExperimentalReportView({ components, conversationHistory
     };
   }, []);
 
-  // Generate full product data for modals (many more products)
+  // Get full product data for Excel export from backend
   const fullProductData = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    const baseProducts = [
-      { product: 'AMERICAN BEST GALON 3.79 L/4 UDS', location: 'BODEGA MAQUILA', daysLeft: 0.1, monthlySales: 12876 },
-      { product: 'PIMIENTA MOLIDA 454GRS (LIBRA)', location: 'BODEGA CENTRAL', daysLeft: 0.1, monthlySales: 1558 },
-      { product: 'AVENA CANELA 320 GRS/24 UDS', location: 'BODEGA DE CHIRIQUI', daysLeft: 0.1, monthlySales: 1199 },
-      { product: 'SIROPE 6 OZ (177 ML)/24 UDS', location: 'BODEGA DE CHIRIQUI', daysLeft: 0.1, monthlySales: 710 },
-      { product: 'CALDITO ACHIOTE/CULANTRO 175 GRS/12 UDS', location: 'BODEGA CENTRAL', daysLeft: 0.1, monthlySales: 607 },
-      { product: 'SALSA DE OSTION 200 GRS/24 UDS', location: 'BODEGA DE CHIRIQUI', daysLeft: 0.1, monthlySales: 350 },
-      { product: 'CONDIMENTE CLAVOS ENTEROS 18GR/48 UDS', location: 'BODEGA CENTRAL', daysLeft: 0.2, monthlySales: 4038 },
-      { product: 'SANDWICH SPREAD 350 GRS/24 UDS', location: 'BOD. EXPORTACION', daysLeft: 0.2, monthlySales: 3339 },
-      { product: 'CHIA EN GRANO 150 GRS/12 UDS', location: 'BODEGA DE CHIRIQUI', daysLeft: 0.2, monthlySales: 1367 },
-      { product: 'CARTON DE ARROCERO/20 UDS', location: 'BODEGA MAQUILA', daysLeft: 0.2, monthlySales: 1260 },
-      { product: 'CARTON SAZON CON ACHIOTE/20 UDS', location: 'BODEGA MAQUILA', daysLeft: 0.2, monthlySales: 812 },
-      { product: 'VINAGRE DULCE GALON PARA SUSHI/4 UDS', location: 'BODEGA HTZANETATOS', daysLeft: 0.2, monthlySales: 280 },
-      { product: 'SAZONADOR COMPLETO+CURCUMA FC G/770 GR/6 UDS', location: 'BODEGA CENTRAL', daysLeft: 0.3, monthlySales: 2807 },
-      { product: 'AJO EN POLVO 454 GRS (LIBRA)', location: 'BODEGA CENTRAL', daysLeft: 0.3, monthlySales: 2703 },
-      { product: 'CHILI EN POLVO 454 GRS (LIBRA)', location: 'BODEGA CENTRAL', daysLeft: 0.3, monthlySales: 347 },
-      { product: 'ADOBO PARA TODO 454 GRS (LIBRA)', location: 'BODEGA CENTRAL', daysLeft: 0.3, monthlySales: 210 },
-      { product: 'KETCHUP XTRA 500 GRS/24 UDS', location: 'BODEGA MAQUILA', daysLeft: 0.4, monthlySales: 4509 },
-      { product: 'SALSA CHINA GALON 3.79 L/4 UDS', location: 'BODEGA HTZANETATOS', daysLeft: 0.4, monthlySales: 2291 },
-      { product: 'MAYONESA 350 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 4.2 : isAtRisk ? 3.1 : 2.4, monthlySales: isHealthy ? 185420 : isAtRisk ? 214580 : 243810 },
-      { product: 'MAYONESA 200 GRS/ 24 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 5.1 : isAtRisk ? 3.8 : 3.4, monthlySales: isHealthy ? 102340 : isAtRisk ? 118920 : 134467 },
-      { product: 'KETCHUP GALON/ 4085 ML/ 6 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 6.3 : isAtRisk ? 2.1 : 0.9, monthlySales: isHealthy ? 98560 : isAtRisk ? 67890 : 53550 },
-    ];
-    
-    // Generate more products to reach the number
-    const additionalProducts = Array.from({ length: summaryData.criticalRisk - baseProducts.length }, (_, i) => ({
-      product: `PRODUCT ${i + 1} - CRITICAL RISK`,
-      location: ['BODEGA CENTRAL', 'BODEGA NORTE', 'BODEGA SUR', 'BODEGA MAQUILA', 'BODEGA DE CHIRIQUI', 'BODEGA HTZANETATOS'][i % 6],
-      daysLeft: Math.random() * 0.5 + 0.1,
-      monthlySales: Math.floor(Math.random() * 5000) + 200,
-    }));
-    
-    return [...baseProducts, ...additionalProducts].slice(0, summaryData.criticalRisk);
-  }, [score, summaryData]);
+    return reportData?.criticalRiskProducts ?? [];
+  }, [reportData]);
 
   const fullProductData2 = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    const baseProducts = [
-      { product: 'ACEITE VEGETAL 1L/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 6.5 : isAtRisk ? 4.2 : 2.8, monthlySales: isHealthy ? 145230 : isAtRisk ? 168920 : 192450 },
-      { product: 'ARROZ EXTRA 1KG/ 20 UDS', location: 'BODEGA NORTE', daysLeft: isHealthy ? 7.2 : isAtRisk ? 4.8 : 3.1, monthlySales: isHealthy ? 128450 : isAtRisk ? 152340 : 178920 },
-      { product: 'AZUCAR BLANCA 1KG/ 20 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 5.8 : isAtRisk ? 3.5 : 2.2, monthlySales: isHealthy ? 112340 : isAtRisk ? 135670 : 158340 },
-      { product: 'FRIJOLES NEGROS 1KG/ 20 UDS', location: 'BODEGA SUR', daysLeft: isHealthy ? 6.1 : isAtRisk ? 3.9 : 2.5, monthlySales: isHealthy ? 98560 : isAtRisk ? 112450 : 128560 },
-    ];
-    
-    const additionalProducts = Array.from({ length: summaryData.reorderRequired - baseProducts.length }, (_, i) => ({
-      product: `REORDER PRODUCT ${i + 1}`,
-      location: ['BODEGA CENTRAL', 'BODEGA NORTE', 'BODEGA SUR', 'BODEGA MAQUILA'][i % 4],
-      daysLeft: Math.random() * 3 + 3,
-      monthlySales: Math.floor(Math.random() * 50000) + 5000,
-    }));
-    
-    return [...baseProducts, ...additionalProducts].slice(0, summaryData.reorderRequired);
-  }, [score, summaryData]);
+    return reportData?.reorderRequiredProducts ?? [];
+  }, [reportData]);
 
   const fullProductData3 = useMemo(() => {
-    const isHealthy = score >= 70;
-    const isAtRisk = score >= 40 && score < 70;
-    
-    const baseProducts = [
-      { product: 'SALSA BBQ 500ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 45 : isAtRisk ? 38 : 28, monthlySales: isHealthy ? 12500 : isAtRisk ? 15200 : 18200 },
-      { product: 'MOSTAZA DIJON 250ML/ 24 UDS', location: 'BODEGA NORTE', daysLeft: isHealthy ? 52 : isAtRisk ? 44 : 32, monthlySales: isHealthy ? 8900 : isAtRisk ? 11200 : 13400 },
-      { product: 'SALSA WORCESTERSHIRE 150ML/ 24 UDS', location: 'BODEGA SUR', daysLeft: isHealthy ? 38 : isAtRisk ? 32 : 24, monthlySales: isHealthy ? 6700 : isAtRisk ? 8900 : 10200 },
-      { product: 'VINAGRE BALSAMICO 250ML/ 12 UDS', location: 'BODEGA CENTRAL', daysLeft: isHealthy ? 41 : isAtRisk ? 35 : 26, monthlySales: isHealthy ? 5400 : isAtRisk ? 7200 : 8900 },
-    ];
-    
-    const additionalProducts = Array.from({ length: summaryData.lowRotation - baseProducts.length }, (_, i) => ({
-      product: `SLOW MOVING PRODUCT ${i + 1}`,
-      location: ['BODEGA CENTRAL', 'BODEGA NORTE', 'BODEGA SUR'][i % 3],
-      daysLeft: Math.random() * 30 + 30,
-      monthlySales: Math.floor(Math.random() * 5000) + 1000,
-    }));
-    
-    return [...baseProducts, ...additionalProducts].slice(0, summaryData.lowRotation);
-  }, [score, summaryData]);
+    return reportData?.lowRotationProducts ?? [];
+  }, [reportData]);
 
-  // Function to open modal with product data
-  const openProductModal = (title: string, products: Array<{ product: string; location: string; daysLeft: number; monthlySales: number }>) => {
-    setModalData({ title, products });
-    setIsModalOpen(true);
-    onModalStateChange?.(true);
-  };
-
-  // Handle modal close
-  const closeModal = () => {
-    setIsModalOpen(false);
-    onModalStateChange?.(false);
-  };
-
-  // Function to copy table data to clipboard (Excel format)
-  const copyToClipboard = () => {
-    if (!modalData) return;
-    
-    const headers = ['Product', 'Location', 'Days Left', 'Monthly Sales ($)'];
-    const rows = modalData.products.map(p => [
-      p.product,
-      p.location,
-      p.daysLeft.toFixed(1),
-      p.monthlySales.toLocaleString()
-    ]);
-    
-    const csv = [
-      headers.join('\t'),
-      ...rows.map(row => row.join('\t'))
-    ].join('\n');
-    
-    navigator.clipboard.writeText(csv).then(() => {
-      // Visual feedback could be added here
-    });
-  };
 
   // Get current month and year for report title
   const reportDate = useMemo(() => {
@@ -495,14 +394,14 @@ export default function ExperimentalReportView({ components, conversationHistory
   }, []);
 
   return (
-    <div style={{ width: '100%', paddingTop: '0px', position: 'relative', zIndex: 1 }}>
+    <div style={{ width: '100%', paddingTop: '40px', position: 'relative', zIndex: 1 }}>
       {/* Single row: Aragon icon, pie chart with 84 inside, Healthy and title to the right */}
       <div
         style={{
           display: 'flex',
           alignItems: 'flex-start',
           gap: '12px',
-          marginTop: '6px', // Tiny bit lower to align better with user message
+          marginTop: '0px',
         }}
       >
         {/* Aragon icon on left - bigger square */}
@@ -533,10 +432,10 @@ export default function ExperimentalReportView({ components, conversationHistory
         <div style={{ 
           flexShrink: 0,
           position: 'relative',
-          width: 200,
-          height: 200,
+          width: 160,
+          height: 160,
         }}>
-          <canvas ref={canvasRef} width={200} height={200} style={{ width: '200px', height: '200px' }} />
+          <canvas ref={canvasRef} width={160} height={160} style={{ width: '160px', height: '160px' }} />
           {/* Only 84 inside pie chart - same size */}
           <div style={{
             position: 'absolute',
@@ -544,7 +443,7 @@ export default function ExperimentalReportView({ components, conversationHistory
             left: '50%',
             transform: 'translate(-50%, -50%)',
             fontFamily: 'Inter, sans-serif',
-            fontSize: '42px',
+            fontSize: '34px',
             fontWeight: 500,
             color,
             lineHeight: 1,
@@ -562,7 +461,7 @@ export default function ExperimentalReportView({ components, conversationHistory
           gap: '4px',
           flexShrink: 0,
           justifyContent: 'center',
-          height: '200px', // Same height as pie to center vertically
+          height: '160px', // Same height as pie to center vertically
           marginLeft: '8px', // Move a bit more to the right
         }}>
           {/* Healthy - bigger and slightly bolder if green */}
@@ -733,7 +632,7 @@ export default function ExperimentalReportView({ components, conversationHistory
         ref={accordionContainerRef}
         style={{
           backgroundColor: '#2F343B',
-          borderRadius: '16px',
+          borderRadius: '12px',
           padding: '14px',
           marginBottom: '12px',
           overflow: 'visible',
@@ -920,33 +819,6 @@ export default function ExperimentalReportView({ components, conversationHistory
           }}
         >
           <div ref={accordionInnerRef}>
-        {/* View All Button */}
-        <div style={{ marginBottom: '24px' }}>
-          <button 
-            onClick={(e) => {
-              e.stopPropagation();
-              openProductModal(`All products at critical risk (<7 days inventory)`, fullProductData);
-            }}
-            style={{
-              backgroundColor: '#6496E2',
-              border: 'none',
-              borderRadius: '6px',
-              padding: '8px 16px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              cursor: 'pointer',
-              fontFamily: 'Inter, sans-serif',
-              fontSize: '14px',
-              fontWeight: 500,
-              color: '#FFFFFF',
-            }}
-          >
-            View all {firstDecision.number} products
-            <ExternalLink size={14} />
-          </button>
-        </div>
-
         {/* Impact Section */}
         <div style={{
           marginBottom: '24px',
@@ -976,14 +848,20 @@ export default function ExperimentalReportView({ components, conversationHistory
               </tr>
             </thead>
             <tbody>
-              {productData.map((item, idx) => (
+              {(productData && productData.length > 0) ? productData.map((item, idx) => (
                 <tr key={idx} style={{ borderBottom: idx < productData.length - 1 ? '1px solid rgba(255, 255, 255, 0.05)' : 'none' }}>
                   <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#FFFFFF' }}>{item.product}</td>
                   <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.location}</td>
-                  <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.daysLeft}</td>
+                  <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.daysLeft.toFixed(1)}</td>
                   <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>${item.monthlySales.toLocaleString()}</td>
                 </tr>
-              ))}
+              )) : (
+                <tr>
+                  <td colSpan={4} style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#9CA3AF', textAlign: 'center' }}>
+                    No product data available
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -1120,7 +998,7 @@ export default function ExperimentalReportView({ components, conversationHistory
       {/* Second Accordion */}
       <div style={{
         backgroundColor: '#2F343B',
-        borderRadius: '16px',
+        borderRadius: '12px',
         padding: '14px',
         marginBottom: '12px',
         overflow: 'visible',
@@ -1192,18 +1070,6 @@ export default function ExperimentalReportView({ components, conversationHistory
         >
           <div ref={accordion2InnerRef}>
             <div style={{ marginBottom: '24px' }}>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openProductModal(`All products below safety stock`, fullProductData2);
-                }}
-                style={{ backgroundColor: '#6496E2', border: 'none', borderRadius: '6px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 500, color: '#FFFFFF' }}
-              >
-                View all {secondDecision.number} products
-                <ExternalLink size={14} />
-              </button>
-            </div>
-            <div style={{ marginBottom: '24px' }}>
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#D1D5DB', lineHeight: 1.6 }}>
                 <div>Prevents stockout for {decisionDetails2.skusBelowThreshold} SKUs below safety threshold</div>
                 <div>Protects ${decisionDetails2.dailyRevenue.toLocaleString()} daily revenue at risk</div>
@@ -1221,14 +1087,20 @@ export default function ExperimentalReportView({ components, conversationHistory
                   </tr>
                 </thead>
                 <tbody>
-                  {productData2.map((item, idx) => (
+                  {(productData2 && productData2.length > 0) ? productData2.map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#FFFFFF' }}>{item.product}</td>
                       <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.location}</td>
-                      <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.daysLeft}</td>
+                      <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.daysLeft.toFixed(1)}</td>
                       <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>${item.monthlySales.toLocaleString()}</td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#9CA3AF', textAlign: 'center' }}>
+                        No product data available
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1269,7 +1141,7 @@ export default function ExperimentalReportView({ components, conversationHistory
       {/* Third Accordion */}
       <div style={{
         backgroundColor: '#2F343B',
-        borderRadius: '16px',
+        borderRadius: '12px',
         padding: '14px',
         marginBottom: '12px',
         overflow: 'visible',
@@ -1341,18 +1213,6 @@ export default function ExperimentalReportView({ components, conversationHistory
         >
           <div ref={accordion3InnerRef}>
             <div style={{ marginBottom: '24px' }}>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openProductModal(`All slow-moving inventory items`, fullProductData3);
-                }}
-                style={{ backgroundColor: '#6496E2', border: 'none', borderRadius: '6px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontFamily: 'Inter, sans-serif', fontSize: '14px', fontWeight: 500, color: '#FFFFFF' }}
-              >
-                View all {thirdDecision.number} products
-                <ExternalLink size={14} />
-              </button>
-            </div>
-            <div style={{ marginBottom: '24px' }}>
               <div style={{ fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#D1D5DB', lineHeight: 1.6 }}>
                 <div>Identifies {decisionDetails3.skusBelowThreshold} slow-moving products requiring optimization</div>
                 <div>Potential revenue recovery: ${decisionDetails3.dailyRevenue.toLocaleString()} daily</div>
@@ -1370,14 +1230,20 @@ export default function ExperimentalReportView({ components, conversationHistory
                   </tr>
                 </thead>
                 <tbody>
-                  {productData3.map((item, idx) => (
+                  {(productData3 && productData3.length > 0) ? productData3.map((item, idx) => (
                     <tr key={idx} style={{ borderBottom: '1px solid rgba(255, 255, 255, 0.05)' }}>
                       <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#FFFFFF' }}>{item.product}</td>
                       <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.location}</td>
-                      <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.daysLeft}</td>
+                      <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>{item.daysLeft.toFixed(1)}</td>
                       <td style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#D1D5DB' }}>${item.monthlySales.toLocaleString()}</td>
                     </tr>
-                  ))}
+                  )) : (
+                    <tr>
+                      <td colSpan={4} style={{ padding: '12px 8px', fontFamily: 'Inter, sans-serif', fontSize: '13px', color: '#9CA3AF', textAlign: 'center' }}>
+                        No product data available
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
@@ -1415,217 +1281,331 @@ export default function ExperimentalReportView({ components, conversationHistory
         </motion.div>
       </div>
 
-      {/* Product Modal */}
-      <AnimatePresence>
-        {isModalOpen && modalData && (
-          <>
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              style={{
-                position: 'fixed',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                width: '100vw',
-                height: '100vh',
-                backgroundColor: 'rgba(0, 0, 0, 0.4)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                zIndex: 99999,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '40px 20px',
-              }}
-              onClick={closeModal}
-            >
-              <motion.div
-                initial={{ scale: 0.95, opacity: 0, y: 20 }}
-                animate={{ scale: 1, opacity: 1, y: 0 }}
-                exit={{ scale: 0.95, opacity: 0, y: 20 }}
-                transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                style={{
-                  backgroundColor: '#2F343B',
-                  borderRadius: '12px',
-                  width: '100%',
-                  maxWidth: '1200px',
-                  maxHeight: '90vh',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  overflow: 'hidden',
-                  boxShadow: '0 20px 60px rgba(0, 0, 0, 0.5)',
-                  position: 'relative',
-                }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {/* Modal Header */}
-                <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '20px',
-                  borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                }}>
-                  <h2 style={{
-                    fontFamily: 'Inter, sans-serif',
-                    fontSize: '18px',
-                    fontWeight: 600,
-                    color: '#FFFFFF',
-                    margin: 0,
-                  }}>
-                    {modalData.title}
-                  </h2>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <button
-                      onClick={copyToClipboard}
-                      style={{
-                        backgroundColor: '#6496E2',
-                        border: 'none',
-                        borderRadius: '6px',
-                        padding: '8px 16px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        fontFamily: 'Inter, sans-serif',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        color: '#FFFFFF',
-                      }}
-                    >
-                      <Copy size={16} />
-                      Copy to paste
-                    </button>
-                    <button
-                      onClick={closeModal}
-                      style={{
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        cursor: 'pointer',
-                        padding: '8px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <XIcon size={20} color="#D1D5DB" />
-                    </button>
-                  </div>
-                </div>
+      {/* Divider Line */}
+      <div style={{
+        marginTop: '32px',
+        marginBottom: '24px',
+        height: '1px',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        width: '100%',
+      }} />
 
-                {/* Modal Content - Scrollable Table */}
-                <div style={{
-                  overflowY: 'auto',
-                  flex: 1,
-                  padding: '20px',
-                }}>
-                  <table style={{
-                    width: '100%',
-                    borderCollapse: 'collapse',
-                  }}>
-                    <thead style={{
-                      position: 'sticky',
-                      top: 0,
-                      backgroundColor: '#2F343B',
-                      zIndex: 10,
-                    }}>
-                      <tr style={{ borderBottom: '2px solid rgba(255, 255, 255, 0.2)' }}>
-                        <th style={{
-                          textAlign: 'left',
-                          padding: '12px 16px',
-                          fontFamily: 'Inter, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: '#D1D5DB',
-                        }}>
-                          Product
-                        </th>
-                        <th style={{
-                          textAlign: 'left',
-                          padding: '12px 16px',
-                          fontFamily: 'Inter, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: '#D1D5DB',
-                        }}>
-                          Location
-                        </th>
-                        <th style={{
-                          textAlign: 'left',
-                          padding: '12px 16px',
-                          fontFamily: 'Inter, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: '#D1D5DB',
-                        }}>
-                          Days Left
-                        </th>
-                        <th style={{
-                          textAlign: 'left',
-                          padding: '12px 16px',
-                          fontFamily: 'Inter, sans-serif',
-                          fontSize: '14px',
-                          fontWeight: 600,
-                          color: '#D1D5DB',
-                        }}>
-                          Monthly Sales ($)
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {modalData.products.map((item, idx) => (
-                        <tr
-                          key={idx}
-                          style={{
-                            borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                          }}
-                        >
-                          <td style={{
-                            padding: '12px 16px',
-                            fontFamily: 'Inter, sans-serif',
-                            fontSize: '13px',
-                            color: '#FFFFFF',
-                          }}>
-                            {item.product}
-                          </td>
-                          <td style={{
-                            padding: '12px 16px',
-                            fontFamily: 'Inter, sans-serif',
-                            fontSize: '13px',
-                            color: '#D1D5DB',
-                          }}>
-                            {item.location}
-                          </td>
-                          <td style={{
-                            padding: '12px 16px',
-                            fontFamily: 'Inter, sans-serif',
-                            fontSize: '13px',
-                            color: '#D1D5DB',
-                          }}>
-                            {item.daysLeft.toFixed(1)}
-                          </td>
-                          <td style={{
-                            padding: '12px 16px',
-                            fontFamily: 'Inter, sans-serif',
-                            fontSize: '13px',
-                            color: '#D1D5DB',
-                          }}>
-                            ${item.monthlySales.toLocaleString()}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      {/* Follow-up Questions */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+      }}>
+        <div style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '13px',
+          fontWeight: 500,
+          color: '#9CA3AF',
+          marginBottom: '8px',
+          textTransform: 'uppercase',
+          letterSpacing: '0.5px',
+        }}>
+          Follow-up Questions
+        </div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '1fr 1fr',
+          gap: '8px',
+        }}>
+          {[
+            'Top 10 products at critical risk?',
+            'ABC classification analysis',
+            'Next month\'s inventory forecast?',
+            'Suppliers with longest lead times?'
+          ].map((question, idx) => (
+            <motion.button
+              key={idx}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: idx * 0.05, ease: [0.16, 1, 0.3, 1] }}
+              whileHover={{ scale: 1.01 }}
+              whileTap={{ scale: 0.99 }}
+              onClick={() => {
+                if (onQuestionSelect) {
+                  onQuestionSelect(question);
+                }
+              }}
+              style={{
+                padding: '12px 16px',
+                backgroundColor: 'transparent',
+                borderRadius: '8px',
+                border: '1px solid rgba(255, 255, 255, 0.12)',
+                textAlign: 'left',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                fontFamily: 'Inter, sans-serif',
+                fontSize: '14px',
+                color: '#E6EAF1',
+                fontWeight: 400,
+                lineHeight: 1.5,
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.03)';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.18)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = 'transparent';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.12)';
+              }}
+            >
+              {question}
+            </motion.button>
+          ))}
+        </div>
+      </div>
+
+      {/* Divider Line */}
+      <div style={{
+        marginTop: '32px',
+        marginBottom: '24px',
+        height: '1px',
+        backgroundColor: 'rgba(255, 255, 255, 0.06)',
+        width: '100%',
+      }} />
+
+      {/* Excel Download Section */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '8px',
+      }}>
+        <motion.button
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.99 }}
+          onClick={() => {
+            // Generate Excel/CSV data from all product data from backend
+            const allProducts = [
+              ...(fullProductData || []).map(p => ({
+                Product: p.product,
+                Location: p.location,
+                'Days Left': p.daysLeft.toFixed(1),
+                'Monthly Sales ($)': p.monthlySales.toLocaleString(),
+                Category: 'Critical Risk'
+              })),
+              ...(fullProductData2 || []).map(p => ({
+                Product: p.product,
+                Location: p.location,
+                'Days Left': p.daysLeft.toFixed(1),
+                'Monthly Sales ($)': p.monthlySales.toLocaleString(),
+                Category: 'Below Safety Stock'
+              })),
+              ...(fullProductData3 || []).map(p => ({
+                Product: p.product,
+                Location: p.location,
+                'Days Left': p.daysLeft.toFixed(1),
+                'Monthly Sales ($)': p.monthlySales.toLocaleString(),
+                Category: 'Slow-Moving'
+              }))
+            ];
+            
+            if (allProducts.length === 0) {
+              console.warn('No product data available for export');
+              return;
+            }
+
+            // Convert to CSV
+            const headers = ['Product', 'Location', 'Days Left', 'Monthly Sales ($)', 'Category'];
+            const csvRows = [
+              headers.join(','),
+              ...allProducts.map(row => 
+                headers.map(header => {
+                  const value = row[header as keyof typeof row];
+                  // Escape commas and quotes in CSV
+                  if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                    return `"${value.replace(/"/g, '""')}"`;
+                  }
+                  return value;
+                }).join(',')
+              )
+            ];
+            const csvContent = csvRows.join('\n');
+
+            // Add BOM for Excel compatibility
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `inventory_report_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+          }}
+          style={{
+            padding: '12px 16px',
+            backgroundColor: '#2F343B',
+            borderRadius: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.06)',
+            textAlign: 'left',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            width: 'fit-content',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#3A4149';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#2F343B';
+            e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.06)';
+          }}
+        >
+          <FileText size={20} color="#33C481" strokeWidth={2} />
+          <span style={{
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            fontWeight: 500,
+            color: '#E6EAF1',
+            flex: 1,
+          }}>
+            Download Excel Report
+          </span>
+        </motion.button>
+        <div style={{
+          fontFamily: 'Inter, sans-serif',
+          fontSize: '12px',
+          color: '#9CA3AF',
+          lineHeight: 1.5,
+        }}>
+          Full data for all products · Link valid 7 days
+        </div>
+      </div>
+
+      {/* Action Bar */}
+      <div style={{
+        marginTop: '24px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '16px',
+      }}>
+        {/* Copy Action */}
+        <button
+          onClick={() => {
+            // Copy report summary to clipboard
+            const summary = `Inventory Health Report\n\nTotal Inventory: ${summaryData.totalUnits.toLocaleString()} units\nCritical Risk: ${summaryData.criticalRisk} products\nReorder Required: ${summaryData.reorderRequired} products\nLow Rotation: ${summaryData.lowRotation} products\nProfit Margin: ${summaryData.profitMargin.toFixed(1)}%`;
+            navigator.clipboard.writeText(summary);
+          }}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px 8px',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            color: '#9CA3AF',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#E6EAF1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#9CA3AF';
+          }}
+        >
+          <Copy size={16} />
+          <span>Copy</span>
+        </button>
+
+        {/* Vertical Separator */}
+        <div style={{
+          width: '1px',
+          height: '20px',
+          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+        }} />
+
+        {/* Sources Button */}
+        <button
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '6px 12px',
+            backgroundColor: '#2F343B',
+            borderRadius: '20px',
+            border: 'none',
+            cursor: 'pointer',
+            fontFamily: 'Inter, sans-serif',
+            fontSize: '14px',
+            color: '#E6EAF1',
+            transition: 'background-color 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#3A4149';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = '#2F343B';
+          }}
+        >
+          <RefreshCw size={16} />
+          <span>Sources</span>
+          <span style={{
+            fontSize: '14px',
+            fontWeight: 500,
+            color: '#E6EAF1',
+          }}>4</span>
+        </button>
+
+        {/* Like Action */}
+        <button
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px',
+            color: '#9CA3AF',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#E6EAF1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#9CA3AF';
+          }}
+        >
+          <ThumbsUp size={18} strokeWidth={2} />
+        </button>
+
+        {/* Dislike Action */}
+        <button
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: '4px',
+            color: '#9CA3AF',
+            transition: 'color 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.color = '#E6EAF1';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.color = '#9CA3AF';
+          }}
+        >
+          <ThumbsDown size={18} strokeWidth={2} />
+        </button>
+      </div>
     </div>
   );
 }
