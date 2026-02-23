@@ -47,7 +47,7 @@ function RootRoute() {
     const isAuthenticated = userId && (isLoggedIn === "true" || jwtToken);
     
     if (isAuthenticated) {
-      setLocation("/llm-chat");
+      setLocation("/chat");
     } else {
       setLocation("/user-id-entry");
     }
@@ -95,7 +95,7 @@ function Router() {
           <Chat />
         </ProtectedRoute>
       </Route>
-      <Route path="/llm-chat">
+      <Route path="/chat">
         <ProtectedRoute>
           <LLMChatPage />
         </ProtectedRoute>

@@ -236,7 +236,7 @@ export default function UserIdEntry() {
 
       // Smooth transition with animation
       setTimeout(() => {
-        setLocation("/llm-chat");
+        setLocation("/chat");
       }, 300);
     } catch (error) {
       setIsSubmitting(false);

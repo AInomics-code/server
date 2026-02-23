@@ -158,7 +158,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
 
         {/* LLM - ENABLED */}
         <button 
-          onClick={() => setLocation('/llm-chat')}
+          onClick={() => setLocation('/chat')}
           style={{
             display: 'flex',
             alignItems: 'center',
