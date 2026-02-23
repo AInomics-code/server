@@ -249,7 +249,7 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                       initial={{ width: 0 }}
                       animate={{
                         width: `${healthScore}%`,
-                        backgroundColor: isHovered ? healthColor : '#5CA2F9',
+                        backgroundColor: healthColor,
                       }}
                       transition={{
                         duration: 0.6,
@@ -258,7 +258,7 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                       style={{
                         height: '100%',
                         borderRadius: '2px',
-                        willChange: 'background-color, width',
+                        willChange: 'width',
                         position: 'absolute',
                         top: 0,
                         left: 0,
@@ -267,7 +267,7 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                   )}
                 </motion.div>
 
-                {/* Health Label (appears on hover) - Far left, close to bar */}
+                {/* Health Label (appears on hover) */}
                 {!isLoading && healthScore !== undefined && healthScore > 0 && (
                   <motion.div
                     animate={{
@@ -277,26 +277,11 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                       marginBottom: isHovered ? '8px' : '0px',
                     }}
                     transition={{
-                      opacity: {
-                        duration: isHovered ? 0.5 : 0.2,
-                        ease: [0.25, 0.46, 0.45, 0.94],
-                      },
-                      height: {
-                        duration: isHovered ? 0.5 : 0.2,
-                        ease: [0.25, 0.46, 0.45, 0.94],
-                      },
-                      marginTop: {
-                        duration: isHovered ? 0.5 : 0.2,
-                        ease: [0.25, 0.46, 0.45, 0.94],
-                      },
-                      marginBottom: {
-                        duration: isHovered ? 0.5 : 0.2,
-                        ease: [0.25, 0.46, 0.45, 0.94],
-                      },
+                      duration: isHovered ? 0.5 : 0.2,
+                      ease: [0.25, 0.46, 0.45, 0.94],
                     }}
                     style={{
                       padding: 0,
-                      marginLeft: '0px',
                       alignSelf: 'flex-start',
                       overflow: 'hidden',
                       width: '100%',
@@ -304,25 +289,22 @@ export function GetStartedCards({ cards, onCardClick }: GetStartedCardsProps) {
                       willChange: 'opacity, height, margin-top, margin-bottom',
                     }}
                   >
-                    <span
-                      style={{
-                        fontSize: '10px',
-                        fontWeight: 500,
-                        color: healthColor,
-                        fontFamily: 'Inter, sans-serif',
-                        lineHeight: '1.2',
-                        display: 'block',
-                        textAlign: 'left',
-                        whiteSpace: 'nowrap',
-                      }}
-                    >
+                    <span style={{
+                      fontSize: '10px',
+                      fontWeight: 500,
+                      color: healthColor,
+                      fontFamily: 'Inter, sans-serif',
+                      lineHeight: '1.2',
+                      display: 'block',
+                      whiteSpace: 'nowrap',
+                    }}>
                       {healthScore}% health
                     </span>
                   </motion.div>
                 )}
               </div>
 
-              {/* Icon + Title Row - Always visible at bottom, moves up slightly on hover */}
+              {/* Icon + Title Row */}
               <motion.div
                 animate={{
                   marginBottom: isHovered && healthScore !== undefined && healthScore > 0 ? '4px' : '0px',

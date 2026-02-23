@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # JWT Authentication
     jwt_secret_key: str = "your-secret-key-min-32-chars-change-in-production"
     jwt_algorithm: str = "HS256"
-    jwt_expiration_minutes: int = 60
+    jwt_expiration_minutes: int = 43200  # 30 days
     
     # Environment
     environment: str = "development"  # development, staging, production

@@ -1,11 +1,54 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Response
 from pydantic import BaseModel
 from datetime import datetime, timedelta, date
+import asyncio
+import json
+import asyncpg
+import redis.asyncio as aioredis
+
 from auth.dependencies import get_current_user
 from models.user import UserResponse
-from agents.tools.simple_sql_tools import get_client_db_pool
+from config import get_settings
 
 router = APIRouter()
+settings = get_settings()
+
+CACHE_KEY = "health_scores:latest"
+CACHE_TTL = 6 * 60 * 60  # 6 hours
+
+# ---------------------------------------------------------------------------
+# Singleton pool and Redis client — created once, reused across all requests
+# ---------------------------------------------------------------------------
+
+_db_pool: asyncpg.Pool | None = None
+_redis_client: aioredis.Redis | None = None
+
+
+async def _get_db_pool() -> asyncpg.Pool:
+    global _db_pool
+    if _db_pool is None or _db_pool._closed:
+        _db_pool = await asyncpg.create_pool(
+            host=settings.client_data_host,
+            port=settings.client_data_port,
+            user=settings.client_data_user,
+            password=settings.client_data_password,
+            database=settings.client_data_db,
+            min_size=2,
+            max_size=10,
+        )
+    return _db_pool
+
+
+async def _get_redis() -> aioredis.Redis:
+    global _redis_client
+    if _redis_client is None:
+        url = f"redis://{settings.redis_host}:{settings.redis_port}"
+        kwargs: dict = {"decode_responses": True}
+        if settings.redis_password:
+            kwargs["password"] = settings.redis_password
+        _redis_client = await aioredis.from_url(url, **kwargs)
+    return _redis_client
+
 
 # ---------------------------------------------------------------------------
 # Response models
@@ -244,29 +287,20 @@ def _score_label(score: float) -> str:
 
 
 def _compute_inventory_score(row: dict) -> InventoryHealthScore:
-    total = int(row["total_products"] or 1)  # avoid division by zero
+    total = int(row["total_products"] or 1)
 
-    pct_critico      = (int(row["critico"] or 0)          / total) * 100
-    pct_bajo         = (int(row["bajo"] or 0)             / total) * 100
-    pct_alto         = (int(row["alto"] or 0)             / total) * 100
-    pct_obsoleto     = (int(row["posible_obsoleto"] or 0) / total) * 100
-    pct_baja_rot     = (int(row["baja_rotacion"] or 0)    / total) * 100
-    pct_reorden      = (int(row["products_requiring_reorder"] or 0) / total) * 100
-    avg_margin       = float(row["avg_profit_margin_pct"] or 0)
+    pct_critico  = (int(row["critico"] or 0)                       / total) * 100
+    pct_bajo     = (int(row["bajo"] or 0)                          / total) * 100
+    pct_alto     = (int(row["alto"] or 0)                          / total) * 100
+    pct_obsoleto = (int(row["posible_obsoleto"] or 0)              / total) * 100
+    pct_baja_rot = (int(row["baja_rotacion"] or 0)                 / total) * 100
+    pct_reorden  = (int(row["products_requiring_reorder"] or 0)    / total) * 100
+    avg_margin   = float(row["avg_profit_margin_pct"] or 0)
 
-    # D1 – Stock Availability (30%)
     d1 = _clamp(100 - (pct_critico * 2.5) - (pct_bajo * 1.0))
-
-    # D2 – Rotation Quality (25%)
     d2 = _clamp(100 - (pct_obsoleto * 2.0) - (pct_baja_rot * 1.0))
-
-    # D3 – Reorder Management (20%)
     d3 = _clamp(100 - pct_reorden)
-
-    # D4 – Profitability (15%) — benchmark 35% margin = perfect
     d4 = _clamp((avg_margin / 35) * 100)
-
-    # D5 – Active Product Coverage (10%) — 40%+ of products with ALTO stock = perfect
     d5 = _clamp(pct_alto * 2.5)
 
     score = round(max(1.0, d1 * 0.30 + d2 * 0.25 + d3 * 0.20 + d4 * 0.15 + d5 * 0.10), 1)
@@ -274,7 +308,7 @@ def _compute_inventory_score(row: dict) -> InventoryHealthScore:
     return InventoryHealthScore(
         score=score,
         label=_score_label(score),
-        period="",  # set by caller
+        period="",
         breakdown=InventoryScoreBreakdown(
             stock_availability=round(d1, 1),
             rotation_quality=round(d2, 1),
@@ -301,62 +335,51 @@ def _compute_sales_score(
     backorder: dict,
     bcg: dict,
 ) -> SalesHealthScore:
-    # ---- D1: Seller Goal Attainment (30%) ----
-    excelente  = int(sellers.get("excelente", 0) or 0)
-    bueno      = int(sellers.get("bueno", 0) or 0)
-    regular    = int(sellers.get("regular", 0) or 0)
-    bajo       = int(sellers.get("bajo", 0) or 0)
-    sin_meta   = int(sellers.get("sin_meta", 0) or 0)
+    excelente        = int(sellers.get("excelente", 0) or 0)
+    bueno            = int(sellers.get("bueno", 0) or 0)
+    regular          = int(sellers.get("regular", 0) or 0)
+    bajo             = int(sellers.get("bajo", 0) or 0)
+    sin_meta         = int(sellers.get("sin_meta", 0) or 0)
     sellers_with_goal = excelente + bueno + regular + bajo
-    if sellers_with_goal > 0:
-        d1_raw = (excelente * 100 + bueno * 80 + regular * 50 + bajo * 15) / sellers_with_goal
-    else:
-        d1_raw = 50.0  # neutral when no goals are defined
-    d1 = _clamp(d1_raw)
+    d1 = _clamp(
+        (excelente * 100 + bueno * 80 + regular * 50 + bajo * 15) / sellers_with_goal
+        if sellers_with_goal > 0 else 50.0
+    )
 
-    # ---- D2: Client Portfolio Quality – RFM (25%) ----
-    rfm_weights = {"vip": 100, "leal": 85, "en_riesgo": 30, "dormido": 15, "perdido": 5}
+    rfm_weights   = {"vip": 100, "leal": 85, "en_riesgo": 30, "dormido": 15, "perdido": 5}
     total_clients = int(rfm.get("total_clients", 0) or 0)
     if total_clients > 0:
-        weighted_sum = sum(int(rfm.get(k, 0) or 0) * w for k, w in rfm_weights.items())
-        # clients not in a risk segment are implicitly "Potencial/Nuevo" → weight 60
-        accounted = sum(int(rfm.get(k, 0) or 0) for k in rfm_weights)
-        other_clients = max(0, total_clients - accounted)
-        weighted_sum += other_clients * 60
+        weighted_sum  = sum(int(rfm.get(k, 0) or 0) * w for k, w in rfm_weights.items())
+        accounted     = sum(int(rfm.get(k, 0) or 0) for k in rfm_weights)
+        weighted_sum += max(0, total_clients - accounted) * 60
         d2 = _clamp(weighted_sum / total_clients)
     else:
         d2 = 50.0
 
-    # ---- D3: Fulfillment Efficiency – Backorder (20%) ----
-    avg_fulfillment = float(backorder.get("avg_fulfillment_pct", 100) or 100)
+    avg_fulfillment  = float(backorder.get("avg_fulfillment_pct", 100) or 100)
     total_bo_clients = int(backorder.get("total_clients", 0) or 0)
-    clientes_30plus = int(backorder.get("clientes_30plus_dias", 0) or 0)
-    pct_critico_bo = (clientes_30plus / total_bo_clients * 100) if total_bo_clients > 0 else 0
+    clientes_30plus  = int(backorder.get("clientes_30plus_dias", 0) or 0)
+    pct_critico_bo   = (clientes_30plus / total_bo_clients * 100) if total_bo_clients > 0 else 0
     d3 = _clamp(avg_fulfillment - (pct_critico_bo * 0.30))
 
-    # ---- D4: Product Dynamics – BCG (15%) ----
-    bcg_weights = {"estrella": 100, "vaca_lechera": 70, "interrogante": 45, "perro": 10}
+    bcg_weights    = {"estrella": 100, "vaca_lechera": 70, "interrogante": 45, "perro": 10}
     total_products = int(bcg.get("total_products", 0) or 0)
     avg_devolucion = float(bcg.get("avg_devolucion_pct", 0) or 0)
     if total_products > 0:
         bcg_weighted = sum(int(bcg.get(k, 0) or 0) * w for k, w in bcg_weights.items())
-        d4_raw = bcg_weighted / total_products
-        d4 = _clamp(d4_raw - avg_devolucion)
+        d4 = _clamp(bcg_weighted / total_products - avg_devolucion)
     else:
         d4 = 50.0
 
-    # ---- D5: Overall Profitability (10%) ---- benchmark 40% margin = perfect
     avg_margin = float(sellers.get("avg_profit_margin_pct", 0) or 0)
     d5 = _clamp((avg_margin / 40) * 100)
 
-    score = round(
-        max(1.0, d1 * 0.30 + d2 * 0.25 + d3 * 0.20 + d4 * 0.15 + d5 * 0.10), 1
-    )
+    score = round(max(1.0, d1 * 0.30 + d2 * 0.25 + d3 * 0.20 + d4 * 0.15 + d5 * 0.10), 1)
 
     return SalesHealthScore(
         score=score,
         label=_score_label(score),
-        period="",  # set by caller
+        period="",
         breakdown=SalesScoreBreakdown(
             seller_goal_attainment=round(d1, 1),
             client_portfolio_rfm=round(d2, 1),
@@ -405,67 +428,83 @@ def _compute_sales_score(
 
 @router.get("/health-scores", response_model=HealthScoresResponse)
 async def get_health_scores(
+    response: Response,
     current_user: UserResponse = Depends(get_current_user),
 ):
     """
-    Returns the Inventory Health Score and Sales Health Score for the current month.
+    Returns the Inventory Health Score and Sales Health Score for the most
+    recent month with sales data.
 
-    Both scores are percentages from 1 to 100, composed of 5 weighted dimensions each.
-    The period is always the most recent month that has sales data in the database.
+    Results are cached in Redis for 6 hours. The X-Cache response header
+    indicates whether the result came from cache (HIT) or was freshly computed (MISS).
     """
-    pool = await get_client_db_pool()
+    redis = await _get_redis()
+
+    cached = await redis.get(CACHE_KEY)
+    if cached:
+        response.headers["X-Cache"] = "HIT"
+        print("[HEALTH SCORES] ✅ Cache HIT — returning cached result")
+        return HealthScoresResponse(**json.loads(cached))
+
+    response.headers["X-Cache"] = "MISS"
+    print("[HEALTH SCORES] Cache MISS — computing scores...")
+
+    pool = await _get_db_pool()
     try:
+        # Resolve the most recent month with sales data
         async with pool.acquire() as conn:
-            # ---- Resolve the most recent month with sales data ----
             latest = await conn.fetchrow("""
                 SELECT EXTRACT(YEAR  FROM MAX(date))::int AS latest_year,
                        EXTRACT(MONTH FROM MAX(date))::int AS latest_month
                 FROM transactions
                 WHERE transaction_type = 'SALE'
             """)
-            if not latest or not latest["latest_year"]:
-                raise HTTPException(status_code=404, detail="No sales data found in the database.")
 
-            target_year  = int(latest["latest_year"])
-            target_month = int(latest["latest_month"])
+        if not latest or not latest["latest_year"]:
+            raise HTTPException(status_code=404, detail="No sales data found in the database.")
 
-            month_start = date(target_year, target_month, 1)
-            if target_month == 12:
-                month_end = date(target_year + 1, 1, 1) - timedelta(days=1)
-            else:
-                month_end = date(target_year, target_month + 1, 1) - timedelta(days=1)
+        target_year  = int(latest["latest_year"])
+        target_month = int(latest["latest_month"])
+        month_start  = date(target_year, target_month, 1)
+        month_end    = (
+            date(target_year + 1, 1, 1) - timedelta(days=1)
+            if target_month == 12
+            else date(target_year, target_month + 1, 1) - timedelta(days=1)
+        )
+        period_str = f"{target_year}-{target_month:02d}"
 
-            period_str = f"{target_year}-{target_month:02d}"
+        print(f"[HEALTH SCORES] Period {period_str} ({month_start} → {month_end})")
 
-            print(f"[HEALTH SCORES] Computing for period {period_str} ({month_start} → {month_end})")
+        # Run all 5 queries in parallel — each gets its own connection from the pool
+        async def fetch(query: str, *args):
+            async with pool.acquire() as conn:
+                return dict(await conn.fetchrow(query, *args))
 
-            # ---- Run queries sequentially on the same connection (asyncpg requirement) ----
-            inv_row     = await conn.fetchrow(SQL_INVENTORY_SCORE, month_start, month_end)
-            sellers_row = await conn.fetchrow(SQL_SELLERS_SCORE,   month_start, month_end)
-            rfm_row     = await conn.fetchrow(SQL_RFM_SCORE)
-            bo_row      = await conn.fetchrow(SQL_BACKORDER_SCORE)
-            bcg_row     = await conn.fetchrow(SQL_BCG_SCORE,       month_start, month_end)
+        inv_row, sellers_row, rfm_row, bo_row, bcg_row = await asyncio.gather(
+            fetch(SQL_INVENTORY_SCORE, month_start, month_end),
+            fetch(SQL_SELLERS_SCORE,   month_start, month_end),
+            fetch(SQL_RFM_SCORE),
+            fetch(SQL_BACKORDER_SCORE),
+            fetch(SQL_BCG_SCORE,       month_start, month_end),
+        )
 
-        # ---- Compute scores ----
-        inventory_score = _compute_inventory_score(dict(inv_row))
+        inventory_score        = _compute_inventory_score(inv_row)
         inventory_score.period = period_str
 
-        sales_score = _compute_sales_score(
-            sellers=dict(sellers_row),
-            rfm=dict(rfm_row),
-            backorder=dict(bo_row),
-            bcg=dict(bcg_row),
-        )
+        sales_score        = _compute_sales_score(sellers=sellers_row, rfm=rfm_row, backorder=bo_row, bcg=bcg_row)
         sales_score.period = period_str
 
-        print(f"[HEALTH SCORES] ✅ inventory={inventory_score.score} sales={sales_score.score}")
-
-        return HealthScoresResponse(
+        result = HealthScoresResponse(
             period=period_str,
             inventory=inventory_score,
             sales=sales_score,
             computed_at=datetime.utcnow().isoformat() + "Z",
         )
+
+        await redis.setex(CACHE_KEY, CACHE_TTL, result.model_dump_json())
+        print(f"[HEALTH SCORES] ✅ Cached 6h. inventory={inventory_score.score} sales={sales_score.score}")
+
+        return result
 
     except HTTPException:
         raise
@@ -474,5 +513,3 @@ async def get_health_scores(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Score computation failed: {str(exc)}")
-    finally:
-        await pool.close()
