@@ -18,7 +18,10 @@ export type ComponentType =
   | 'radar_chart'
   | 'scatter_chart'
   | 'polar_chart'
-  | 'mixed_chart';
+  | 'mixed_chart'
+  | 'file'
+  | 'inventory_report_data'
+  | 'sales_report_data';
 
 export interface BaseComponent {
   type: ComponentType;
@@ -79,12 +82,75 @@ export interface RadarChartComponent extends BaseComponent {
   };
 }
 
+export interface InventoryReportProduct {
+  location_id: string;
+  location_name: string;
+  product_id: string;
+  product_name: string;
+  brand: string;
+  category?: string;
+  inventory_qty: number;
+  inventory_days_remaining?: number;
+  days_remaining?: number;
+  backorder_risk?: string;
+  sales_value?: number;
+  profit?: number;
+  profit_margin_pct?: number;
+  abc_class?: string;
+  avg_daily_sales?: number;
+  safety_stock?: number;
+  reorder_point?: number;
+  requires_reorder?: string;
+  backorder_qty?: number;
+  inventory_value_cost?: number;
+  days_with_sales?: number;
+  rotation_alert?: string;
+  rotation_rate?: number;
+}
+
+export interface InventoryReportData {
+  period: string;
+  summary: {
+    total_products: number;
+    total_inventory_qty: number;
+    total_inventory_value_cost: number;
+    total_inventory_value_sale: number;
+    total_sales_value: number;
+    total_profit: number;
+    avg_profit_margin_pct: number;
+    products_requiring_reorder: number;
+  };
+  risk_distribution: Record<string, number>;
+  rotation_alerts: Record<string, number>;
+  top_products_by_sales: InventoryReportProduct[];
+  critical_products: InventoryReportProduct[];
+  low_rotation_products: InventoryReportProduct[];
+}
+
+export interface InventoryReportComponent extends BaseComponent {
+  type: 'inventory_report_data';
+  data: InventoryReportData;
+}
+
+export interface SalesReportComponent extends BaseComponent {
+  type: 'sales_report_data';
+  data: any;
+}
+
+export interface FileComponent extends BaseComponent {
+  type: 'file';
+  data: { url: string; filename: string };
+}
+
 export type Component = 
   | TextComponent
   | ChartComponent
   | PieChartComponent
   | BubbleChartComponent
-  | RadarChartComponent;
+  | RadarChartComponent
+  | InventoryReportComponent
+  | SalesReportComponent
+  | FileComponent;
 
 export interface QueryResponse {
     message: Component[];

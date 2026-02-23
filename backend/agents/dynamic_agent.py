@@ -230,20 +230,53 @@ class DynamicAgent:
                         print(f"\nInvoking: `{tool_call['name']}` with `{tool_call['args']}`")
                 elif hasattr(msg, 'content') and isinstance(msg.content, str):
                     if msg.type == 'tool':
-                        # Check if tool response contains file information
+                        # Check if tool response contains structured data to extract
                         try:
                             tool_response = json.loads(msg.content)
-                            if isinstance(tool_response, dict) and 'file' in tool_response:
-                                file_info = tool_response['file']
-                                if file_info.get('url') and file_info.get('filename'):
+                            if isinstance(tool_response, dict):
+                                # Extract file info
+                                if 'file' in tool_response:
+                                    file_info = tool_response['file']
+                                    if file_info.get('url') and file_info.get('filename'):
+                                        extracted_files.append({
+                                            "type": "file",
+                                            "data": {
+                                                "url": file_info['url'],
+                                                "filename": file_info['filename']
+                                            }
+                                        })
+                                        print(f"[FILE EXTRACTED] {file_info['filename']}")
+
+                                # Extract inventory health structured data
+                                if 'summary' in tool_response and 'risk_distribution' in tool_response:
                                     extracted_files.append({
-                                        "type": "file",
+                                        "type": "inventory_report_data",
                                         "data": {
-                                            "url": file_info['url'],
-                                            "filename": file_info['filename']
+                                            "period": tool_response.get("period"),
+                                            "summary": tool_response.get("summary", {}),
+                                            "risk_distribution": tool_response.get("risk_distribution", {}),
+                                            "rotation_alerts": tool_response.get("rotation_alerts", {}),
+                                            "top_products_by_sales": tool_response.get("top_products_by_sales", []),
+                                            "critical_products": tool_response.get("critical_products", []),
+                                            "low_rotation_products": tool_response.get("low_rotation_products", []),
                                         }
                                     })
-                                    print(f"[FILE EXTRACTED] {file_info['filename']}")
+                                    print(f"[INVENTORY DATA EXTRACTED] period={tool_response.get('period')}")
+
+                                # Extract sales health structured data
+                                if 'summary' in tool_response and 'seller_performance' in tool_response:
+                                    extracted_files.append({
+                                        "type": "sales_report_data",
+                                        "data": {
+                                            "period": tool_response.get("period"),
+                                            "summary": tool_response.get("summary", {}),
+                                            "seller_performance": tool_response.get("seller_performance", []),
+                                            "top_clients": tool_response.get("top_clients", []),
+                                            "product_performance": tool_response.get("product_performance", []),
+                                        }
+                                    })
+                                    print(f"[SALES DATA EXTRACTED] period={tool_response.get('period')}")
+
                         except (json.JSONDecodeError, TypeError):
                             pass
                         print(f"\n{msg.content}\n")

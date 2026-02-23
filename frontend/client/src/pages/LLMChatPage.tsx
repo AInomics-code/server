@@ -4,9 +4,7 @@ import { GlobalSidebar } from '@/components/GlobalSidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
 import { GetStartedCards } from '@/components/GetStartedCards';
-import ExperimentalReportView from '@/components/ExperimentalReportView';
 import { t, getCurrentLanguage, setCurrentLanguage, type Language } from '@/config/i18n';
-import { USE_EXPERIMENTAL_REPORT_LAYOUT } from '@/config/features';
 import { 
   agentService, 
   Component,
@@ -1809,10 +1807,10 @@ export function LLMChatPage() {
                     transition={{ duration: 0.3 }}
                     style={{
                       display: 'flex',
-                      flexDirection: message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? 'column' : 'row',
+                      flexDirection: 'row',
                       justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
-                      alignItems: message.role === 'user' ? 'center' : (message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? 'flex-start' : 'flex-start'),
-                      gap: message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? '8px' : '16px',
+                      alignItems: 'flex-start',
+                      gap: '16px',
                       marginBottom: '32px',
                     }}
                   >
@@ -1846,20 +1844,6 @@ export function LLMChatPage() {
                       </>
                     ) : (
                       <>
-                        {message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? (
-                          // Experimental layout: Everything on one line - Icon, 84, pie, status, title
-                          <ExperimentalReportView 
-                            components={message.components} 
-                            conversationHistory={conversationHistory}
-                            messageIdx={idx}
-                            healthScoresData={healthScores}
-                            onQuestionClick={handleQuestionSubmit}
-                            onQuestionSelect={(question) => {
-                              setChatInputValue(question);
-                            }}
-                          />
-                        ) : (
-                          <>
                             {/* Aragon icon on left for assistant */}
                             <div style={{
                               width: '42px',
@@ -1876,19 +1860,31 @@ export function LLMChatPage() {
                             {/* Message Content for assistant */}
                             <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', minHeight: '42px', maxWidth: '100%', width: 'auto' }}>
                               <div style={{ width: '100%', paddingTop: '8px' }}>
-                                {/* Component-based format - render each component (normal view) */}
                           {message.components && message.components.length > 0 ? (
-                                  // New component-based format - render each component (normal view)
                             message.components.map((component, compIdx) => {
                               if (component.type === 'text') {
-                                // Render text component using markdown renderer
                                 return (
-                                  <div key={compIdx} style={{ marginBottom: compIdx < message.components!.length - 1 ? '24px' : '0', marginTop: compIdx === 0 ? '0' : '0', paddingTop: compIdx === 0 ? '0' : '0' }}>
+                                  <div key={compIdx} style={{ marginBottom: compIdx < message.components!.length - 1 ? '24px' : '0' }}>
                                     <LLMMarkdownRenderer content={component.data as string} />
                                   </div>
                                 );
+                              } else if (component.type === 'file') {
+                                const fileData = component.data as { url: string; filename: string };
+                                return (
+                                  <div key={compIdx} style={{ marginBottom: '8px' }}>
+                                    <a
+                                      href={fileData.url}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
+                                      style={{ color: '#5CA2F9', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                                    >
+                                      📎 {fileData.filename}
+                                    </a>
+                                  </div>
+                                );
+                              } else if (component.type === 'inventory_report_data' || component.type === 'sales_report_data') {
+                                return null;
                               } else {
-                                // Chart component - convert API format to ChatChart format
                                 const chartData = convertComponentToChartData(component);
                                 if (chartData) {
                                   return (
@@ -1901,7 +1897,6 @@ export function LLMChatPage() {
                               }
                             })
                           ) : message.content ? (
-                            // Fallback to legacy content format - use markdown renderer
                             <LLMMarkdownRenderer content={message.content} />
                           ) : null}
                           
@@ -2025,8 +2020,6 @@ export function LLMChatPage() {
                       )}
                     </div>
                             </div>
-                          </>
-                        )}
                       </>
                     )}
                   </motion.div>
