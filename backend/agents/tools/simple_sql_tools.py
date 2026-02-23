@@ -1,6 +1,7 @@
 from langchain_core.tools import tool
 from typing import Optional, List, Dict, Any
 from datetime import datetime, date
+import asyncio
 import asyncpg
 import json
 import boto3
@@ -4443,13 +4444,13 @@ def create_sales_health_tool(queries_executed: List[Dict]):
         MANDATORY TOOL for sales health/check/status queries. ALWAYS call this tool when user mentions "sales" + "health"/"check"/"status"/"report".
 
         CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
-        - User asks "Sales health" (ENGLISH) -> Respond in ENGLISH (all titles, text, follow-up questions)
-        - User asks "Salud de ventas" (SPANISH) -> Respond in SPANISH (all titles, text, follow-up questions)
+        - User asks "Sales health" (ENGLISH) -> Respond in ENGLISH
+        - User asks "Salud de ventas" (SPANISH) -> Respond in SPANISH
         - NEVER mix languages in your response
 
         CRITICAL: You MUST call this tool FIRST before responding.
         - DO NOT respond without calling this tool
-        - DO NOT invent data or make up product/client names
+        - DO NOT invent data or make up product/seller names
         - ONLY use the real data returned by this tool
 
         REQUIRED for: "sales health", "salud de ventas", "sales check", "estado de ventas",
@@ -4459,13 +4460,8 @@ def create_sales_health_tool(queries_executed: List[Dict]):
             year: Optional year (defaults to most recent)
             month: Optional month 1-12 (defaults to most recent)
 
-        Returns: JSON with sales metrics, 5-sheet Excel (Vendedores, Clientes RFM, Productos, Backorder por Cliente, Grupos), summary, alerts.
-
-        IMPORTANT - File field:
-        - The response ALWAYS includes a "file" field with complete data in Excel format (5 sheets).
-        - Structure: {"url": "presigned_s3_url", "filename": "suggested_filename.xlsx"}
-        - URL valid for 7 days.
-        - YOU MUST ALWAYS mention this file in your response and provide download instructions.
+        Returns: JSON with seller_performance (all sellers), product_performance (all products with BCG/strategy),
+                 summary, top_sellers, critical_backorder_clients, alerts, and a 5-sheet Excel file.
         """
         from datetime import datetime, timedelta
 
@@ -4503,97 +4499,147 @@ def create_sales_health_tool(queries_executed: List[Dict]):
 
         queries_executed.append({"type": "sql_health_check", "database": "client_data", "query": "sales_health_monthly", "source": "simple_agent_tool"})
 
+        async def _fetch(sql, *p):
+            async with pool.acquire() as c:
+                return await c.fetch(sql, *p)
+
         try:
-            async with pool.acquire() as conn:
-                vendedores = await conn.fetch(SQL_VENDEDORES, *params)
-                clientes_rfm = await conn.fetch(SQL_CLIENTES_RFM, *params_4)
-                productos = await conn.fetch(SQL_PRODUCTOS, *params)
-                backorder_cliente = await conn.fetch(SQL_BACKORDER_CLIENTE, *params_2)
-                grupos_cliente = await conn.fetch(SQL_GRUPOS_CLIENTE, *params_4)
+            print("[SALES HEALTH] Executing 5 queries in parallel...")
+            (
+                vendedores,
+                clientes_rfm,
+                productos,
+                backorder_cliente,
+                grupos_cliente,
+            ) = await asyncio.gather(
+                _fetch(SQL_VENDEDORES, *params),
+                _fetch(SQL_CLIENTES_RFM, *params_4),
+                _fetch(SQL_PRODUCTOS, *params),
+                _fetch(SQL_BACKORDER_CLIENTE, *params_2),
+                _fetch(SQL_GRUPOS_CLIENTE, *params_4),
+            )
 
-                has_data = len(vendedores) > 0 or len(productos) > 0 or len(clientes_rfm) > 0 or len(backorder_cliente) > 0 or len(grupos_cliente) > 0
-                if not has_data:
-                    return json.dumps({
-                        "year": target_year, "month": target_month, "has_data": False,
-                        "message": f"No sales data available for {target_year}-{target_month:02d}."
-                    })
+            has_data = len(vendedores) > 0 or len(productos) > 0 or len(clientes_rfm) > 0 or len(backorder_cliente) > 0 or len(grupos_cliente) > 0
+            if not has_data:
+                return json.dumps({
+                    "year": target_year, "month": target_month, "has_data": False,
+                    "message": f"No sales data available for {target_year}-{target_month:02d}."
+                })
 
-                total_vendido = sum(float(r['total_vendido'] or 0) for r in vendedores)
-                total_utilidad = sum(float(r['utilidad_total'] or 0) for r in vendedores)
-                avg_margen = (total_utilidad / total_vendido * 100) if total_vendido > 0 else 0
-                performance_counts = {'Excelente': 0, 'Bueno': 0, 'Regular': 0, 'Bajo': 0, 'Sin Meta': 0}
-                for r in vendedores:
-                    pl = r.get('performance_level')
-                    if pl in performance_counts:
-                        performance_counts[pl] += 1
-                alerts = []
-                if performance_counts.get('Bajo', 0) > 0:
-                    alerts.append({"type": "warning", "metric": "sellers_below_target", "value": performance_counts['Bajo'], "description": "Sellers below 70% of goal"})
-                if avg_margen < 15 and total_vendido > 0:
-                    alerts.append({"type": "warning", "metric": "low_profit_margin", "value": round(avg_margen, 2), "description": "Overall profit margin below 15%"})
-                top_vendedores = sorted(vendedores, key=lambda x: float(x['total_vendido'] or 0), reverse=True)[:10]
-                critical_backorder = [r for r in backorder_cliente if (r.get('prioridad_atencion') or '') == 'Urgente'][:10]
+            total_vendido = sum(float(r['total_vendido'] or 0) for r in vendedores)
+            total_utilidad = sum(float(r['utilidad_total'] or 0) for r in vendedores)
+            avg_margen = (total_utilidad / total_vendido * 100) if total_vendido > 0 else 0
+            performance_counts = {'Excelente': 0, 'Bueno': 0, 'Regular': 0, 'Bajo': 0, 'Sin Meta': 0}
+            for r in vendedores:
+                pl = r.get('performance_level')
+                if pl in performance_counts:
+                    performance_counts[pl] += 1
+            alerts = []
+            if performance_counts.get('Bajo', 0) > 0:
+                alerts.append({"type": "warning", "metric": "sellers_below_target", "value": performance_counts['Bajo'], "description": "Sellers below 70% of goal"})
+            if avg_margen < 15 and total_vendido > 0:
+                alerts.append({"type": "warning", "metric": "low_profit_margin", "value": round(avg_margen, 2), "description": "Overall profit margin below 15%"})
+            top_vendedores = sorted(vendedores, key=lambda x: float(x['total_vendido'] or 0), reverse=True)[:10]
+            critical_backorder = [r for r in backorder_cliente if (r.get('prioridad_atencion') or '') == 'Urgente'][:10]
 
-                result = {
-                    "year": target_year,
-                    "month": target_month,
-                    "period": f"{target_year}-{target_month:02d}",
-                    "has_data": True,
-                    "summary": {
-                        "total_sales": round(total_vendido, 2),
-                        "total_profit": round(total_utilidad, 2),
-                        "avg_profit_margin_pct": round(avg_margen, 2),
-                        "sellers_count": len(vendedores),
-                        "performance_distribution": performance_counts,
-                        "clients_rfm_count": len(clientes_rfm),
-                        "products_count": len(productos),
-                        "backorder_clients_count": len(backorder_cliente),
-                        "client_groups_count": len(grupos_cliente),
-                    },
-                    "top_sellers": [
-                        {"codigo_vendedor": r['codigo_vendedor'], "nombre_vendedor": r['nombre_vendedor'], "total_vendido": float(r['total_vendido'] or 0),
-                         "pct_cumplimiento": float(r['pct_cumplimiento'] or 0), "performance_level": r['performance_level']}
-                        for r in top_vendedores
-                    ],
-                    "critical_backorder_clients": [
-                        {"codigo_cliente": r['codigo_cliente'], "nombre_cliente": r['nombre_cliente'], "valor_pendiente": float(r['valor_pendiente'] or 0),
-                         "prioridad_atencion": r['prioridad_atencion'], "accion_sugerida": r['accion_sugerida']}
-                        for r in critical_backorder
-                    ],
-                    "alerts": alerts,
-                }
+            result = {
+                "year": target_year,
+                "month": target_month,
+                "period": f"{target_year}-{target_month:02d}",
+                "has_data": True,
+                "summary": {
+                    "total_sales": round(total_vendido, 2),
+                    "total_profit": round(total_utilidad, 2),
+                    "avg_profit_margin_pct": round(avg_margen, 2),
+                    "sellers_count": len(vendedores),
+                    "performance_distribution": performance_counts,
+                    "clients_rfm_count": len(clientes_rfm),
+                    "products_count": len(productos),
+                    "backorder_clients_count": len(backorder_cliente),
+                    "client_groups_count": len(grupos_cliente),
+                },
+                "seller_performance": [
+                    {
+                        "codigo_vendedor": r['codigo_vendedor'],
+                        "nombre_vendedor": r['nombre_vendedor'],
+                        "provincia_vendedor": r.get('provincia_vendedor'),
+                        "meta_mensual": float(r['meta_mensual'] or 0),
+                        "total_vendido": float(r['total_vendido'] or 0),
+                        "pct_cumplimiento": float(r['pct_cumplimiento'] or 0),
+                        "brecha_vs_meta": float(r['brecha_vs_meta'] or 0),
+                        "performance_level": r['performance_level'],
+                        "utilidad_total": float(r['utilidad_total'] or 0),
+                        "margen_promedio": float(r['margen_promedio'] or 0),
+                        "clientes_activos": int(r['clientes_activos'] or 0),
+                        "variacion_vs_mes_anterior": float(r['variacion_vs_mes_anterior'] or 0),
+                        "pct_descuento_promedio": float(r['pct_descuento_promedio'] or 0),
+                    }
+                    for r in vendedores
+                ],
+                "product_performance": [
+                    {
+                        "codigo_producto": r['codigo_producto'],
+                        "nombre_producto": r['nombre_producto'],
+                        "categoria": r['categoria'],
+                        "marca": r['marca'],
+                        "valor_neto": float(r['valor_neto'] or 0),
+                        "utilidad_total": float(r['utilidad_total'] or 0),
+                        "margen_porcentual": float(r['margen_porcentual'] or 0),
+                        "contribucion_margen_total": float(r['contribucion_margen_total'] or 0),
+                        "tipo_producto_bcg": r['tipo_producto_bcg'],
+                        "estrategia_recomendada": r['estrategia_recomendada'],
+                        "variacion_cantidad": float(r['variacion_cantidad'] or 0),
+                        "variacion_valor": float(r['variacion_valor'] or 0),
+                        "tendencia": r['tendencia'],
+                        "pct_devolucion": float(r['pct_devolucion'] or 0),
+                        "pct_descuento_promedio": float(r['pct_descuento_promedio'] or 0),
+                        "clasificacion_abc": r['clasificacion_abc'],
+                        "ranking_valor": int(r['ranking_valor'] or 0),
+                        "ranking_margen": int(r['ranking_margen'] or 0),
+                    }
+                    for r in productos[:30]
+                ],
+                "top_sellers": [
+                    {"codigo_vendedor": r['codigo_vendedor'], "nombre_vendedor": r['nombre_vendedor'], "total_vendido": float(r['total_vendido'] or 0),
+                     "pct_cumplimiento": float(r['pct_cumplimiento'] or 0), "performance_level": r['performance_level']}
+                    for r in top_vendedores
+                ],
+                "critical_backorder_clients": [
+                    {"codigo_cliente": r['codigo_cliente'], "nombre_cliente": r['nombre_cliente'], "valor_pendiente": float(r['valor_pendiente'] or 0),
+                     "prioridad_atencion": r['prioridad_atencion'], "accion_sugerida": r['accion_sugerida']}
+                    for r in critical_backorder
+                ],
+                "alerts": alerts,
+            }
 
-                # Build DataFrames from dicts so column names are preserved and visible in Excel
-                def records_to_df(rows):
-                    if not rows:
-                        return pd.DataFrame()
-                    # asyncpg Record -> dict so pandas gets proper column names
-                    data = [dict(r) for r in rows]
-                    df = pd.DataFrame(data)
-                    # Human-readable headers for Excel (e.g. codigo_vendedor -> Codigo Vendedor)
-                    df.columns = [str(c).replace('_', ' ').strip().title() for c in df.columns]
-                    return df
+            def records_to_df(rows):
+                if not rows:
+                    return pd.DataFrame()
+                data = [dict(r) for r in rows]
+                df = pd.DataFrame(data)
+                df.columns = [str(c).replace('_', ' ').strip().title() for c in df.columns]
+                return df
 
-                df_v = records_to_df(vendedores)
-                df_c = records_to_df(clientes_rfm)
-                df_p = records_to_df(productos)
-                df_b = records_to_df(backorder_cliente)
-                df_g = records_to_df(grupos_cliente)
+            df_v = records_to_df(vendedores)
+            df_c = records_to_df(clientes_rfm)
+            df_p = records_to_df(productos)
+            df_b = records_to_df(backorder_cliente)
+            df_g = records_to_df(grupos_cliente)
 
-                sheets = [
-                    ("Vendedores", df_v),
-                    ("Clientes RFM", df_c),
-                    ("Productos", df_p),
-                    ("Backorder por Cliente", df_b),
-                    ("Grupos de Cliente", df_g),
-                ]
-                filename_base = f"sales_health_{target_year}_{target_month:02d}"
-                file_info = upload_excel_multi_sheet_to_s3_and_get_url(sheets, filename_base)
-                result["file"] = file_info
+            sheets = [
+                ("Vendedores", df_v),
+                ("Clientes RFM", df_c),
+                ("Productos", df_p),
+                ("Backorder por Cliente", df_b),
+                ("Grupos de Cliente", df_g),
+            ]
+            filename_base = f"sales_health_{target_year}_{target_month:02d}"
+            file_info = upload_excel_multi_sheet_to_s3_and_get_url(sheets, filename_base)
+            result["file"] = file_info
 
-                result_json = json.dumps(result)
-                print(f"\n[SALES HEALTH] Success - period {result['period']}, file: {file_info.get('filename')}\n")
-                return result_json
+            result_json = json.dumps(result)
+            print(f"\n[SALES HEALTH] Success - period {result['period']}, file: {file_info.get('filename')}\n")
+            return result_json
         except Exception as e:
             print(f"\n[SALES HEALTH] ERROR: {e}")
             import traceback
@@ -4616,33 +4662,28 @@ def create_inventory_health_tool(queries_executed: List[Dict]):
     ) -> str:
         """
         MANDATORY TOOL for inventory health/check/status queries. ALWAYS call this tool when user mentions "inventory" + "health"/"check"/"status"/"report".
-        
-        ⚠️ CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
-        - User asks "Inventory health" (ENGLISH) → Respond in ENGLISH (all titles, text, follow-up questions)
-        - User asks "Salud de inventario" (SPANISH) → Respond in SPANISH (all titles, text, follow-up questions)
+
+        CRITICAL: You MUST respond in the SAME LANGUAGE as the user's question.
+        - User asks "Inventory health" (ENGLISH) → Respond in ENGLISH
+        - User asks "Salud de inventario" (SPANISH) → Respond in SPANISH
         - NEVER mix languages in your response
-        
-        ⚠️ CRITICAL: You MUST call this tool FIRST before responding.
+
+        CRITICAL: You MUST call this tool FIRST before responding.
         - DO NOT respond without calling this tool
-        - DO NOT invent data or make up product/client names
+        - DO NOT invent data or make up product names
         - ONLY use the real data returned by this tool
-        
-        REQUIRED for: "inventory health", "salud de inventario", "inventory check", "estado de inventario", 
+
+        REQUIRED for: "inventory health", "salud de inventario", "inventory check", "estado de inventario",
         "run inventory health check", "how is inventory", "cómo está el inventario", "inventory report", "inventory dashboard",
         "stock health", "salud del stock"
-        
+
         Args:
             year: Optional year (defaults to most recent)
             month: Optional month 1-12 (defaults to most recent)
             location_id: Optional location filter
-        
-        Returns: JSON with inventory metrics, backorder risk analysis, rotation analysis, ABC classification, top products, alerts
-        
-        IMPORTANT - File field:
-        - The response ALWAYS includes a "file" field with complete data in Excel format
-        - Structure: {"url": "presigned_s3_url", "filename": "suggested_filename.xlsx"}
-        - URL valid for 7 days
-        - YOU MUST ALWAYS mention this file in your response and provide download instructions
+
+        Returns: JSON with summary, risk_distribution, rotation_alerts, abc_classification,
+                 top_products_by_sales, critical_products, low_rotation_products, alerts, and Excel file.
         """
         from datetime import datetime, timedelta
         from dateutil.relativedelta import relativedelta
