@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlobalSidebar } from '@/components/GlobalSidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
 import { GetStartedCards } from '@/components/GetStartedCards';
+import ExperimentalReportView from '@/components/ExperimentalReportView';
 import { t, getCurrentLanguage, setCurrentLanguage, type Language } from '@/config/i18n';
+import { USE_EXPERIMENTAL_REPORT_LAYOUT } from '@/config/features';
 import { 
   agentService, 
   Component,
@@ -14,6 +16,7 @@ import {
   RadarChartComponent,
 } from '@/services/agentService';
 import { getUserName } from '@/utils/auth';
+import { fetchHealthScores, type HealthScoresResponse } from '@/services/healthScoresService';
 import { 
   Paperclip, 
   ArrowRight, 
@@ -34,6 +37,13 @@ import {
   FileText,
   Package,
   ClipboardCheck,
+  Network,
+  Layers,
+  ChevronDown,
+  Star,
+  Pencil,
+  Folder,
+  Trash2,
 } from 'lucide-react';
 import { SiSap, SiSalesforce, SiSnowflake } from 'react-icons/si';
 import { FaFileExcel } from 'react-icons/fa';
@@ -247,7 +257,7 @@ interface Message {
 }
 
 // ========== ICONS ==========
-const VortaStarIcon = ({ size = 64, color = '#5B9EFF' }: { size?: number; color?: string }) => (
+export const VortaStarIcon = ({ size = 64, color = '#5B9EFF' }: { size?: number; color?: string }) => (
   <svg width={size} height={size} viewBox="0 0 64 64" fill="none">
     <path 
       d="M32 8L32 56" 
@@ -354,6 +364,10 @@ export function LLMChatPage() {
   // ========== STATE MANAGEMENT ==========
   const [language, setLanguage] = useState<Language>(getCurrentLanguage());
   const [showGetStarted, setShowGetStarted] = useState(true);
+  const [isTitleDropdownOpen, setIsTitleDropdownOpen] = useState(false);
+  const [healthScores, setHealthScores] = useState<HealthScoresResponse | null>(null);
+  const [healthScoresLoading, setHealthScoresLoading] = useState(true);
+  const [chatInputValue, setChatInputValue] = useState<string | undefined>(undefined);
   
   // Chat mode state
   const [chatMode, setChatMode] = useState(false);
@@ -378,6 +392,7 @@ export function LLMChatPage() {
   const chatContentRef = useRef<HTMLDivElement>(null);
   const lastMessageRef = useRef<HTMLDivElement | null>(null);
   const [showNewMessageButton, setShowNewMessageButton] = useState(false);
+  const titleDropdownRef = useRef<HTMLDivElement>(null);
 
   const handleLanguageChange = (lang: Language) => {
     setLanguage(lang);
@@ -423,24 +438,43 @@ export function LLMChatPage() {
     };
   }, [conversationHistory, chatMode]);
 
-  // Auto-scroll to latest message when new messages arrive
+  // Fetch health scores on mount
   useEffect(() => {
-    if (conversationHistory.length > 0) {
-      // Small delay to ensure DOM is updated
-      setTimeout(() => {
-        scrollToLatestMessageTop();
-      }, 150);
-    }
-  }, [conversationHistory.length]);
+    const loadHealthScores = async () => {
+      try {
+        setHealthScoresLoading(true);
+        const scores = await fetchHealthScores();
+        console.log('Health scores fetched:', scores); // Debug log
+        setHealthScores(scores);
+      } catch (error) {
+        console.error('Failed to fetch health scores:', error);
+        // Keep default values on error
+      } finally {
+        setHealthScoresLoading(false);
+      }
+    };
+    
+    loadHealthScores();
+  }, []);
 
-  // Also scroll when response finishes loading
+  // Close dropdown when clicking outside
   useEffect(() => {
-    if (!isWaitingForResponse && conversationHistory.length > 0) {
-      setTimeout(() => {
-        scrollToLatestMessageTop();
-      }, 200);
+    const handleClickOutside = (event: MouseEvent) => {
+      if (titleDropdownRef.current && !titleDropdownRef.current.contains(event.target as Node)) {
+        setIsTitleDropdownOpen(false);
+      }
+    };
+
+    if (isTitleDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
     }
-  }, [isWaitingForResponse, conversationHistory.length]);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isTitleDropdownOpen]);
+
+  // Auto-scroll disabled - user can stay at their current scroll position
 
   // ========== HANDLERS ==========
   
@@ -1346,25 +1380,27 @@ export function LLMChatPage() {
     }
   };
   
-  // Card data
-  const cards = [
+  // Card data - memoized to update when healthScores changes
+  const cards = useMemo(() => [
     {
-      id: 'backorder-health',
-      icon: Activity,
-      title: t('cards.backorder.title', language),
+      id: 'inventory-health',
+      icon: Package,
+      title: 'Inventory Health',
       description: t('cards.backorder.description', language),
-      workflow: 'backorder_health',
-      question: t('cards.backorder.title', language),
+      workflow: 'inventory_health',
+      question: 'Inventory Health',
+      healthScore: healthScoresLoading ? undefined : (healthScores?.inventory?.score ?? undefined),
     },
     {
       id: 'sales-health',
-      icon: BarChart3,
-      title: t('cards.sales.title', language),
+      icon: Network,
+      title: 'Sales Health',
       description: t('cards.sales.description', language),
       workflow: 'sales_health',
-      question: t('cards.sales.title', language),
+      question: 'Sales Health',
+      healthScore: healthScoresLoading ? undefined : (healthScores?.sales?.score ?? undefined),
     },
-  ];
+  ], [healthScores, healthScoresLoading, language]);
 
   // ========== RENDER ==========
   return (
@@ -1374,7 +1410,7 @@ export function LLMChatPage() {
       backgroundColor: '#1F2227',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
-      <GlobalSidebar activePage="llm" />
+      <GlobalSidebar activePage="llm" onHomeClick={handleBackToHome} />
       
       <main style={{
         flex: 1,
@@ -1484,79 +1520,246 @@ export function LLMChatPage() {
                 height: '100vh',
                 display: 'flex',
                 flexDirection: 'column',
-                background: '#1F2227',
-                overflow: 'hidden',
+                overflow: 'visible',
               }}
             >
-              {/* Chat Header */}
+              {/* Top Header Bar */}
               <div style={{
-                padding: '14px 24px',
-                backgroundColor: 'rgba(47, 52, 59, 0.6)',
-                backdropFilter: 'blur(8px)',
-                WebkitBackdropFilter: 'blur(8px)',
+                width: '100%',
+                backgroundColor: '#1F2227',
+                padding: '12px 24px',
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'flex-start',
-                gap: '12px',
-                position: 'sticky',
-                top: 0,
-                zIndex: 10,
+                justifyContent: 'space-between',
+                borderBottom: 'none',
               }}>
-                <button
-                  onClick={handleBackToHome}
-                  style={{
-                    padding: '4px 8px',
-                    backgroundColor: 'transparent',
-                    border: '1px solid rgba(255,255,255,0.1)',
-                    borderRadius: '4px',
-                    color: '#FFFFFF',
-                    fontSize: '11px',
+                {/* Left side: Chat title with chevron */}
+                <div style={{ position: 'relative' }} ref={titleDropdownRef}>
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
                     cursor: 'pointer',
-                    transition: 'all 0.15s ease',
+                  }}
+                  onClick={() => setIsTitleDropdownOpen(!isTitleDropdownOpen)}
+                  >
+                    <span style={{
+                      fontSize: '16px',
+                      fontWeight: 400,
+                      color: '#D1D5DB',
+                      fontFamily: 'Inter, sans-serif',
+                    }}>
+                      {conversationHistory.length > 0 && conversationHistory[0]?.role === 'user' 
+                        ? conversationHistory[0].content 
+                        : 'New Conversation'}
+                    </span>
+                    <ChevronDown size={16} color="#9CA5B5" />
+                  </div>
+                  
+                  {/* Dropdown Menu */}
+                  <AnimatePresence>
+                    {isTitleDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
+                        style={{
+                          position: 'absolute',
+                          top: '100%',
+                          left: 0,
+                          marginTop: '8px',
+                          backgroundColor: '#2F343B',
+                          borderRadius: '8px',
+                          border: '1px solid rgba(255, 255, 255, 0.1)',
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4)',
+                          minWidth: '200px',
+                          padding: '4px',
+                          zIndex: 1000,
+                          display: 'flex',
+                          flexDirection: 'column',
+                          overflow: 'hidden',
+                        }}
+                      >
+                        {/* Add to favorites */}
+                <button
+                          onClick={() => {
+                            setIsTitleDropdownOpen(false);
+                            // Handle add to favorites
+                          }}
+                  style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '10px 12px',
+                    backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#D1D5DB',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            fontFamily: 'Inter, sans-serif',
+                            cursor: 'pointer',
+                    borderRadius: '4px',
+                            transition: 'background-color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <Star size={16} color="#9CA5B5" />
+                          <span>Add to favorites</span>
+                        </button>
+                        
+                        {/* Rename */}
+                        <button
+                          onClick={() => {
+                            setIsTitleDropdownOpen(false);
+                            // Handle rename
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '10px 12px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#D1D5DB',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            fontFamily: 'Inter, sans-serif',
+                    cursor: 'pointer',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s ease',
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.05)';
-                    e.currentTarget.style.color = '#FFFFFF';
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
                   }}
                   onMouseLeave={(e) => {
                     e.currentTarget.style.backgroundColor = 'transparent';
-                    e.currentTarget.style.color = '#FFFFFF';
                   }}
                 >
-                  {t('chat.back', language)}
+                          <Pencil size={16} color="#9CA5B5" />
+                          <span>Rename</span>
                 </button>
-                <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 600 }}>Vorta</span>
-                <span style={{ fontSize: '14px', color: '#FFFFFF', fontWeight: 400, marginLeft: '2px' }}>V.2</span>
+                        
+                        {/* Add to project */}
+                        <button
+                          onClick={() => {
+                            setIsTitleDropdownOpen(false);
+                            // Handle add to project
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '10px 12px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#D1D5DB',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            fontFamily: 'Inter, sans-serif',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <Folder size={16} color="#9CA5B5" />
+                          <span>Add to project</span>
+                        </button>
+                        
+                        {/* Separator */}
+                        <div style={{
+                          height: '1px',
+                          backgroundColor: 'rgba(255, 255, 255, 0.1)',
+                          margin: '4px 0',
+                        }} />
+                        
+                        {/* Delete */}
+                        <button
+                          onClick={() => {
+                            setIsTitleDropdownOpen(false);
+                            // Handle delete
+                          }}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '10px',
+                            padding: '10px 12px',
+                            backgroundColor: 'transparent',
+                            border: 'none',
+                            color: '#F87171',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            fontFamily: 'Inter, sans-serif',
+                            cursor: 'pointer',
+                            borderRadius: '4px',
+                            transition: 'background-color 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.backgroundColor = 'rgba(248, 113, 113, 0.1)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.backgroundColor = 'transparent';
+                          }}
+                        >
+                          <Trash2 size={16} color="#F87171" />
+                          <span>Delete</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
                 
-                {/* User Display */}
+                {/* Right side: User name and Share button */}
                 <div style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
                 }}>
-                  <div style={{
-                    width: '32px',
-                    height: '32px',
-                    backgroundColor: '#9CA5B5',
-                    borderRadius: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    <span style={{ fontSize: '16px', fontWeight: 600, color: '#1F2227' }}>U</span>
-                  </div>
+                  {/* User name/ID */}
                   <span style={{
                     fontSize: '14px',
-                    color: '#FFFFFF',
                     fontWeight: 400,
-                    display: 'flex',
-                    alignItems: 'center',
-                    height: '32px',
+                    color: '#D1D5DB',
+                    fontFamily: 'Inter, sans-serif',
                   }}>
-                    {getUserName() || localStorage.getItem('userId') || 'User'}
+                    {getUserName() || userId || 'User'}
                   </span>
+                  
+                  {/* Share button with box */}
+                  <button style={{
+                    backgroundColor: 'transparent',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    fontWeight: 400,
+                    fontFamily: 'Inter, sans-serif',
+                    cursor: 'pointer',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.backgroundColor = 'transparent';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+                  }}
+                >
+                    Share
+                </button>
                 </div>
               </div>
 
@@ -1567,36 +1770,34 @@ export function LLMChatPage() {
                 style={{
                   flex: 1,
                   overflowY: 'auto',
+                  overflowX: 'visible',
                   position: 'relative',
-                  padding: '0 24px 16px 24px',
+                  padding: '40px 0 120px 0',
+                  backgroundColor: 'transparent',
+                  clipPath: 'none',
+                  width: '100%',
                 }}
               >
-                {/* Subtle fade overlay at bottom edge - positioned at bottom of viewport */}
-                <div style={{
-                  position: 'sticky',
-                  bottom: 0,
-                  left: 0,
-                  right: 0,
-                  height: '60px',
-                  background: 'linear-gradient(to top, rgba(31, 34, 39, 0.9) 0%, rgba(31, 34, 39, 0.4) 50%, rgba(31, 34, 39, 0) 100%)',
-                  pointerEvents: 'none',
-                  zIndex: 5,
-                }} />
                 <div
                   style={{
                     display: 'flex',
                     justifyContent: 'center',
                     position: 'relative',
                     minHeight: '100%',
+                    overflow: 'visible',
+                    width: '100%',
+                    padding: '0',
                   }}
                 >
-                  {/* Centered conversation column matching chat input width */}
+                  {/* Centered conversation column - slightly narrower than chat input */}
                   <div style={{
                     width: '100%',
-                    maxWidth: '900px',
+                    maxWidth: '860px',
                     display: 'flex',
                     flexDirection: 'column',
                     margin: '0 auto',
+                    overflow: 'visible',
+                    padding: '0 32px',
                   }}>
                 {/* Render conversation history */}
                 {conversationHistory.map((message, idx) => (
@@ -1608,44 +1809,76 @@ export function LLMChatPage() {
                     transition={{ duration: 0.3 }}
                     style={{
                       display: 'flex',
-                      alignItems: message.role === 'user' ? 'center' : 'flex-start',
-                      gap: '16px',
+                      flexDirection: message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? 'column' : 'row',
+                      justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
+                      alignItems: message.role === 'user' ? 'center' : (message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? 'flex-start' : 'flex-start'),
+                      gap: message.role === 'assistant' && message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? '8px' : '16px',
                       marginBottom: '32px',
                     }}
                   >
-                    {/* Avatar */}
+                    {/* Avatar - for user, show on right; for assistant, show on left */}
+                    {message.role === 'user' ? (
+                      <>
+                        {/* Message Content for user - on left */}
+                        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', minHeight: '42px', maxWidth: '100%' }}>
+                          <div style={{ 
+                            fontSize: '15px', 
+                            color: '#E2E6F0', 
+                            lineHeight: 1.6,
+                            textAlign: 'right',
+                          }}>
+                            {message.content}
+                          </div>
+                        </div>
+                        {/* U icon on right */}
                     <div style={{
                       width: '42px',
                       height: '42px',
-                      backgroundColor: message.role === 'user' ? '#9CA5B5' : '#32373F',
+                          backgroundColor: '#9CA5B5',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
                     }}>
-                      {message.role === 'user' ? (
-                        <span style={{ fontSize: '20px', fontWeight: 600, color: '#1F2227' }}>U</span>
-                      ) : (
-                        <VortaStarIcon size={24} color="#5ca2f9" />
-                      )}
+                          <span style={{ fontSize: '20px', fontWeight: 600, color: '#1F2227' }}>U</span>
                     </div>
-                    
-                        {/* Message Content - centered within column */}
-                        <div style={{ flex: 1, display: 'flex', alignItems: message.role === 'user' ? 'center' : 'flex-start', minHeight: '42px', maxWidth: '100%' }}>
-                      {message.role === 'user' ? (
-                        <div style={{ 
-                          fontSize: '15px', 
-                          color: '#E2E6F0', 
-                          lineHeight: 1.6,
-                        }}>
-                          {message.content}
-                        </div>
-                      ) : (
-                        <div style={{ width: '100%', paddingTop: '8px' }}>
-                          {/* Render components if available, otherwise fall back to content */}
+                      </>
+                    ) : (
+                      <>
+                        {message.components && message.components.length > 0 && USE_EXPERIMENTAL_REPORT_LAYOUT ? (
+                          // Experimental layout: Everything on one line - Icon, 84, pie, status, title
+                          <ExperimentalReportView 
+                            components={message.components} 
+                            conversationHistory={conversationHistory}
+                            messageIdx={idx}
+                            healthScoresData={healthScores}
+                            onQuestionClick={handleQuestionSubmit}
+                            onQuestionSelect={(question) => {
+                              setChatInputValue(question);
+                            }}
+                          />
+                        ) : (
+                          <>
+                            {/* Aragon icon on left for assistant */}
+                            <div style={{
+                              width: '42px',
+                              height: '42px',
+                              backgroundColor: '#32373F',
+                              borderRadius: '4px',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              flexShrink: 0,
+                            }}>
+                              <VortaStarIcon size={24} color="#5ca2f9" />
+                            </div>
+                            {/* Message Content for assistant */}
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'flex-start', minHeight: '42px', maxWidth: '100%', width: 'auto' }}>
+                              <div style={{ width: '100%', paddingTop: '8px' }}>
+                                {/* Component-based format - render each component (normal view) */}
                           {message.components && message.components.length > 0 ? (
-                            // New component-based format - render each component
+                                  // New component-based format - render each component (normal view)
                             message.components.map((component, compIdx) => {
                               if (component.type === 'text') {
                                 // Render text component using markdown renderer
@@ -1677,23 +1910,24 @@ export function LLMChatPage() {
                             <ChatChart chartData={message.chartData} />
                           )}
                           
-                          {/* Action Buttons */}
+                                {/* Action Buttons - only for assistant messages */}
+                                {message.role === 'assistant' && (
                           <div style={{ display: 'flex', gap: '16px', marginTop: '12px', alignItems: 'center' }}>
                             <button
-                              onClick={() => {
-                                // Extract all text content from message
-                                let fullContent = '';
-                                if (message.components && message.components.length > 0) {
-                                  // Get all text components and join them
-                                  fullContent = message.components
-                                    .filter(c => c.type === 'text')
-                                    .map(c => c.data as string)
-                                    .join('\n\n');
-                                } else if (message.content) {
-                                  fullContent = message.content;
-                                }
-                                handleCopyMessage(fullContent, idx);
-                              }}
+                                      onClick={() => {
+                                        // Extract all text content from message
+                                        let fullContent = '';
+                                        if (message.components && message.components.length > 0) {
+                                          // Get all text components and join them
+                                          fullContent = message.components
+                                            .filter(c => c.type === 'text')
+                                            .map(c => c.data as string)
+                                            .join('\n\n');
+                                        } else if (message.content) {
+                                          fullContent = message.content;
+                                        }
+                                        handleCopyMessage(fullContent, idx);
+                                      }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1702,33 +1936,33 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: copiedMessageIdx === idx ? '#4ADE80' : '#9CA5B5',
+                                        color: copiedMessageIdx === idx ? '#4ADE80' : '#9CA5B5',
                                 fontSize: '12px',
                                 fontWeight: 500,
                               }}
                             >
                               {copiedMessageIdx === idx ? (
-                                <><Check size={14} /><span>{t('chat.copied', language)}</span></>
+                                        <><Check size={14} /><span>{t('chat.copied', language)}</span></>
                               ) : (
-                                <><Copy size={14} /><span>{t('chat.copy', language)}</span></>
+                                        <><Copy size={14} /><span>{t('chat.copy', language)}</span></>
                               )}
                             </button>
                             
                             <button
-                              onClick={() => {
-                                // Extract all text content from message
-                                let fullContent = '';
-                                if (message.components && message.components.length > 0) {
-                                  // Get all text components and join them
-                                  fullContent = message.components
-                                    .filter(c => c.type === 'text')
-                                    .map(c => c.data as string)
-                                    .join('\n\n');
-                                } else if (message.content) {
-                                  fullContent = message.content;
-                                }
-                                handleDownloadText(fullContent, message.components);
-                              }}
+                                      onClick={() => {
+                                        // Extract all text content from message
+                                        let fullContent = '';
+                                        if (message.components && message.components.length > 0) {
+                                          // Get all text components and join them
+                                          fullContent = message.components
+                                            .filter(c => c.type === 'text')
+                                            .map(c => c.data as string)
+                                            .join('\n\n');
+                                        } else if (message.content) {
+                                          fullContent = message.content;
+                                        }
+                                        handleDownloadText(fullContent, message.components);
+                                      }}
                               style={{
                                 display: 'flex',
                                 alignItems: 'center',
@@ -1737,13 +1971,13 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#9CA5B5',
+                                        color: '#9CA5B5',
                                 fontSize: '12px',
                                 fontWeight: 500,
                               }}
                             >
                               <Download size={14} />
-                              <span>{t('chat.download', language)}</span>
+                                      <span>{t('chat.download', language)}</span>
                             </button>
                             
                             <div style={{ width: '1px', height: '16px', backgroundColor: 'rgba(255,255,255,0.1)', margin: '0 4px' }} />
@@ -1758,12 +1992,12 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#9CA5B5',
+                                        color: '#9CA5B5',
                                 fontSize: '12px',
                                 transition: 'color 0.2s',
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#BFD4FF'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#BFD4FF'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
                             >
                               <ThumbsUp size={16} />
                             </button>
@@ -1778,19 +2012,23 @@ export function LLMChatPage() {
                                 backgroundColor: 'transparent',
                                 border: 'none',
                                 cursor: 'pointer',
-                                color: '#9CA5B5',
+                                        color: '#9CA5B5',
                                 fontSize: '12px',
                                 transition: 'color 0.2s',
                               }}
-                              onMouseEnter={(e) => e.currentTarget.style.color = '#FCA5A5'}
-                              onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
+                                      onMouseEnter={(e) => e.currentTarget.style.color = '#FCA5A5'}
+                                      onMouseLeave={(e) => e.currentTarget.style.color = '#9CA5B5'}
                             >
                               <ThumbsDown size={16} />
                             </button>
-                          </div>
                         </div>
                       )}
                     </div>
+                            </div>
+                          </>
+                        )}
+                      </>
+                    )}
                   </motion.div>
                 ))}
                 
@@ -1810,14 +2048,19 @@ export function LLMChatPage() {
                     {/* Static square container + subtle neon-like brightness pulse on inner Vorta star */}
                     <div
                       style={{
-                      width: '42px',
-                      height: '42px',
+                      width: '48px',
+                      height: '48px',
+                      minWidth: '48px',
+                      maxWidth: '48px',
+                      minHeight: '48px',
+                      maxHeight: '48px',
                       backgroundColor: '#32373F',
                       borderRadius: '4px',
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
                       flexShrink: 0,
+                      boxSizing: 'border-box',
                       }}
                     >
                       <motion.div
@@ -1828,8 +2071,8 @@ export function LLMChatPage() {
                         }}
                       >
                         <svg
-                          width={24}
-                          height={24}
+                          width={28}
+                          height={28}
                           viewBox="0 0 64 64"
                           fill="none"
                         >
@@ -1912,37 +2155,26 @@ export function LLMChatPage() {
             </div>
             
             {/* Chat Input */}
-            <div style={{
-              padding: '0 24px 24px 24px',
-              backgroundColor: 'transparent',
-              border: 'none',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              position: 'relative',
-            }}>
               <div style={{
                 width: '100%',
-                maxWidth: '900px',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: '12px',
-                position: 'relative',
-                zIndex: 2,
+              maxWidth: '900px',
+              margin: '0 auto',
+              padding: '0 24px 24px 24px',
+              zIndex: 2,
               }}>
                 <ChatInput
                   onSend={handleQuestionSubmit}
                   isLoading={isWaitingForResponse}
-                  placeholder={
-                    conversationHistory.length > 0
-                      ? t('chat.input.placeholder.followup', language)
-                      : t('chat.input.placeholder', language)
-                  }
-                  language={language}
-                  onLanguageChange={handleLanguageChange}
-                />
-              </div>
+                placeholder={
+                  conversationHistory.length > 0
+                    ? t('chat.input.placeholder.followup', language)
+                    : t('chat.input.placeholder', language)
+                }
+                language={language}
+                onLanguageChange={handleLanguageChange}
+                externalValue={chatInputValue}
+                onExternalValueSet={() => setChatInputValue(undefined)}
+              />
             </div>
           </motion.div>
           )}
@@ -2022,16 +2254,33 @@ function ChatInput({
   placeholder,
   language,
   onLanguageChange,
+  externalValue,
+  onExternalValueSet,
 }: {
   onSend: (value: string) => void;
   isLoading?: boolean;
   placeholder?: string;
   language: Language;
   onLanguageChange: (lang: Language) => void;
+  externalValue?: string;
+  onExternalValueSet?: () => void;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [value, setValue] = useState('');
+  
+  // Handle external value updates
+  useEffect(() => {
+    if (externalValue !== undefined && externalValue !== value) {
+      setValue(externalValue);
+      if (inputRef.current) {
+        inputRef.current.focus();
+      }
+      if (onExternalValueSet) {
+        onExternalValueSet();
+      }
+    }
+  }, [externalValue]);
   
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -2055,21 +2304,51 @@ function ChatInput({
   
   return (
     <div
-      className={`composer-shell ${isActive ? 'composer-active' : ''}`}
       style={{
-        position: 'relative',
         width: '100%',
+        position: 'relative',
       }}
     >
+    {/* Subtle glow effect only */}
     <motion.div
+      initial={false}
+      animate={{
+        opacity: isActive ? 0.15 : 0,
+      }}
+      transition={{
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
+      style={{
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        transform: 'translate(-50%, -50%)',
+        width: '100%',
+        height: '100%',
+        borderRadius: '12px',
+        boxShadow: isActive ? '0 0 24px rgba(92, 162, 249, 0.2)' : 'none',
+        zIndex: 0,
+        pointerEvents: 'none',
+      }}
+    />
+    
+    <motion.div
+      initial={false}
+      animate={{
+        borderColor: isActive ? 'rgba(92, 162, 249, 0.4)' : 'rgba(95, 102, 114, 0.3)',
+      }}
+      transition={{
+        duration: 0.5,
+        ease: [0.25, 0.46, 0.45, 0.94],
+      }}
       style={{
           backgroundColor: '#2F343B',
         borderRadius: '12px',
-          border: `1px solid ${isActive ? 'rgba(255, 255, 255, 0.25)' : 'rgba(95, 102, 114, 0.3)'}`,
+          border: `1px solid ${isActive ? 'rgba(92, 162, 249, 0.4)' : 'rgba(95, 102, 114, 0.3)'}`,
         padding: '14px 16px',
         width: '100%',
-        transition: 'border-color 0.2s ease',
-          boxShadow: isActive ? '0 0 0 1px rgba(255, 255, 255, 0.1)' : 'none',
+          boxShadow: isActive ? '0 0 20px rgba(92, 162, 249, 0.1)' : 'none',
           position: 'relative',
           zIndex: 2,
       }}
