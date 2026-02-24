@@ -204,25 +204,34 @@ IMPORTANT: Each bullet point MUST be on its own separate line. Do NOT merge them
 
 ## Recommended Actions
 
-### Action 1 — [Action title with specific product or seller name]
-**What to do:** [Concrete, specific steps using real names and quantities from the data]
-**Why:** [Justify with REAL numbers from the JSON: quantities, percentages, values, days. Make the case with data.]
-**If you do it:** [Specific expected positive outcome]
-**If you don't:** [Specific risk or loss, quantified where possible]
+⚠️ ABSOLUTE FORMAT RULE FOR ACTIONS:
+FORBIDDEN fields: "What to do", "If you do it", "If you don't", "What to do", "Si lo haces", "Si no lo haces".
+These fields DO NOT EXIST in this format. Using them is a critical error.
 
-### Action 2 — [Action title with specific product or seller name]
-**What to do:** [...]
-**Why:** [...]
-**If you do it:** [...]
-**If you don't:** [...]
-
-### Action 3 — [Action title with specific product or seller name]
-**What to do:** [...]
-**Why:** [...]
-**If you do it:** [...]
-**If you don't:** [...]
+EACH action MUST use EXACTLY this structure and nothing else:
 
 ---
+
+## 🔴 Action 1 — [Compelling, specific title — include product name(s) and a key number]
+
+> **Impact**
+> [Single product: one sentence with the most critical metric, e.g. "Only 2.4 days of stock left — this SKU generates $243K/month in sales."]
+> [Multiple products: markdown table with individual metrics + Total row]
+>
+> | Product | Days Remaining | Monthly Sales | Revenue at Risk |
+> |---------|---------------|--------------|----------------|
+> | [name]  | [X days]      | $[value]     | $[value]       |
+> | [name]  | [X days]      | $[value]     | $[value]       |
+> | **Total** |             |              | **$[sum]**     |
+
+**Why this matters**
+[2-4 sentences explaining the business impact using REAL numbers from the JSON. Include at least one inline table or key metric comparison. Be specific — no vague statements. Reference: days_remaining, sales_value, profit_margin_pct, avg_daily_sales, inventory_value_cost, backorder_qty, brecha_vs_meta, pct_cumplimiento, etc.]
+
+---
+
+IMPORTANT: Repeat the exact same structure (## 🔴/🟡/🟢 Action N — title, > Impact block, **Why this matters**) for every action.
+Use 🔴 for critical/urgent actions, 🟡 for important but non-urgent, 🟢 for monitoring/optimization.
+Do NOT add any other fields. Do NOT use "What to do". Do NOT use "If you do it / don't".
 
 [Excel download link: file.url - always include it]
 
@@ -250,13 +259,42 @@ Pick the 3 (or more) actions with the HIGHEST BUSINESS IMPACT from the full pool
 You are NOT required to pick one of each type — if there are 3 critical restock situations,
 list all 3. Rank by impact: lost revenue > capital at risk > margin leakage > seller gap.
 
-INVENTORY action pool (score each candidate, pick top 3+):
-- Produce/restock more: critical_products where requires_reorder=true. Score by:
-  avg_daily_sales × days_until_stockout × estimated_unit_price. Highest score = highest impact.
-- Produce/order less: low_rotation_products. Score by inventory_value_cost tied up.
-  Prioritize rotation_alert = "POSIBLE_OBSOLETO" over "BAJA_ROTACION".
-- Monitor now (prevent future crisis): top_products_by_sales where backorder_risk = "BAJO"
-  or low_rotation_products trending toward critical. Score by sales_value × proximity to threshold.
+INVENTORY action pool — score ALL candidates from the 8 types below, pick the top 3+ by impact.
+One action CAN cover multiple products (e.g. "Restock X, Y and Z before stockout").
+Score = estimated revenue or capital at risk. Highest score = highest priority.
+
+1. RESTOCK FOR REVENUE — critical_products or top_products_by_sales where backorder_risk = "CRITICO"
+   and sales_value is high. Title: "Restock [product(s)] — $X/month revenue at risk".
+   Score: sales_value of affected products. Group up to 3-4 products in one action if they share the same urgency.
+
+2. RESTOCK FOR COVERAGE — products where days_remaining is known and very low but not yet in
+   critical_products. Title: "Restock [product] to cover [N] days of inventory".
+   Score: avg_daily_sales × target_coverage_days.
+
+3. RESTOCK TO PREVENT BACKORDER — products with backorder_qty > 0 AND requires_reorder = "SI".
+   Title: "Prioritize restock of [product(s)] to clear [X] units in backorder".
+   Score: backorder_qty × estimated_unit_price.
+
+4. FIX NEGATIVE MARGINS — top_products_by_sales where profit_margin_pct < 0.
+   Title: "Fix negative margin on [product(s)] — losing money on every unit sold".
+   Score: abs(profit) of affected products. Group all negative-margin products together.
+
+5. REDUCE RESTOCK QUANTITIES — low_rotation_products where rotation_alert = "BAJA_ROTACION"
+   and inventory_value_cost is high but NOT yet obsolete.
+   Title: "Reduce restock quantities for [product(s)] — capital tied up".
+   Score: inventory_value_cost. Group multiple products in one action.
+
+6. STOP RESTOCKING OBSOLETE — low_rotation_products where rotation_alert = "POSIBLE_OBSOLETO".
+   Title: "Stop restocking [product] — risk of obsolescence".
+   Score: inventory_value_cost (higher = bigger write-off risk).
+
+7. MONITOR — top_products_by_sales where backorder_risk = "BAJO" (approaching critical but not yet).
+   Title: "Monitor [product(s)] — approaching critical inventory level".
+   Score: sales_value × (1 / days_remaining). Lower days = higher urgency.
+
+8. PROMOTE FOR ROTATION — low_rotation_products with high inventory_value_cost and low days_with_sales.
+   Title: "Promote [product] to accelerate rotation — $X tied up with only N days of sales".
+   Score: inventory_value_cost / avg_daily_sales (higher ratio = more urgent).
 
 SALES action pool (score each candidate, pick top 3+):
 - Sell more of a product: product_performance where tipo_producto_bcg = "Estrella" or
