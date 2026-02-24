@@ -167,7 +167,20 @@ HEALTH RESPONSE FORMAT - MANDATORY - Follow this EXACTLY:
 =============================================================
 
 ## [Inventory/Sales] Status: [CRITICAL | BAD | NORMAL | GOOD]
-[One sentence with the key number that justifies the status. E.g.: "435 out of 2,252 products (19.3%) are at critical backorder risk."]
+
+FOR INVENTORY — after the status line, always include this snapshot block
+(compute revenue_at_risk = sum of sales_value for top_products_by_sales where backorder_risk = "CRITICO"):
+
+$[revenue_at_risk formatted] revenue at risk from [count of CRITICO top products] top-selling SKUs with <7 days inventory
+
+• **Total Inventory:** [total_inventory_qty formatted] units valued at $[total_inventory_value_cost formatted] (cost) / $[total_inventory_value_sale formatted] (sale)
+• **Critical Risk:** [risk_distribution.CRITICO] products with <7 days inventory
+• **Reorder Required:** [summary.products_requiring_reorder] products below safety stock
+• **Low Rotation:** [rotation_alerts.BAJA_ROTACION + rotation_alerts.POSIBLE_OBSOLETO] products with slow movement
+• **Profit Margin:** [summary.avg_profit_margin_pct]% average
+
+FOR SALES — after the status line, include one sentence with total sales, profit margin, and number of underperforming sellers:
+"$[total_sales formatted] in sales — [avg_profit_margin_pct]% avg margin — [count of Bajo sellers] of [total sellers] sellers below target"
 
 ---
 
