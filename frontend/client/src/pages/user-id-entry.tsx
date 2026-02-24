@@ -232,7 +232,7 @@ export default function UserIdEntry() {
         localStorage.setItem("userEmail", email.trim());
       }
       
-      sessionStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("isLoggedIn", "true");
 
       // Smooth transition with animation
       setTimeout(() => {

@@ -432,7 +432,7 @@ export default function Onboarding() {
                 
                 <motion.button
                   onClick={() => {
-                    sessionStorage.setItem("isLoggedIn", "true");
+                    localStorage.setItem("isLoggedIn", "true");
                     setLocation("/dashboard");
                   }}
                   className="border border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white px-8 py-3 rounded-lg text-base font-medium transition-all duration-200 hover:bg-slate-700/30"

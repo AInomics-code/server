@@ -41,7 +41,7 @@ function RootRoute() {
   useEffect(() => {
     // Authentication check
     const userId = localStorage.getItem("userId");
-    const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+    const isLoggedIn = localStorage.getItem("isLoggedIn");
     const jwtToken = localStorage.getItem("jwt_token");
     
     const isAuthenticated = userId && (isLoggedIn === "true" || jwtToken);

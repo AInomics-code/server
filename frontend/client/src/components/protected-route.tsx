@@ -13,7 +13,7 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     // Authentication check
     const token = getAuthToken();
     const userId = localStorage.getItem("userId");
-    const isLoggedIn = sessionStorage.getItem("isLoggedIn") === "true";
+    const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
 
     if (!token || !userId || !isLoggedIn) {
       setLocation("/user-id-entry");

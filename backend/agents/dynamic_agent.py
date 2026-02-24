@@ -314,71 +314,47 @@ class DynamicAgent:
             }
     
     def _parse_structured_response(self, response: str) -> List[Dict]:
-        """Parse and validate the structured JSON response from agent"""
+        """Parse the agent response. Handles both JSON-array format and plain markdown."""
         import json
         import re
         
         if not response or not response.strip():
-            return [{"type": "text", "data": "No pude procesar la consulta."}]
+            return [{"type": "text", "data": "I could not process the query."}]
         
-        # Remove markdown code blocks if present
-        response = re.sub(r'^```json\s*', '', response)
-        response = re.sub(r'^```\s*', '', response)
-        response = re.sub(r'\s*```$', '', response)
-        
-        # Clean up response
-        response = response.strip()
-        
-        # Try to extract JSON from response (in case there's extra text)
-        # Look for array pattern [...]
-        json_match = re.search(r'\[.*\]', response, re.DOTALL)
+        # Remove markdown code fences if present
+        cleaned = re.sub(r'^```json\s*', '', response.strip())
+        cleaned = re.sub(r'^```\s*', '', cleaned)
+        cleaned = re.sub(r'\s*```$', '', cleaned).strip()
+
+        valid_types = {
+            "text", "area_chart", "bar_chart", "bubble_chart",
+            "pie_chart", "line_chart", "polar_chart", "mixed_chart",
+            "radar_chart", "scatter_chart", "file"
+        }
+
+        # ------------------------------------------------------------------
+        # Try to parse as a JSON array (used for chart-rich responses)
+        # ------------------------------------------------------------------
+        json_match = re.search(r'\[.*\]', cleaned, re.DOTALL)
         if json_match:
-            response = json_match.group(0)
-        
-        try:
-            components = json.loads(response)
-            
-            # Validate it's an array
-            if not isinstance(components, list):
-                return [{"type": "text", "data": str(components)}]
-            
-            # Validate each component
-            valid_types = {
-                "text", "area_chart", "bar_chart", "bubble_chart", 
-                "pie_chart", "line_chart", "polar_chart", "mixed_chart", 
-                "radar_chart", "scatter_chart", "file"
-            }
-            
-            validated_components = []
-            for component in components:
-                if not isinstance(component, dict):
-                    continue
-                
-                comp_type = component.get("type")
-                if comp_type not in valid_types:
-                    continue
-                
-                if "data" not in component:
-                    continue
-                
-                validated_components.append(component)
-            
-            if not validated_components:
-                print(f"[WARNING] No valid components found in response")
-                return [{"type": "text", "data": response}]
-            
-            return validated_components
-        
-        except json.JSONDecodeError as e:
-            # JSON is malformed or incomplete
-            print(f"[ERROR] JSON parsing failed: {str(e)}")
-            print(f"[ERROR] Response preview: {response[:500]}...")
-            
-            # If response looks like it was truncated (missing closing brackets)
-            if response.count('[') > response.count(']') or response.count('{') > response.count('}'):
-                error_msg = "⚠️ La respuesta fue truncada. Por favor intenta de nuevo o simplifica tu consulta."
-                return [{"type": "text", "data": error_msg}]
-            
-            # Fallback to text component
-            return [{"type": "text", "data": response}]
+            candidate = json_match.group(0)
+            try:
+                components = json.loads(candidate)
+                if isinstance(components, list):
+                    validated = [
+                        c for c in components
+                        if isinstance(c, dict)
+                        and c.get("type") in valid_types
+                        and "data" in c
+                    ]
+                    if validated:
+                        return validated
+            except json.JSONDecodeError:
+                pass  # Fall through to markdown handling
+
+        # ------------------------------------------------------------------
+        # Treat the entire response as markdown text (new health format and
+        # any other non-JSON response)
+        # ------------------------------------------------------------------
+        return [{"type": "text", "data": cleaned}]
 

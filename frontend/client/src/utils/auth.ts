@@ -86,7 +86,7 @@ export function clearUserData(): void {
   localStorage.removeItem('isAdmin');
   localStorage.removeItem('dev_token');
   localStorage.removeItem('lastActivityTime');
-  sessionStorage.removeItem('isLoggedIn');
+  localStorage.removeItem('isLoggedIn');
 }
 
 /**

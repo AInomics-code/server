@@ -225,7 +225,7 @@ export const agentService = {
         if (tokenExpired) {
             console.error('🔴 Token is expired! Please log in again.');
             localStorage.removeItem('jwt_token');
-            sessionStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('isLoggedIn');
             setTimeout(() => {
                 window.location.href = '/user-id-entry';
             }, 1000);
@@ -252,7 +252,7 @@ export const agentService = {
                 
                 // Clear invalid token
                 localStorage.removeItem('jwt_token');
-                sessionStorage.removeItem('isLoggedIn');
+                localStorage.removeItem('isLoggedIn');
                 
                 // Redirect to login after a short delay
                 setTimeout(() => {

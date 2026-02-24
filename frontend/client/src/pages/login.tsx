@@ -24,8 +24,7 @@ export default function Login() {
     e.preventDefault();
     if (password.trim() !== "") {
       setError("");
-      // Store login state in sessionStorage (will be cleared on refresh)
-      sessionStorage.setItem("isLoggedIn", "true");
+      localStorage.setItem("isLoggedIn", "true");
       setTimeout(() => {
         setLocation("/onboarding");
       }, 300);
@@ -177,7 +176,7 @@ export default function Login() {
                 <div className="mt-6 pt-4 border-t border-white/10">
                   <button
                     onClick={() => {
-                      sessionStorage.setItem("isLoggedIn", "true");
+                      localStorage.setItem("isLoggedIn", "true");
                       setLocation("/dashboard");
                     }}
                     className="w-full py-3 bg-transparent border border-white/20 rounded-2xl hover:bg-white/5 hover:border-white/30 transition-all duration-300 font-medium text-white/80 hover:text-white"

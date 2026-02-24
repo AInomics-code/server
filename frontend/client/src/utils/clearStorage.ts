@@ -16,8 +16,7 @@ export function clearAllStorage(): void {
   localStorage.removeItem('userLastName');
   localStorage.removeItem('isAdmin');
   
-  // Clear sessionStorage
-  sessionStorage.removeItem('isLoggedIn');
+  localStorage.removeItem('isLoggedIn');
   
   console.log('✅ All storage cleared');
 }
@@ -28,7 +27,7 @@ export function clearAllStorage(): void {
 export function clearAuthData(): void {
   localStorage.removeItem('jwt_token');
   localStorage.removeItem('dev_token');
-  sessionStorage.removeItem('isLoggedIn');
+  localStorage.removeItem('isLoggedIn');
   
   console.log('✅ Authentication data cleared');
 }
