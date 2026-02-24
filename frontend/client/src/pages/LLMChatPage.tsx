@@ -1383,7 +1383,7 @@ export function LLMChatPage() {
     {
       id: 'inventory-health',
       icon: Package,
-      title: t('cards.backorder.title', language),
+      title: 'Inventory Health',
       description: t('cards.backorder.description', language),
       workflow: 'inventory_health',
       question: 'Inventory Health',
@@ -1392,7 +1392,7 @@ export function LLMChatPage() {
     {
       id: 'sales-health',
       icon: Network,
-      title: t('cards.sales.title', language),
+      title: 'Sales Health',
       description: t('cards.sales.description', language),
       workflow: 'sales_health',
       question: 'Sales Health',

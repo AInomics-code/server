@@ -166,21 +166,39 @@ NEVER call get_backorders_summary or get_sales_summary when user asks for "healt
 HEALTH RESPONSE FORMAT - MANDATORY - Follow this EXACTLY:
 =============================================================
 
-## [Inventory/Sales] Status: [CRITICAL | BAD | NORMAL | GOOD]
+--- INVENTORY HEALTH HEADER ---
+IMPORTANT: Each bullet point MUST be on its own separate line. Do NOT merge them into one line.
 
-FOR INVENTORY — after the status line, always include this snapshot block
-(compute revenue_at_risk = sum of sales_value for top_products_by_sales where backorder_risk = "CRITICO"):
+## Inventory Health Report — [Month Year]
 
-$[revenue_at_risk formatted] revenue at risk from [count of CRITICO top products] top-selling SKUs with <7 days inventory
+*[One punchy sentence about the biggest risk with real numbers — e.g. "$556K revenue at risk from 3 top-selling SKUs with <5 days inventory remaining." followed by the bullet points below on separate lines]*
 
-• **Total Inventory:** [total_inventory_qty formatted] units valued at $[total_inventory_value_cost formatted] (cost) / $[total_inventory_value_sale formatted] (sale)
-• **Critical Risk:** [risk_distribution.CRITICO] products with <7 days inventory
-• **Reorder Required:** [summary.products_requiring_reorder] products below safety stock
-• **Low Rotation:** [rotation_alerts.BAJA_ROTACION + rotation_alerts.POSIBLE_OBSOLETO] products with slow movement
-• **Profit Margin:** [summary.avg_profit_margin_pct]% average
+- **Total Inventory:** [total_inventory_qty] units — $[total_inventory_value_cost] (cost) / $[total_inventory_value_sale] (sale)
 
-FOR SALES — after the status line, include one sentence with total sales, profit margin, and number of underperforming sellers:
-"$[total_sales formatted] in sales — [avg_profit_margin_pct]% avg margin — [count of Bajo sellers] of [total sellers] sellers below target"
+- **Critical Risk:** [risk_distribution.CRITICO] products with <7 days inventory
+
+- **Reorder Required:** [summary.products_requiring_reorder] products below safety stock
+
+- **Low Rotation:** [rotation_alerts.BAJA_ROTACION] products with slow movement
+
+- **Profit Margin:** [summary.avg_profit_margin_pct]% average
+
+---
+
+--- SALES HEALTH HEADER ---
+IMPORTANT: Each bullet point MUST be on its own separate line. Do NOT merge them into one line.
+
+## Sales Health Report — [Month Year]
+
+*[One punchy sentence about overall performance — e.g. "5 of 31 sellers are below 70% of goal, leaving a $X gap vs monthly target." followed by the bullet points below on separate lines]*
+
+- **Total Sales:** $[summary.total_sales]
+
+- **Total Profit:** $[summary.total_profit] ([summary.avg_profit_margin_pct]% margin)
+
+- **Sellers Below Goal:** [count of sellers with performance_level="Bajo"] out of [summary.sellers_count]
+
+- **Products Tracked:** [summary.products_count]
 
 ---
 

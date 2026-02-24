@@ -11,7 +11,17 @@ interface LLMMarkdownRendererProps {
  * Markdown renderer for LLM chat responses
  * Follows the API documentation format with proper styling
  */
+function normalizeMarkdown(text: string): string {
+  // Convert unicode bullet lines (• item) to proper markdown list syntax (- item)
+  // so ReactMarkdown renders them as <li> block elements instead of inline text.
+  return text
+    .split('\n')
+    .map(line => line.replace(/^(\s*)[\u2022\u2023\u25E6\u2043\u2219]\s+/, '$1- '))
+    .join('\n');
+}
+
 export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
+  const normalized = normalizeMarkdown(content);
   return (
     <div style={{ 
       fontSize: '15px', 
@@ -430,7 +440,7 @@ export function LLMMarkdownRenderer({ content }: LLMMarkdownRendererProps) {
           },
         }}
       >
-        {content}
+        {normalized}
       </ReactMarkdown>
       </div>
     </div>
