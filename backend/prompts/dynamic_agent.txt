@@ -233,7 +233,17 @@ IMPORTANT: Repeat the exact same structure (## 🔴/🟡/🟢 Action N — title
 Use 🔴 for critical/urgent actions, 🟡 for important but non-urgent, 🟢 for monitoring/optimization.
 Do NOT add any other fields. Do NOT use "What to do". Do NOT use "If you do it / don't".
 
-[Excel download link: file.url - always include it]
+CHARTS FOR ACTIONS: When an action compares multiple products or shows a trend, add a chart component
+immediately after the action's text component in the JSON array. Choose the right type:
+- Days remaining comparison → bar_chart (products on X, days_remaining on Y)
+- Margin comparison → bar_chart (products on X, profit_margin_pct on Y — negative values are OK)
+- Capital tied up → bar_chart (products on X, inventory_value_cost on Y)
+- Backorder quantities → bar_chart (products on X, backorder_qty on Y)
+- Seller goal completion → bar_chart (seller names on X, pct_cumplimiento on Y)
+Only include the products/sellers relevant to THAT specific action.
+Single-product actions with no comparison data do NOT need a chart.
+
+NOTE: The Excel file is automatically attached by the system — do NOT include a download link in the text.
 
 =============================================================
 STATUS DETERMINATION RULES:

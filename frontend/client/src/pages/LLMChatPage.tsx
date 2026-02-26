@@ -1386,7 +1386,7 @@ export function LLMChatPage() {
       title: 'Inventory Health',
       description: t('cards.backorder.description', language),
       workflow: 'inventory_health',
-      question: 'Inventory Health',
+      question: t('cards.backorder.title', language),
       healthScore: healthScoresLoading ? undefined : (healthScores?.inventory?.score ?? undefined),
     },
     {
@@ -1395,7 +1395,7 @@ export function LLMChatPage() {
       title: 'Sales Health',
       description: t('cards.sales.description', language),
       workflow: 'sales_health',
-      question: 'Sales Health',
+      question: t('cards.sales.title', language),
       healthScore: healthScoresLoading ? undefined : (healthScores?.sales?.score ?? undefined),
     },
   ], [healthScores, healthScoresLoading, language]);
@@ -1869,19 +1869,9 @@ export function LLMChatPage() {
                                   </div>
                                 );
                               } else if (component.type === 'file') {
-                                const fileData = component.data as { url: string; filename: string };
-                                return (
-                                  <div key={compIdx} style={{ marginBottom: '8px' }}>
-                                    <a
-                                      href={fileData.url}
-                                      target="_blank"
-                                      rel="noopener noreferrer"
-                                      style={{ color: '#5CA2F9', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}
-                                    >
-                                      📎 {fileData.filename}
-                                    </a>
-                                  </div>
-                                );
+                                // The LLM already includes the download link in its text component.
+                                // Rendering the file component separately would duplicate it.
+                                return null;
                               } else if (component.type === 'inventory_report_data' || component.type === 'sales_report_data') {
                                 return null;
                               } else {

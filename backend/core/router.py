@@ -25,17 +25,25 @@ class QueryRouter:
     async def classify(self, query: str, conversation_history: Optional[List[Dict]] = None) -> QueryType:
         # OVERRIDE: Force health queries to DYNAMIC agent (uses Sonnet, better at following tool instructions)
         query_lower = query.lower()
-        health_keywords = [
-            "health", "salud", 
-            "check", "revisar", "verificar",
-            "dashboard",
-            "run backorder", "run sales"
+
+        # Direct health tool triggers — both English and Spanish, inventory and sales
+        health_patterns = [
+            # English
+            "inventory health", "sales health",
+            # Spanish
+            "salud de inventario", "salud inventario",
+            "salud de ventas", "salud ventas",
         ]
-        
-        if any(keyword in query_lower for keyword in health_keywords):
-            if "sales" in query_lower or "ventas" in query_lower or "backorder" in query_lower:
-                print(f"[ROUTER] 🎯 OVERRIDE: '{query[:50]}...' -> DYNAMIC (health query detected)")
-                return QueryType.DYNAMIC
+        if any(pattern in query_lower for pattern in health_patterns):
+            print(f"[ROUTER] 🎯 OVERRIDE: '{query[:50]}' -> DYNAMIC (health query detected)")
+            return QueryType.DYNAMIC
+
+        # Broader health keyword + domain combos (e.g. "check sales", "dashboard backorder")
+        health_keywords = ["health", "salud", "check", "revisar", "verificar", "dashboard"]
+        domain_keywords = ["sales", "ventas", "inventory", "inventario", "backorder"]
+        if any(h in query_lower for h in health_keywords) and any(d in query_lower for d in domain_keywords):
+            print(f"[ROUTER] 🎯 OVERRIDE: '{query[:50]}' -> DYNAMIC (health query detected)")
+            return QueryType.DYNAMIC
         
         # Build context from conversation history
         context_str = ""
