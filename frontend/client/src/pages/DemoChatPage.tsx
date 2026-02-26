@@ -616,8 +616,16 @@ export function DemoChatPage() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.3 }}
-                  onMouseEnter={() => setIsHoveringUpload(true)}
-                  onMouseLeave={() => setIsHoveringUpload(false)}
+                  onMouseEnter={(e) => {
+                    setIsHoveringUpload(true);
+                    e.currentTarget.style.borderColor = 'rgba(92, 162, 249, 0.15)';
+                    e.currentTarget.style.backgroundColor = '#25282E';
+                  }}
+                  onMouseLeave={(e) => {
+                    setIsHoveringUpload(false);
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.backgroundColor = '#22252B';
+                  }}
                   style={{
                     backgroundColor: '#22252B',
                     borderRadius: '12px',
@@ -631,14 +639,6 @@ export function DemoChatPage() {
                     transition: 'all 0.2s ease',
                     width: 'fit-content',
                     minWidth: '500px',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(92, 162, 249, 0.15)';
-                    e.currentTarget.style.backgroundColor = '#25282E';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.backgroundColor = '#22252B';
                   }}
                   onClick={() => {
                     // Handle file upload click
