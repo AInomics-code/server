@@ -1457,7 +1457,7 @@ export function LLMChatPage() {
                   alignItems: 'center',
                   gap: '10px',
                 }}>
-                  <VortaStarIcon size={56} color="#5ca2f9" />
+                  <VortaStarIcon size={48} color="#5ca2f9" />
                   <motion.span
                     initial={{ opacity: 0, x: -50, width: 0 }}
                     animate={{ opacity: 1, x: 0, width: 'auto' }}
@@ -1468,16 +1468,17 @@ export function LLMChatPage() {
                     }}
                     style={{
                       fontSize: '44px',
-                      fontWeight: 600,
-                      color: '#5ca2f9',
+                      fontWeight: 450,
+                      color: '#AFB6C0',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+                      fontFamily: '"SF Pro", "SF Pro Display", -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", sans-serif',
+                      letterSpacing: '-0.02em',
                       position: 'relative',
                       zIndex: 1,
                     }}
                   >
-                    {t('app.name', language)}
+                    Hi Emilio
                   </motion.span>
                 </div>
               </div>
@@ -2408,17 +2409,24 @@ function ChatInput({
           disabled={!value.trim() || isLoading}
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
+          animate={{
+            width: value.trim() ? '36px' : '40px',
+            height: value.trim() ? '36px' : '40px',
+            backgroundColor: value.trim() ? '#808893' : '#2F343B',
+          }}
+          transition={{
+            duration: 0.12,
+            ease: [0.4, 0, 0.2, 1],
+          }}
           style={{
-            width: '40px',
-            height: '40px',
             borderRadius: '10px',
-            backgroundColor: value.trim() ? '#4A5568' : '#2F343B',
-            border: 'none',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
             cursor: value.trim() && !isLoading ? 'pointer' : 'not-allowed',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            transition: 'background-color 0.12s',
+            position: 'relative',
+            boxShadow: value.trim() ? 'none' : 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
           }}
         >
           {isLoading ? (
@@ -2431,7 +2439,11 @@ function ChatInput({
               animation: 'spin 0.8s linear infinite',
             }} />
           ) : (
-            <ArrowRight size={20} color={value.trim() ? 'white' : '#5F6672'} />
+            <ArrowRight 
+              size={20} 
+              color={value.trim() ? '#CFD2D6' : '#5F6672'} 
+              strokeWidth={value.trim() ? 2.5 : 2}
+            />
           )}
         </motion.button>
       </div>
