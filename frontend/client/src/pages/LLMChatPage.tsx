@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { GlobalSidebar } from '@/components/GlobalSidebar';
+import { ConversationHistorySidebar, HISTORY_SIDEBAR_WIDTH } from '@/components/ConversationHistorySidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
 import { GetStartedCards } from '@/components/GetStartedCards';
@@ -13,6 +14,11 @@ import {
   BubbleChartComponent,
   RadarChartComponent,
 } from '@/services/agentService';
+import {
+  getConversation,
+  renameConversation,
+  deleteConversation as deleteConversationApi,
+} from '@/services/conversationHistoryService';
 import { getUserName } from '@/utils/auth';
 import { fetchHealthScores, type HealthScoresResponse } from '@/services/healthScoresService';
 import { 
@@ -378,6 +384,14 @@ export function LLMChatPage() {
   // UI state
   const [copiedMessageIdx, setCopiedMessageIdx] = useState<number | null>(null);
   
+  // Conversation history sidebar
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyRefreshTrigger, setHistoryRefreshTrigger] = useState(0);
+  const [conversationTitle, setConversationTitle] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef<HTMLInputElement>(null);
+
   // Backend integration
   // Don't generate session_id - let backend create it for new conversations
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -502,6 +516,7 @@ export function LLMChatPage() {
       // Save the conversation_id from the backend for subsequent messages
       if (response.metadata?.conversation_id && !sessionId) {
         setSessionId(response.metadata.conversation_id);
+        setHistoryRefreshTrigger((n) => n + 1);
       }
       
       // New API format: response.message is an array of components
@@ -547,6 +562,7 @@ export function LLMChatPage() {
       // Save the conversation_id from the backend for subsequent messages
       if (response.metadata?.conversation_id && !sessionId) {
         setSessionId(response.metadata.conversation_id);
+        setHistoryRefreshTrigger((n) => n + 1);
       }
       
       // New API format: response.message is an array of components
@@ -569,18 +585,57 @@ export function LLMChatPage() {
     }
   };
   
-  // Back to empty state
-  const handleBackToHome = () => {
-    // Bump request id so any in-flight responses are ignored
+  // Back to empty state / new conversation
+  const handleBackToHome = useCallback(() => {
     currentRequestIdRef.current += 1;
     setIsWaitingForResponse(false);
     setChatMode(false);
     setConversationHistory([]);
     setSubmittedQuestion('');
     setShowGetStarted(true);
-    // Reset session_id for new conversation
     setSessionId(null);
-  };
+    setConversationTitle(null);
+  }, []);
+
+  // Load an existing conversation from history into the chat view
+  const handleLoadConversation = useCallback(async (conversationId: string) => {
+    try {
+      const { conversation, messages } = await getConversation(conversationId);
+      const loaded: Message[] = messages.map((m) => ({
+        role: m.role,
+        content: m.content?.text ?? '',
+        components: m.content?.components ?? undefined,
+      }));
+      currentRequestIdRef.current += 1;
+      setIsWaitingForResponse(false);
+      setConversationHistory(loaded);
+      setSessionId(conversationId);
+      setConversationTitle(conversation.title ?? null);
+      setChatMode(true);
+      setShowGetStarted(false);
+    } catch (err) {
+      console.error('Failed to load conversation:', err);
+    }
+  }, []);
+
+  // Rename current conversation
+  const handleRenameSubmit = useCallback(async () => {
+    const trimmed = renameValue.trim();
+    if (sessionId && trimmed) {
+      await renameConversation(sessionId, trimmed);
+      setConversationTitle(trimmed);
+      setHistoryRefreshTrigger((n) => n + 1);
+    }
+    setIsRenaming(false);
+  }, [sessionId, renameValue]);
+
+  // Delete current conversation
+  const handleDeleteConversation = useCallback(async () => {
+    if (!sessionId) return;
+    await deleteConversationApi(sessionId, true);
+    setHistoryRefreshTrigger((n) => n + 1);
+    handleBackToHome();
+  }, [sessionId, handleBackToHome]);
   
   // Copy message
   const handleCopyMessage = async (content: string, idx: number) => {
@@ -1409,12 +1464,27 @@ export function LLMChatPage() {
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
       <GlobalSidebar activePage="llm" onHomeClick={handleBackToHome} />
+
+      <ConversationHistorySidebar
+        isOpen={showHistory}
+        activeConversationId={sessionId}
+        onSelectConversation={(id) => {
+          handleLoadConversation(id);
+          if (window.innerWidth < 768) setShowHistory(false);
+        }}
+        onNewChat={() => {
+          handleBackToHome();
+          if (window.innerWidth < 768) setShowHistory(false);
+        }}
+        refreshTrigger={historyRefreshTrigger}
+      />
       
       <main style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginLeft: '64px',
+        marginLeft: showHistory ? `${68 + HISTORY_SIDEBAR_WIDTH}px` : '64px',
+        transition: 'margin-left 0.25s ease',
       }}>
         <AnimatePresence mode="wait">
           {!chatMode && conversationHistory.length === 0 && !isWaitingForResponse ? (
@@ -1436,8 +1506,34 @@ export function LLMChatPage() {
                 justifyContent: 'center',
                 padding: '40px',
                 paddingTop: '0px',
+                position: 'relative',
               }}
             >
+              {/* History toggle (empty state) */}
+              <div style={{ position: 'absolute', top: '16px', left: '16px' }}>
+                <button
+                  onClick={() => setShowHistory((v) => !v)}
+                  title={showHistory ? 'Hide history' : 'Show history'}
+                  style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '7px', borderRadius: '7px', border: 'none',
+                    backgroundColor: showHistory ? 'rgba(92,162,249,0.15)' : 'transparent',
+                    color: showHistory ? '#5ca2f9' : '#535964',
+                    cursor: 'pointer', transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#9CA5B5'; }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#535964'; }
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
+              </div>
+
               {/* Aragon Logo - Static */}
               <div
                 style={{
@@ -1530,9 +1626,65 @@ export function LLMChatPage() {
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 borderBottom: 'none',
+                gap: '12px',
               }}>
+                {/* History toggle button */}
+                <button
+                  onClick={() => setShowHistory((v) => !v)}
+                  title={showHistory ? 'Hide history' : 'Show history'}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '7px',
+                    borderRadius: '7px',
+                    border: 'none',
+                    backgroundColor: showHistory ? 'rgba(92,162,249,0.15)' : 'transparent',
+                    color: showHistory ? '#5ca2f9' : '#535964',
+                    cursor: 'pointer',
+                    flexShrink: 0,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#9CA5B5'; }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#535964'; }
+                  }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                  </svg>
+                </button>
+
                 {/* Left side: Chat title with chevron */}
-                <div style={{ position: 'relative' }} ref={titleDropdownRef}>
+                <div style={{ position: 'relative', flex: 1 }} ref={titleDropdownRef}>
+                  {isRenaming ? (
+                    <input
+                      ref={renameInputRef}
+                      autoFocus
+                      value={renameValue}
+                      onChange={(e) => setRenameValue(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleRenameSubmit();
+                        if (e.key === 'Escape') setIsRenaming(false);
+                      }}
+                      onBlur={handleRenameSubmit}
+                      style={{
+                        fontSize: '16px',
+                        fontWeight: 400,
+                        color: '#D1D5DB',
+                        fontFamily: 'Inter, sans-serif',
+                        background: 'rgba(92,162,249,0.1)',
+                        border: '1px solid rgba(92,162,249,0.4)',
+                        borderRadius: '6px',
+                        padding: '4px 10px',
+                        outline: 'none',
+                        width: '100%',
+                        maxWidth: '400px',
+                      }}
+                    />
+                  ) : (
                   <div style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -1546,13 +1698,19 @@ export function LLMChatPage() {
                       fontWeight: 400,
                       color: '#D1D5DB',
                       fontFamily: 'Inter, sans-serif',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '360px',
                     }}>
-                      {conversationHistory.length > 0 && conversationHistory[0]?.role === 'user' 
-                        ? conversationHistory[0].content 
-                        : 'New Conversation'}
+                      {conversationTitle
+                        || (conversationHistory.length > 0 && conversationHistory[0]?.role === 'user'
+                          ? conversationHistory[0].content
+                          : 'New Conversation')}
                     </span>
                     <ChevronDown size={16} color="#9CA5B5" />
                   </div>
+                  )}
                   
                   {/* Dropdown Menu */}
                   <AnimatePresence>
@@ -1615,7 +1773,10 @@ export function LLMChatPage() {
                         <button
                           onClick={() => {
                             setIsTitleDropdownOpen(false);
-                            // Handle rename
+                            const currentTitle = conversationTitle
+                              || (conversationHistory[0]?.content ?? 'New Conversation');
+                            setRenameValue(currentTitle);
+                            setIsRenaming(true);
                           }}
                           style={{
                             display: 'flex',
@@ -1686,7 +1847,7 @@ export function LLMChatPage() {
                         <button
                           onClick={() => {
                             setIsTitleDropdownOpen(false);
-                            // Handle delete
+                            handleDeleteConversation();
                           }}
                           style={{
                             display: 'flex',
