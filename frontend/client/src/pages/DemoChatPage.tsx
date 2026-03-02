@@ -6,7 +6,7 @@
 
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GlobalSidebar } from '@/components/GlobalSidebar';
+import { DemoGlobalSidebar } from '@/components/DemoGlobalSidebar';
 import { ChatChart } from '@/components/ChatChart';
 import { LLMMarkdownRenderer } from '@/components/LLMMarkdownRenderer';
 // GetStartedCards removed - using file upload instead
@@ -29,6 +29,7 @@ import {
   Download,
   Check,
   ChevronDown,
+  ChevronUp,
   Star,
   Pencil,
   Folder,
@@ -40,6 +41,8 @@ import {
   FileText,
   Circle,
   Wrench,
+  BarChart3,
+  TrendingUp,
 } from 'lucide-react';
 // ChatInput will be defined in this file for complete separation
 
@@ -254,6 +257,7 @@ export function DemoChatPage() {
   
   // UI state
   const [copiedMessageIdx, setCopiedMessageIdx] = useState<number | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
   // Demo mode - no backend needed
   const [sessionId] = useState<string | null>('demo-session-123');
@@ -381,13 +385,35 @@ export function DemoChatPage() {
       backgroundColor: '#1F2227',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
-      <GlobalSidebar activePage="llm" onHomeClick={handleBackToHome} />
+      {/* Default Sidebar - icon rail only */}
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          height: '100%',
+          width: '60px',
+          backgroundColor: '#32373F',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '24px 0',
+          zIndex: 50,
+        }}
+      >
+        <DemoGlobalSidebar 
+          activePage="llm" 
+          onHomeClick={handleBackToHome}
+          onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+          isCompact={true}
+          isExpanded={false}
+        />
+      </div>
       
       <main style={{
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginLeft: '64px',
+        marginLeft: '60px',
       }}>
         <AnimatePresence mode="wait">
           {!chatMode && conversationHistory.length === 0 && !isWaitingForResponse ? (
@@ -487,95 +513,6 @@ export function DemoChatPage() {
                     }}
                   />
                 </div>
-
-                {/* Report Buttons - Show when file is uploaded */}
-                <AnimatePresence>
-                  {uploadedFile && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -20, height: 0, marginTop: 0 }}
-                      animate={{ opacity: 1, y: 0, height: 'auto', marginTop: '12px' }}
-                      exit={{ opacity: 0, y: -20, height: 0, marginTop: 0 }}
-                      transition={{
-                        duration: 0.5,
-                        ease: [0.25, 0.46, 0.45, 0.94],
-                        delay: 0.6,
-                        height: {
-                          duration: 0.5,
-                          ease: [0.25, 0.46, 0.45, 0.94],
-                          delay: 0.6,
-                        },
-                        opacity: {
-                          duration: 0.4,
-                          ease: [0.4, 0, 0.2, 1],
-                          delay: 0.6,
-                        },
-                        y: {
-                          duration: 0.5,
-                          ease: [0.25, 0.46, 0.45, 0.94],
-                          delay: 0.6,
-                        },
-                      }}
-                      style={{
-                        width: '100%',
-                        display: 'flex',
-                        gap: '12px',
-                        justifyContent: 'flex-start',
-                        alignItems: 'center',
-                      }}
-                    >
-                      <motion.button
-                        onClick={() => {
-                          setChatInputValue('Run a Sales Health Report with summary, target vs actual, budget vs sales, backorder impact, top movers, and actions.');
-                        }}
-                        whileHover={{ scale: 1.02, backgroundColor: '#353A42' }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{
-                          duration: 0.15,
-                          ease: [0.4, 0, 0.2, 1],
-                        }}
-                        style={{
-                          padding: '10px 16px',
-                          borderRadius: '10px',
-                          backgroundColor: '#2F343B',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          color: '#FFFFFF',
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          fontFamily: 'Inter, sans-serif',
-                          cursor: 'pointer',
-                          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
-                        }}
-                      >
-                        Sales Report
-                      </motion.button>
-                      <motion.button
-                        onClick={() => {
-                          setChatInputValue('Run an Inventory Health Report with health score, stock risks, reorder needs, low rotation/excess, margin issues, and actions.');
-                        }}
-                        whileHover={{ scale: 1.02, backgroundColor: '#353A42' }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{
-                          duration: 0.15,
-                          ease: [0.4, 0, 0.2, 1],
-                        }}
-                        style={{
-                          padding: '10px 16px',
-                          borderRadius: '10px',
-                          backgroundColor: '#2F343B',
-                          border: '1px solid rgba(255, 255, 255, 0.1)',
-                          color: '#FFFFFF',
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          fontFamily: 'Inter, sans-serif',
-                          cursor: 'pointer',
-                          boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
-                        }}
-                      >
-                        Inventory Health
-                      </motion.button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
 
               {/* File Upload Section */}
@@ -725,14 +662,18 @@ export function DemoChatPage() {
                           border: '2px dashed rgba(92, 162, 249, 0.3)',
                           pointerEvents: 'none',
                         }}
-                        animate={{
-                          rotate: isHoveringUpload ? 360 : 0,
-                        }}
-                        transition={{
+                        animate={isHoveringUpload ? {
+                          rotate: 360,
+                        } : {}}
+                        transition={isHoveringUpload ? {
                           rotate: {
-                            duration: 5,
-                            repeat: isHoveringUpload ? Infinity : 0,
+                            duration: 8,
+                            repeat: Infinity,
                             ease: 'linear',
+                          },
+                        } : {
+                          rotate: {
+                            duration: 0,
                           },
                         }}
                       />
@@ -1296,95 +1237,6 @@ export function DemoChatPage() {
                       setUploadedFile(null);
                     }}
                   />
-
-                  {/* Report Buttons - Show when file is uploaded */}
-                  <AnimatePresence>
-                    {uploadedFile && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -20, height: 0, marginTop: 0 }}
-                        animate={{ opacity: 1, y: 0, height: 'auto', marginTop: '12px' }}
-                        exit={{ opacity: 0, y: -20, height: 0, marginTop: 0 }}
-                        transition={{
-                          duration: 0.5,
-                          ease: [0.25, 0.46, 0.45, 0.94],
-                          delay: 0.6,
-                          height: {
-                            duration: 0.5,
-                            ease: [0.25, 0.46, 0.45, 0.94],
-                            delay: 0.6,
-                          },
-                          opacity: {
-                            duration: 0.4,
-                            ease: [0.4, 0, 0.2, 1],
-                            delay: 0.6,
-                          },
-                          y: {
-                            duration: 0.5,
-                            ease: [0.25, 0.46, 0.45, 0.94],
-                            delay: 0.6,
-                          },
-                        }}
-                        style={{
-                          width: '100%',
-                          display: 'flex',
-                          gap: '12px',
-                          justifyContent: 'flex-start',
-                          alignItems: 'center',
-                        }}
-                      >
-                        <motion.button
-                          onClick={() => {
-                            setChatInputValue('Run a Sales Health Report with summary, target vs actual, budget vs sales, backorder impact, top movers, and actions.');
-                          }}
-                          whileHover={{ scale: 1.02, backgroundColor: '#353A42' }}
-                          whileTap={{ scale: 0.98 }}
-                          transition={{
-                            duration: 0.15,
-                            ease: [0.4, 0, 0.2, 1],
-                          }}
-                          style={{
-                            padding: '10px 16px',
-                            borderRadius: '10px',
-                            backgroundColor: '#2F343B',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: '#FFFFFF',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            fontFamily: 'Inter, sans-serif',
-                            cursor: 'pointer',
-                            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
-                          }}
-                        >
-                          Sales Report
-                        </motion.button>
-                        <motion.button
-                          onClick={() => {
-                            setChatInputValue('Run an Inventory Health Report with health score, stock risks, reorder needs, low rotation/excess, margin issues, and actions.');
-                          }}
-                          whileHover={{ scale: 1.02, backgroundColor: '#353A42' }}
-                          whileTap={{ scale: 0.98 }}
-                          transition={{
-                            duration: 0.15,
-                            ease: [0.4, 0, 0.2, 1],
-                          }}
-                          style={{
-                            padding: '10px 16px',
-                            borderRadius: '10px',
-                            backgroundColor: '#2F343B',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
-                            color: '#FFFFFF',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            fontFamily: 'Inter, sans-serif',
-                            cursor: 'pointer',
-                            boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
-                          }}
-                        >
-                          Inventory Health
-                        </motion.button>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
               </div>
             </motion.div>
@@ -1464,11 +1316,10 @@ function ChatInput({
   onRemoveFile?: () => void;
 }) {
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const toolsDropdownRef = useRef<HTMLDivElement>(null);
   const [isFocused, setIsFocused] = useState(false);
   const [value, setValue] = useState('');
-  const [isToolsDropdownOpen, setIsToolsDropdownOpen] = useState(false);
-  const [selectedTool, setSelectedTool] = useState<string | null>(null);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const toolsButtonRef = useRef<HTMLButtonElement>(null);
   
   // Handle external value updates
   useEffect(() => {
@@ -1500,25 +1351,34 @@ function ChatInput({
     }
   }, [value]);
 
-  // Handle clicking outside to close dropdown
+  // Close tools dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target as Node)) {
-        setIsToolsDropdownOpen(false);
+      if (
+        toolsButtonRef.current &&
+        !toolsButtonRef.current.contains(event.target as Node)
+      ) {
+        // Check if click is on one of the cards (they're inside the composer)
+        const target = event.target as HTMLElement;
+        if (!target.closest('[data-tools-cards]')) {
+          setIsToolsOpen(false);
+        }
       }
     };
 
-    if (isToolsDropdownOpen) {
+    if (isToolsOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isToolsDropdownOpen]);
+  }, [isToolsOpen]);
+
   
   const hasText = value.trim().length > 0;
-  const isActive = isFocused || hasText;
+  const hasFile = !!uploadedFile;
+  const isActive = isFocused || hasText || hasFile || isToolsOpen;
   
   return (
     <div
@@ -1527,34 +1387,38 @@ function ChatInput({
         position: 'relative',
       }}
     >
-      {/* Subtle glow effect only */}
+      {/* Active Input Layer - Backplate */}
       <motion.div
         initial={false}
         animate={{
-          opacity: isActive ? 0.15 : 0,
+          opacity: isActive ? 1 : 0,
+          scale: isActive ? 1 : 0.98,
+          y: isActive ? 0 : 2,
         }}
         transition={{
-          duration: 0.5,
-          ease: [0.25, 0.46, 0.45, 0.94],
+          duration: 0.6,
+          ease: [0.16, 1, 0.3, 1],
         }}
         style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          width: '100%',
-          height: '100%',
-          borderRadius: '12px',
-          boxShadow: isActive ? '0 0 24px rgba(92, 162, 249, 0.2)' : 'none',
+          top: '-12px',
+          left: '-12px',
+          right: '-12px',
+          bottom: '-12px',
+          borderRadius: '18px',
+          backgroundColor: 'rgba(31, 34, 39, 0.6)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
           zIndex: 0,
           pointerEvents: 'none',
+          backdropFilter: 'blur(8px)',
         }}
       />
       
       <motion.div
         initial={false}
         animate={{
-          borderColor: isActive ? 'rgba(92, 162, 249, 0.4)' : 'rgba(95, 102, 114, 0.3)',
+          borderColor: isActive ? 'rgba(255, 255, 255, 0.15)' : 'rgba(95, 102, 114, 0.3)',
         }}
         transition={{
           duration: 0.5,
@@ -1563,10 +1427,9 @@ function ChatInput({
         style={{
           backgroundColor: '#2F343B',
           borderRadius: '12px',
-          border: `1px solid ${isActive ? 'rgba(92, 162, 249, 0.4)' : 'rgba(95, 102, 114, 0.3)'}`,
+          border: `1px solid ${isActive ? 'rgba(255, 255, 255, 0.15)' : 'rgba(95, 102, 114, 0.3)'}`,
           padding: '14px 16px',
           width: '100%',
-          boxShadow: isActive ? '0 0 20px rgba(92, 162, 249, 0.1)' : 'none',
           position: 'relative',
           zIndex: 2,
         }}
@@ -1603,7 +1466,7 @@ function ChatInput({
           `}</style>
         </div>
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '8px', paddingLeft: '0', position: 'relative', zIndex: 2 }}>
-          <div style={{ display: 'flex', gap: '6px', paddingLeft: '0', marginLeft: '0', alignItems: 'flex-end', position: 'relative' }} ref={toolsDropdownRef}>
+          <div style={{ display: 'flex', gap: '6px', paddingLeft: '0', marginLeft: '0', alignItems: 'flex-end', position: 'relative' }}>
             {/* Uploaded File Pill */}
             <AnimatePresence>
               {uploadedFile && (() => {
@@ -1676,159 +1539,47 @@ function ChatInput({
               })()}
             </AnimatePresence>
             <div style={{ position: 'relative' }}>
-              <button
-                onClick={() => setIsToolsDropdownOpen(!isToolsDropdownOpen)}
-                style={{
-                  height: '32px',
-                  borderRadius: '8px',
-                  backgroundColor: isToolsDropdownOpen ? '#353A42' : '#2F343B',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '0 12px',
-                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
-                  transition: 'all 0.2s ease',
-                }}
-                onMouseEnter={(e) => {
-                  if (!isToolsDropdownOpen) {
-                    e.currentTarget.style.backgroundColor = '#353A42';
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  if (!isToolsDropdownOpen) {
-                    e.currentTarget.style.backgroundColor = '#2F343B';
-                  }
-                }}
-              >
-                <Wrench size={16} color="#AFB6C0" />
-                <span style={{
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  color: '#FFFFFF',
-                  fontFamily: 'Inter, sans-serif',
-                }}>
-                  {selectedTool || 'Tools'}
-                </span>
+            <button
+                ref={toolsButtonRef}
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+              style={{
+                height: '32px',
+                borderRadius: '8px',
+                backgroundColor: '#2F343B',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                padding: '0 12px',
+                boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.backgroundColor = '#353A42';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.backgroundColor = '#2F343B';
+              }}
+            >
+              <Wrench size={16} color="#AFB6C0" />
+              <span style={{
+                fontSize: '14px',
+                fontWeight: 500,
+                color: '#FFFFFF',
+                fontFamily: 'Inter, sans-serif',
+              }}>
+                Tools
+              </span>
                 <motion.div
-                  animate={{
-                    rotate: isToolsDropdownOpen ? 180 : 0,
-                  }}
-                  transition={{
-                    duration: 0.25,
-                    ease: [0.4, 0, 0.2, 1],
-                  }}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                  }}
+                  animate={{ rotate: isToolsOpen ? 180 : 0 }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 >
-                  <ChevronDown size={16} color="#AFB6C0" />
+                  <ChevronDown size={14} color="#AFB6C0" />
                 </motion.div>
-              </button>
+            </button>
               
-              {/* Dropdown Menu */}
-              <AnimatePresence>
-                {isToolsDropdownOpen && (
-                  <motion.div
-                    initial={{ 
-                      opacity: 0, 
-                      y: -8,
-                      scale: 0.95,
-                    }}
-                    animate={{ 
-                      opacity: 1, 
-                      y: 0,
-                      scale: 1,
-                    }}
-                    exit={{ 
-                      opacity: 0, 
-                      y: -8,
-                      scale: 0.95,
-                    }}
-                    transition={{ 
-                      duration: 0.2,
-                      ease: [0.4, 0, 0.2, 1],
-                    }}
-                    style={{
-                      position: 'absolute',
-                      top: '100%',
-                      left: 0,
-                      marginTop: '8px',
-                      backgroundColor: '#2F343B',
-                      borderRadius: '10px',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      boxShadow: '0 8px 24px rgba(0, 0, 0, 0.4), 0 0 0 1px rgba(255, 255, 255, 0.05)',
-                      minWidth: '140px',
-                      overflow: 'hidden',
-                      zIndex: 1000,
-                      backdropFilter: 'blur(10px)',
-                    }}
-                  >
-                    <button
-                      onClick={() => {
-                        setSelectedTool('Reports');
-                        setIsToolsDropdownOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        fontFamily: 'Inter, sans-serif',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#353A42';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      Reports
-                    </button>
-                    <div style={{
-                      height: '1px',
-                      backgroundColor: 'rgba(255, 255, 255, 0.08)',
-                      margin: '4px 0',
-                    }} />
-                    <button
-                      onClick={() => {
-                        setSelectedTool('Query');
-                        setIsToolsDropdownOpen(false);
-                      }}
-                      style={{
-                        width: '100%',
-                        padding: '12px 16px',
-                        backgroundColor: 'transparent',
-                        border: 'none',
-                        color: '#FFFFFF',
-                        fontSize: '14px',
-                        fontWeight: 500,
-                        fontFamily: 'Inter, sans-serif',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onMouseEnter={(e) => {
-                        e.currentTarget.style.backgroundColor = '#353A42';
-                      }}
-                      onMouseLeave={(e) => {
-                        e.currentTarget.style.backgroundColor = 'transparent';
-                      }}
-                    >
-                      Query
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
             </div>
             <button
               style={{
@@ -1865,8 +1616,6 @@ function ChatInput({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             animate={{
-              width: value.trim() ? '36px' : '40px',
-              height: value.trim() ? '36px' : '40px',
               backgroundColor: value.trim() ? '#808893' : '#2F343B',
             }}
             transition={{
@@ -1874,6 +1623,8 @@ function ChatInput({
               ease: [0.4, 0, 0.2, 1],
             }}
             style={{
+              width: '40px',
+              height: '40px',
               borderRadius: '10px',
               border: 'none',
               cursor: value.trim() && !isLoading ? 'pointer' : 'not-allowed',
@@ -1896,11 +1647,136 @@ function ChatInput({
               <ArrowRight 
                 size={20} 
                 color={value.trim() ? '#CFD2D6' : '#5F6672'} 
-                strokeWidth={value.trim() ? 2.5 : 2}
+                strokeWidth={2}
               />
             )}
           </motion.button>
         </div>
+        
+        {/* Tools Cards - Appear below tools row inside composer */}
+        <AnimatePresence>
+          {isToolsOpen && (
+            <motion.div
+              key="tools-cards"
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ 
+                opacity: 1, 
+                height: 'auto',
+                marginTop: '12px',
+              }}
+              exit={{ 
+                opacity: 0, 
+                height: 0,
+                marginTop: 0,
+              }}
+              transition={{
+                duration: 0.6,
+                ease: [0.16, 1, 0.3, 1],
+                opacity: {
+                  duration: 0.5,
+                  ease: [0.16, 1, 0.3, 1],
+                },
+                height: {
+                  duration: 0.6,
+                  ease: [0.16, 1, 0.3, 1],
+                },
+              }}
+              style={{
+                display: 'flex',
+                gap: '8px',
+                overflow: 'hidden',
+                position: 'relative',
+                zIndex: 2,
+              }}
+              data-tools-cards
+            >
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: -2 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: -2 }}
+                transition={{ 
+                  duration: 0.5,
+                  ease: [0.16, 1, 0.3, 1],
+                  delay: 0.08,
+                }}
+                onClick={() => {
+                  onSend('Show Inventory Health report');
+                  setIsToolsOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#2F343B',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#353A42';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2F343B';
+                }}
+              >
+                <BarChart3 size={15} color="#AFB6C0" />
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#FFFFFF',
+                  fontFamily: 'Inter, sans-serif',
+                }}>
+                  Inventory Health
+                </span>
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, scale: 0.96, y: -2 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96, y: -2 }}
+                transition={{ 
+                  duration: 0.5,
+                  ease: [0.16, 1, 0.3, 1],
+                  delay: 0.12,
+                }}
+                onClick={() => {
+                  onSend('Show Sales Health report');
+                  setIsToolsOpen(false);
+                }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  padding: '7px 12px',
+                  borderRadius: '8px',
+                  backgroundColor: '#2F343B',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: 'inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 1px 2px rgba(0, 0, 0, 0.2)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = '#353A42';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = '#2F343B';
+                }}
+              >
+                <TrendingUp size={15} color="#AFB6C0" />
+                <span style={{
+                  fontSize: '13px',
+                  fontWeight: 500,
+                  color: '#FFFFFF',
+                  fontFamily: 'Inter, sans-serif',
+                }}>
+                  Sales Health
+                </span>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </div>
   );
