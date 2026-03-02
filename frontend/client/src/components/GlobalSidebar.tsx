@@ -1,12 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Settings as SettingsIcon, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import { useTranslation } from '@/config/i18n';
-import { logout } from '@/utils/auth';
+import { logout, isAdmin, getUserName } from '@/utils/auth';
 
 interface GlobalSidebarProps {
-  activePage?: 'home' | 'data' | 'playground' | 'llm';
+  activePage?: 'home' | 'data' | 'playground' | 'llm' | 'admin';
   onHomeClick?: () => void;
 }
 
@@ -270,6 +270,63 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
             </span>
           )}
         </button>
+
+        {/* Admin Users - visible only to admins */}
+        {isAdmin() && (
+          <button
+            onClick={() => setLocation('/admin/users')}
+            title="User Management"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '10px',
+              borderRadius: '6px',
+              backgroundColor: activePage === 'admin' ? 'rgba(42, 58, 82, 0.6)' : 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
+              outline: 'none',
+              position: 'relative',
+              width: '100%',
+            }}
+            onMouseEnter={(e) => {
+              if (activePage !== 'admin') {
+                e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (activePage !== 'admin') {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+            }}
+          >
+            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={activePage === 'admin' ? 'rgba(92, 162, 249, 0.8)' : '#535964'} strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+              <circle cx="9" cy="7" r="4"/>
+              <path d="M23 21v-2a4 4 0 00-3-3.87"/>
+              <path d="M16 3.13a4 4 0 010 7.75"/>
+            </svg>
+            {activePage === 'admin' && (
+              <div style={{
+                position: 'absolute',
+                right: '-12px',
+                top: '50%',
+                transform: 'translateY(-50%)',
+                width: '2.5px',
+                height: '56px',
+                backgroundColor: 'rgba(92, 162, 249, 0.6)',
+                borderRadius: '1.5px 0 0 1.5px',
+                zIndex: 100,
+              }} />
+            )}
+            {isSidebarExpanded && (
+              <span style={{ fontSize: '14px', color: activePage === 'admin' ? 'rgba(92, 162, 249, 0.8)' : '#DCE7F5' }}>
+                Users
+              </span>
+            )}
+          </button>
+        )}
       </div>
 
       {/* Bottom Section - Settings, User, and Aragon */}
@@ -381,25 +438,33 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
           </AnimatePresence>
         </div>
         
-        {/* User Circle with U - At Very Bottom */}
+        {/* User avatar - At Very Bottom */}
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '20px' }}>
-          {/* User Circle with U */}
-          <div style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            backgroundColor: '#535964',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            cursor: 'pointer',
-          }}>
-            <span style={{
-              color: '#202A37',
-              fontSize: '14px',
-              fontWeight: 600,
-            }}>U</span>
-          </div>
+          {(() => {
+            const fullName = getUserName() || '';
+            const parts = fullName.trim().split(' ').filter(Boolean);
+            const initials = parts.length >= 2
+              ? `${parts[0][0]}${parts[parts.length - 1][0]}`.toUpperCase()
+              : (parts[0]?.[0] ?? 'U').toUpperCase();
+            return (
+              <div
+                title={fullName || 'User'}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  backgroundColor: '#3A4A5C',
+                  border: '1px solid rgba(92,162,249,0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'default',
+                }}
+              >
+                <span style={{ color: '#5ca2f9', fontSize: '13px', fontWeight: 700 }}>{initials}</span>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

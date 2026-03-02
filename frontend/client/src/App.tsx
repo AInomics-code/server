@@ -22,6 +22,8 @@ import SidebarLayout from "@/components/sidebar-layout";
 import Collaboration from "@/pages/collaboration";
 import NotFound from "@/pages/not-found";
 import ProtectedRoute from "@/components/protected-route";
+import AdminRoute from "@/components/admin-route";
+import AdminUsersPage from "@/pages/admin-users";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import "./utils/env-check";
@@ -114,6 +116,11 @@ function Router() {
         <ProtectedRoute>
           <ScenarioSimulator />
         </ProtectedRoute>
+      </Route>
+      <Route path="/admin/users">
+        <AdminRoute>
+          <AdminUsersPage />
+        </AdminRoute>
       </Route>
       <Route component={NotFound} />
     </Switch>
