@@ -597,15 +597,35 @@ export function LLMChatPage() {
     setConversationTitle(null);
   }, []);
 
+  // Parse message content - backend may return it as JSON string or object
+  const parseMessageContent = useCallback((content: unknown): { text?: string; components?: Component[] } => {
+    if (content == null) return {};
+    if (typeof content === 'object' && !Array.isArray(content)) {
+      return content as { text?: string; components?: Component[] };
+    }
+    if (typeof content === 'string') {
+      try {
+        const parsed = JSON.parse(content);
+        return typeof parsed === 'object' && parsed !== null ? parsed : {};
+      } catch {
+        return { text: content };
+      }
+    }
+    return {};
+  }, []);
+
   // Load an existing conversation from history into the chat view
   const handleLoadConversation = useCallback(async (conversationId: string) => {
     try {
       const { conversation, messages } = await getConversation(conversationId);
-      const loaded: Message[] = messages.map((m) => ({
-        role: m.role,
-        content: m.content?.text ?? '',
-        components: m.content?.components ?? undefined,
-      }));
+      const loaded: Message[] = messages.map((m) => {
+        const parsed = parseMessageContent(m.content);
+        return {
+          role: m.role,
+          content: parsed.text ?? '',
+          components: parsed.components ?? undefined,
+        };
+      });
       currentRequestIdRef.current += 1;
       setIsWaitingForResponse(false);
       setConversationHistory(loaded);
@@ -616,7 +636,7 @@ export function LLMChatPage() {
     } catch (err) {
       console.error('Failed to load conversation:', err);
     }
-  }, []);
+  }, [parseMessageContent]);
 
   // Rename current conversation
   const handleRenameSubmit = useCallback(async () => {

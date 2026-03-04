@@ -15,7 +15,8 @@ export interface BackendMessage {
   message_id: string;
   conversation_id: string;
   role: 'user' | 'assistant';
-  content: { text?: string; components?: any[] };
+  /** Content can be an object or JSON string (backend may return either) */
+  content: { text?: string; components?: any[] } | string;
   metadata: Record<string, any> | null;
   created_at: string;
 }
