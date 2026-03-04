@@ -1503,7 +1503,7 @@ export function LLMChatPage() {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginLeft: showHistory ? `${68 + HISTORY_SIDEBAR_WIDTH}px` : '64px',
+        marginLeft: showHistory ? `${64 + HISTORY_SIDEBAR_WIDTH}px` : '64px',
         transition: 'margin-left 0.25s ease',
       }}>
         <AnimatePresence mode="wait">

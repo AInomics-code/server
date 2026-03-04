@@ -324,7 +324,7 @@ export function ConversationHistorySidebar({
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       style={{
         position: 'fixed',
-        left: 68,
+        left: 64,
         top: 0,
         height: '100%',
         width: HISTORY_SIDEBAR_WIDTH,
