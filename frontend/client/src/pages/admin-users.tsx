@@ -559,7 +559,7 @@ export default function AdminUsersPage() {
       <GlobalSidebar activePage="admin" onHomeClick={() => setLocation('/chat')} />
 
       <div style={{
-        marginLeft: '64px',
+        marginLeft: '55px',
         minHeight: '100vh',
         backgroundColor: C.bg,
         fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',

@@ -324,12 +324,12 @@ export function ConversationHistorySidebar({
       transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
       style={{
         position: 'fixed',
-        left: 64,
+        left: 55,
         top: 0,
         height: '100%',
         width: HISTORY_SIDEBAR_WIDTH,
         backgroundColor: C.bg,
-        borderRight: `1px solid ${C.border}`,
+        borderRight: 'none',
         display: 'flex',
         flexDirection: 'column',
         zIndex: 40,

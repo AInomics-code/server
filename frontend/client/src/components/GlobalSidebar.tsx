@@ -1,16 +1,17 @@
 import { useState, useRef, useEffect } from 'react';
 import { useLocation } from 'wouter';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LogOut } from 'lucide-react';
+import { LogOut, PanelLeft } from 'lucide-react';
 import { useTranslation } from '@/config/i18n';
 import { logout, isAdmin, getUserName } from '@/utils/auth';
 
 interface GlobalSidebarProps {
   activePage?: 'home' | 'data' | 'playground' | 'llm' | 'admin';
   onHomeClick?: () => void;
+  onHistoryToggle?: () => void;
 }
 
-export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
+export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: GlobalSidebarProps) {
   const [, setLocation] = useLocation();
   const [isSidebarExpanded] = useState(false); // Keep state for layout but don't allow toggling
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -45,7 +46,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
         left: 0,
         top: 0,
         height: '100%',
-        width: isSidebarExpanded ? '256px' : '64px',
+        width: isSidebarExpanded ? '256px' : '55px',
         backgroundColor: '#32373F',
         display: 'flex',
         flexDirection: 'column',
@@ -83,38 +84,50 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
             }
           }}
         >
-          {/* Aragon Star Logo */}
-          <div style={{
-            padding: '4px 10px',
-            borderRadius: '6px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginTop: '-4px',
-          }}>
-            <svg width="28" height="28" viewBox="0 0 64 64" fill="none">
-              {/* Vertical line (0 degrees) */}
-              <path 
-                d="M32 8L32 56" 
-                stroke="#5ca2f9" 
-                strokeWidth="8" 
-                strokeLinecap="square"
-              />
-              {/* Rotated 60 degrees */}
-              <path 
-                d="M52.78 20L11.22 44" 
-                stroke="#5ca2f9" 
-                strokeWidth="8" 
-                strokeLinecap="square"
-              />
-              {/* Rotated 120 degrees */}
-              <path 
-                d="M11.22 20L52.78 44" 
-                stroke="#5ca2f9" 
-                strokeWidth="8" 
-                strokeLinecap="square"
-              />
-            </svg>
+          {/* Burger Menu Icon */}
+          <div 
+            className="panel-left-icon-wrapper"
+            style={{
+              width: '36px',
+              height: '36px',
+              padding: '0',
+              borderRadius: '6px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginTop: '-4px',
+              cursor: onHistoryToggle ? 'pointer' : 'default',
+              backgroundColor: 'transparent',
+              border: 'none',
+              transition: 'background-color 0.2s ease',
+              overflow: 'visible',
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onHistoryToggle) {
+                onHistoryToggle();
+              }
+            }}
+            onMouseEnter={(e) => {
+              if (onHistoryToggle) {
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+              }
+              const svg = e.currentTarget.querySelector('svg');
+              if (svg) {
+                svg.style.transform = 'scale(1.1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (onHistoryToggle) {
+                e.currentTarget.style.backgroundColor = 'transparent';
+              }
+              const svg = e.currentTarget.querySelector('svg');
+              if (svg) {
+                svg.style.transform = 'scale(1)';
+              }
+            }}
+          >
+            <PanelLeft size={24} strokeWidth={2} color="#9CA3AF" />
           </div>
           {isSidebarExpanded && (
             <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#5ca2f9', margin: 0 }}>
@@ -125,35 +138,63 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
       </div>
 
       {/* Navigation Icons */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 12px', gap: '28px', marginTop: '16px', position: 'relative' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0', alignItems: 'center', gap: '0', marginTop: '20px', position: 'relative' }}>
 
-        {/* Home - DISABLED */}
-        <button 
-          disabled
+        {/* Plus Button - Circular with rotating animation */}
+        <button
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
-            borderRadius: '6px',
-            backgroundColor: 'transparent',
+            justifyContent: 'center',
+            width: '30px',
+            height: '30px',
+            borderRadius: '50%',
+            backgroundColor: 'rgba(180, 190, 200, 0.2)',
             border: 'none',
-            cursor: 'not-allowed',
-            justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
+            cursor: 'pointer',
             outline: 'none',
-            opacity: 0.7,
+            transition: 'background-color 0.15s ease, transform 0.3s ease',
+            position: 'relative',
+            marginTop: '4px',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(180, 190, 200, 0.35)';
+            const icon = e.currentTarget.querySelector('svg') as HTMLElement;
+            if (icon) {
+              icon.style.transform = 'rotate(90deg)';
+            }
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(180, 190, 200, 0.2)';
+            const icon = e.currentTarget.querySelector('svg') as HTMLElement;
+            if (icon) {
+              icon.style.transform = 'rotate(0deg)';
+            }
+          }}
+          onMouseDown={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(180, 190, 200, 0.5)';
+          }}
+          onMouseUp={(e) => {
+            e.currentTarget.style.backgroundColor = 'rgba(180, 190, 200, 0.35)';
           }}
         >
-          {/* Home Icon */}
-                      <svg width="21" height="21" fill="#535964" viewBox="0 0 24 24">
-            <path d="M11.47 3.84a.75.75 0 011.06 0l8.69 8.69a.75.75 0 101.06-1.06l-8.689-8.69a2.25 2.25 0 00-3.182 0l-8.69 8.69a.75.75 0 001.061 1.06l8.69-8.69z" />
-            <path d="M12 5.432l8.159 8.159c.03.03.06.058.091.086v6.198c0 1.035-.84 1.875-1.875 1.875H15a.75.75 0 01-.75-.75v-4.5a.75.75 0 00-.75-.75h-3a.75.75 0 00-.75.75V21a.75.75 0 01-.75.75H5.625a1.875 1.875 0 01-1.875-1.875v-6.198a2.29 2.29 0 00.091-.086L12 5.43z" />
+          <svg 
+            width="20" 
+            height="20" 
+            viewBox="0 0 24 24" 
+            fill="none" 
+            stroke="#FFFFFF" 
+            strokeWidth="1.5" 
+            strokeLinecap="round" 
+            strokeLinejoin="round"
+            style={{ 
+              transition: 'transform 0.3s ease',
+              transform: 'rotate(0deg)',
+            }}
+          >
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#535964' }}>
-              {t('sidebar.home')}
-            </span>
-          )}
         </button>
 
         {/* LLM - ENABLED */}
@@ -162,48 +203,52 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
           style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
+            justifyContent: 'center',
+            gap: isSidebarExpanded ? '12px' : '0',
+            padding: '0',
             borderRadius: '6px',
-            backgroundColor: 'transparent',
+            backgroundColor: activePage === 'llm' ? 'rgba(0, 0, 0, 0.3)' : 'transparent',
             border: 'none',
             cursor: 'pointer',
-            justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
             outline: 'none',
             position: 'relative',
-            width: '100%',
+            width: '36px',
+            height: '36px',
+            marginTop: '16px',
+            transition: 'background-color 0.2s ease',
           }}
           onMouseEnter={(e) => {
             if (activePage !== 'llm') {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+              e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+            }
+            const svg = e.currentTarget.querySelector('svg');
+            if (svg) {
+              svg.style.transform = 'scale(1.1)';
             }
           }}
           onMouseLeave={(e) => {
             if (activePage !== 'llm') {
               e.currentTarget.style.backgroundColor = 'transparent';
             }
+            const svg = e.currentTarget.querySelector('svg');
+            if (svg) {
+              svg.style.transform = 'scale(1)';
+            }
           }}
         >
-          {/* Chat/LLM Icon - Original Design */}
-          <svg width="21" height="21" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible' }}>
-            <path d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" fill={activePage === 'llm' ? 'rgba(92, 162, 249, 0.7)' : '#535964'}/>
+          {/* Chat/LLM Icon - White with thin border, ball remains filled */}
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style={{ overflow: 'visible', transition: 'transform 0.2s ease' }}>
+            <path 
+              d="M4 4h13a3 3 0 013 3v8a3 3 0 01-3 3h-6l-5 4v-4H4a3 3 0 01-3-3V7a3 3 0 013-3z" 
+              fill="none"
+              stroke="#FFFFFF"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
             <circle cx="21" cy="3" r="5.5" fill="#32373F"/>
-            <circle cx="21" cy="3" r="3.5" fill={activePage === 'llm' ? 'rgba(92, 162, 249, 0.7)' : '#535964'}/>
+            <circle cx="21" cy="3" r="3.5" fill="#FFFFFF"/>
           </svg>
-          {/* Active indicator line - vertical bar at the right edge of sidebar */}
-          {activePage === 'llm' && (
-            <div style={{
-              position: 'absolute',
-              right: '-12px',
-              top: '50%',
-              transform: 'translateY(-50%)',
-              width: '2.5px',
-              height: '56px',
-              backgroundColor: 'rgba(92, 162, 249, 0.6)',
-              borderRadius: '1.5px 0 0 1.5px',
-              zIndex: 100,
-            }} />
-          )}
           {isSidebarExpanded && (
             <span style={{ fontSize: '14px', color: activePage === 'llm' ? 'rgba(92, 162, 249, 0.8)' : '#DCE7F5' }}>
               {t('sidebar.llm')}
@@ -219,47 +264,45 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '12px',
-              padding: '10px',
+              justifyContent: 'center',
+              gap: isSidebarExpanded ? '12px' : '0',
+              padding: '0',
               borderRadius: '6px',
-              backgroundColor: 'transparent',
+              backgroundColor: activePage === 'admin' ? 'rgba(0, 0, 0, 0.3)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
-              justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
               outline: 'none',
               position: 'relative',
-              width: '100%',
+              width: '36px',
+              height: '36px',
+              marginTop: '12px',
+              transition: 'background-color 0.2s ease',
             }}
             onMouseEnter={(e) => {
               if (activePage !== 'admin') {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+              }
+              const svg = e.currentTarget.querySelector('svg');
+              if (svg) {
+                svg.style.transform = 'scale(1.1)';
               }
             }}
             onMouseLeave={(e) => {
               if (activePage !== 'admin') {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }
+              const svg = e.currentTarget.querySelector('svg');
+              if (svg) {
+                svg.style.transform = 'scale(1)';
+              }
             }}
           >
-            <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke={activePage === 'admin' ? 'rgba(92, 162, 249, 0.8)' : '#535964'} strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" strokeWidth="1.5" style={{ overflow: 'visible', transition: 'transform 0.2s ease' }}>
               <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
               <circle cx="9" cy="7" r="4"/>
               <path d="M23 21v-2a4 4 0 00-3-3.87"/>
               <path d="M16 3.13a4 4 0 010 7.75"/>
             </svg>
-            {activePage === 'admin' && (
-              <div style={{
-                position: 'absolute',
-                right: '-12px',
-                top: '50%',
-                transform: 'translateY(-50%)',
-                width: '2.5px',
-                height: '56px',
-                backgroundColor: 'rgba(92, 162, 249, 0.6)',
-                borderRadius: '1.5px 0 0 1.5px',
-                zIndex: 100,
-              }} />
-            )}
             {isSidebarExpanded && (
               <span style={{ fontSize: '14px', color: activePage === 'admin' ? 'rgba(92, 162, 249, 0.8)' : '#DCE7F5' }}>
                 Users
@@ -272,33 +315,57 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
       {/* Bottom Section - Settings, User, and Aragon */}
       <div style={{ padding: '0 12px', display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: 'auto', paddingBottom: '24px', position: 'relative', minHeight: '200px' }}>
         {/* Settings Icon with Dropdown Menu */}
-        <div style={{ position: 'absolute', bottom: '70px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} ref={settingsMenuRef}>
+        <div style={{ position: 'absolute', bottom: '45px', left: '50%', transform: 'translateX(-50%)', zIndex: 10 }} ref={settingsMenuRef}>
           <button 
             onClick={() => setIsSettingsOpen(!isSettingsOpen)}
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              padding: '6px',
+              padding: '0',
               borderRadius: '6px',
-              backgroundColor: isSettingsOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
+              backgroundColor: isSettingsOpen ? 'rgba(0, 0, 0, 0.3)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
               outline: 'none',
+              width: '36px',
+              height: '36px',
+              transition: 'background-color 0.2s ease, transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)',
             }}
             onMouseEnter={(e) => {
               if (!isSettingsOpen) {
-                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
+                e.currentTarget.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+              }
+              const svg = e.currentTarget.querySelector('svg');
+              if (svg) {
+                svg.style.transform = 'rotate(90deg)';
               }
             }}
             onMouseLeave={(e) => {
               if (!isSettingsOpen) {
                 e.currentTarget.style.backgroundColor = 'transparent';
               }
+              const svg = e.currentTarget.querySelector('svg');
+              if (svg) {
+                svg.style.transform = 'rotate(0deg)';
+              }
             }}
           >
-            <svg width="21" height="21" viewBox="0 0 24 24" fill={isSettingsOpen ? '#FFFFFF' : '#535964'}>
-              <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5a3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97c0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.4-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1c0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+            <svg 
+              width="21" 
+              height="21" 
+              viewBox="0 0 24 24" 
+              fill="none" 
+              stroke="#FFFFFF"
+              strokeWidth="1"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              style={{
+                transition: 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.2s ease',
+              }}
+            >
+              <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z"/>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
             </svg>
           </button>
 
@@ -313,10 +380,10 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
               style={{
                 position: 'absolute',
                 bottom: '-50px',
-                left: '64px',
+                left: '55px',
                 backgroundColor: '#2F343B',
                 borderRadius: '6px',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
+                border: 'none',
                 boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
                 minWidth: '200px',
                 padding: '6px',
@@ -379,7 +446,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
         </div>
         
         {/* User avatar - at bottom */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '10px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '5px' }}>
           {(() => {
             const fullName = getUserName() || '';
             const parts = fullName.trim().split(' ').filter(Boolean);
@@ -414,7 +481,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
 // Hook to get sidebar width for layout offset
 export function useSidebarWidth() {
   const [isSidebarExpanded] = useState(false);
-  return isSidebarExpanded ? '256px' : '64px';
+  return isSidebarExpanded ? '256px' : '55px';
 }
 
 export default GlobalSidebar;

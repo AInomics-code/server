@@ -1215,3 +1215,19 @@ body {
   }
 }
 
+
+/* PanelLeft Icon Custom Styles */
+.panel-left-icon-wrapper {
+  overflow: visible !important;
+}
+
+.panel-left-icon-wrapper svg.lucide {
+  width: 18px !important;
+  stroke: #9CA3AF !important;
+  transition: stroke 0.2s ease, transform 0.2s ease;
+  overflow: visible !important;
+}
+
+.panel-left-icon-wrapper svg.lucide rect {
+  width: 18px !important;
+}

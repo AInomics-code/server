@@ -1483,7 +1483,11 @@ export function LLMChatPage() {
       backgroundColor: '#1F2227',
       fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
     }}>
-      <GlobalSidebar activePage="llm" onHomeClick={handleBackToHome} />
+      <GlobalSidebar 
+        activePage="llm" 
+        onHomeClick={handleBackToHome}
+        onHistoryToggle={() => setShowHistory((v) => !v)}
+      />
 
       <ConversationHistorySidebar
         isOpen={showHistory}
@@ -1503,7 +1507,7 @@ export function LLMChatPage() {
         flex: 1,
         display: 'flex',
         flexDirection: 'column',
-        marginLeft: showHistory ? `${64 + HISTORY_SIDEBAR_WIDTH}px` : '64px',
+        marginLeft: showHistory ? `${55 + HISTORY_SIDEBAR_WIDTH}px` : '55px',
         transition: 'margin-left 0.25s ease',
       }}>
         <AnimatePresence mode="wait">
@@ -1529,31 +1533,6 @@ export function LLMChatPage() {
                 position: 'relative',
               }}
             >
-              {/* History toggle (empty state) */}
-              <div style={{ position: 'absolute', top: '16px', left: '16px' }}>
-                <button
-                  onClick={() => setShowHistory((v) => !v)}
-                  title={showHistory ? 'Hide history' : 'Show history'}
-                  style={{
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '7px', borderRadius: '7px', border: 'none',
-                    backgroundColor: showHistory ? 'rgba(92,162,249,0.15)' : 'transparent',
-                    color: showHistory ? '#5ca2f9' : '#535964',
-                    cursor: 'pointer', transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#9CA5B5'; }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#535964'; }
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-                  </svg>
-                </button>
-              </div>
-
               {/* Aragon Logo - Static */}
               <div
                 style={{
@@ -1582,16 +1561,16 @@ export function LLMChatPage() {
                     }}
                     style={{
                       fontSize: '44px',
-                      fontWeight: 600,
-                      color: '#5ca2f9',
+                      fontWeight: 400,
+                      color: '#9CA5B5',
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
-                      fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, sans-serif',
+                      fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", sans-serif',
                       position: 'relative',
                       zIndex: 1,
                     }}
                   >
-                    {t('app.name', language)}
+                    Hi {getUserName() || 'user'}
                   </motion.span>
                 </div>
               </div>
@@ -1599,7 +1578,7 @@ export function LLMChatPage() {
               {/* Chat Input Bar */}
               <div style={{
                 width: '100%',
-                maxWidth: '800px',
+                maxWidth: '810px',
                 marginBottom: '20px',
                 display: 'flex',
                 justifyContent: 'center',
@@ -1648,35 +1627,6 @@ export function LLMChatPage() {
                 borderBottom: 'none',
                 gap: '12px',
               }}>
-                {/* History toggle button */}
-                <button
-                  onClick={() => setShowHistory((v) => !v)}
-                  title={showHistory ? 'Hide history' : 'Show history'}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '7px',
-                    borderRadius: '7px',
-                    border: 'none',
-                    backgroundColor: showHistory ? 'rgba(92,162,249,0.15)' : 'transparent',
-                    color: showHistory ? '#5ca2f9' : '#535964',
-                    cursor: 'pointer',
-                    flexShrink: 0,
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#9CA5B5'; }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!showHistory) { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = '#535964'; }
-                  }}
-                >
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
-                  </svg>
-                </button>
-
                 {/* Left side: Chat title with chevron */}
                 <div style={{ position: 'relative', flex: 1 }} ref={titleDropdownRef}>
                   {isRenaming ? (
@@ -1701,7 +1651,7 @@ export function LLMChatPage() {
                         padding: '4px 10px',
                         outline: 'none',
                         width: '100%',
-                        maxWidth: '400px',
+                        maxWidth: '410px',
                       }}
                     />
                   ) : (
@@ -1721,7 +1671,7 @@ export function LLMChatPage() {
                       whiteSpace: 'nowrap',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      maxWidth: '360px',
+                      maxWidth: '370px',
                     }}>
                       {conversationTitle
                         || (conversationHistory.length > 0 && conversationHistory[0]?.role === 'user'
@@ -1971,7 +1921,7 @@ export function LLMChatPage() {
                   {/* Centered conversation column - slightly narrower than chat input */}
                   <div style={{
                     width: '100%',
-                    maxWidth: '860px',
+                    maxWidth: '870px',
                     display: 'flex',
                     flexDirection: 'column',
                     margin: '0 auto',
@@ -2321,7 +2271,7 @@ export function LLMChatPage() {
             {/* Chat Input */}
               <div style={{
                 width: '100%',
-              maxWidth: '900px',
+              maxWidth: '910px',
               margin: '0 auto',
               padding: '0 24px 24px 24px',
               zIndex: 2,
