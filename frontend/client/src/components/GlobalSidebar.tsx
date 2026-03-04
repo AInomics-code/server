@@ -45,7 +45,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
         left: 0,
         top: 0,
         height: '100%',
-        width: isSidebarExpanded ? '256px' : '68px',
+        width: isSidebarExpanded ? '256px' : '64px',
         backgroundColor: '#32373F',
         display: 'flex',
         flexDirection: 'column',
@@ -126,7 +126,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
 
       {/* Navigation Icons */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '0 12px', gap: '28px', marginTop: '16px', position: 'relative' }}>
-        
+
         {/* Home - DISABLED */}
         <button 
           disabled
@@ -175,7 +175,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
           }}
           onMouseEnter={(e) => {
             if (activePage !== 'llm') {
-              e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)';
+              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
             }
           }}
           onMouseLeave={(e) => {
@@ -211,66 +211,6 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
           )}
         </button>
 
-        {/* Playground - DISABLED */}
-        <button 
-          disabled
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
-            borderRadius: '6px',
-            backgroundColor: 'transparent',
-            border: 'none',
-            cursor: 'not-allowed',
-            justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
-            outline: 'none',
-            opacity: 0.7,
-          }}
-        >
-          {/* Grid Icon */}
-                      <svg width="21" height="21" fill="#535964" viewBox="0 0 24 24">
-            <path fillRule="evenodd" d="M3 6a3 3 0 013-3h2.25a3 3 0 013 3v2.25a3 3 0 01-3 3H6a3 3 0 01-3-3V6zm9.75 0a3 3 0 013-3H18a3 3 0 013 3v2.25a3 3 0 01-3 3h-2.25a3 3 0 01-3-3V6zM3 15.75a3 3 0 013-3h2.25a3 3 0 013 3V18a3 3 0 01-3 3H6a3 3 0 01-3-3v-2.25zm9.75 0a3 3 0 013-3H18a3 3 0 013 3V18a3 3 0 01-3 3h-2.25a3 3 0 01-3-3v-2.25z" clipRule="evenodd" />
-          </svg>
-          {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#535964' }}>
-              {t('sidebar.playground')}
-            </span>
-          )}
-        </button>
-
-        {/* Data - DISABLED */}
-        <button 
-          disabled
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px',
-            borderRadius: '6px',
-            backgroundColor: 'transparent',
-            border: 'none',
-            cursor: 'not-allowed',
-            justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
-            outline: 'none',
-            opacity: 0.7,
-          }}
-        >
-          {/* Database Icon */}
-                      <svg width="20" height="20" viewBox="0 0 24 24">
-            <ellipse cx="12" cy="5" rx="9" ry="3" fill="#535964"/>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" fill="#535964"/>
-            <path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#32373F" strokeWidth="1.5"/>
-            <path d="M3 8c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#32373F" strokeWidth="1.5"/>
-            <path d="M3 16c0 1.66 4 3 9 3s9-1.34 9-3" fill="none" stroke="#32373F" strokeWidth="1.5"/>
-          </svg>
-          {isSidebarExpanded && (
-            <span style={{ fontSize: '14px', color: '#535964' }}>
-              {t('sidebar.data')}
-            </span>
-          )}
-        </button>
-
         {/* Admin Users - visible only to admins */}
         {isAdmin() && (
           <button
@@ -282,7 +222,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
               gap: '12px',
               padding: '10px',
               borderRadius: '6px',
-              backgroundColor: activePage === 'admin' ? 'rgba(42, 58, 82, 0.6)' : 'transparent',
+              backgroundColor: 'transparent',
               border: 'none',
               cursor: 'pointer',
               justifyContent: isSidebarExpanded ? 'flex-start' : 'center',
@@ -292,7 +232,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
             }}
             onMouseEnter={(e) => {
               if (activePage !== 'admin') {
-                e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
               }
             }}
             onMouseLeave={(e) => {
@@ -341,14 +281,14 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
               justifyContent: 'center',
               padding: '6px',
               borderRadius: '6px',
-              backgroundColor: isSettingsOpen ? 'rgba(42, 58, 82, 0.6)' : 'transparent',
+              backgroundColor: isSettingsOpen ? 'rgba(255, 255, 255, 0.05)' : 'transparent',
               border: 'none',
               cursor: 'pointer',
               outline: 'none',
             }}
             onMouseEnter={(e) => {
               if (!isSettingsOpen) {
-                e.currentTarget.style.backgroundColor = 'rgba(42, 58, 82, 0.6)';
+                e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.05)';
               }
             }}
             onMouseLeave={(e) => {
@@ -373,10 +313,10 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
               style={{
                 position: 'absolute',
                 bottom: '-50px',
-                left: '68px',
-                backgroundColor: '#1A222D',
+                left: '64px',
+                backgroundColor: '#2F343B',
                 borderRadius: '6px',
-                border: '1px solid rgba(103, 124, 153, 0.2)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
                 boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
                 minWidth: '200px',
                 padding: '6px',
@@ -438,8 +378,8 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
           </AnimatePresence>
         </div>
         
-        {/* User avatar - At Very Bottom */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '20px' }}>
+        {/* User avatar - at bottom */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '10px' }}>
           {(() => {
             const fullName = getUserName() || '';
             const parts = fullName.trim().split(' ').filter(Boolean);
@@ -474,7 +414,7 @@ export function GlobalSidebar({ activePage, onHomeClick }: GlobalSidebarProps) {
 // Hook to get sidebar width for layout offset
 export function useSidebarWidth() {
   const [isSidebarExpanded] = useState(false);
-  return isSidebarExpanded ? '256px' : '68px';
+  return isSidebarExpanded ? '256px' : '64px';
 }
 
 export default GlobalSidebar;
