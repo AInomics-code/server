@@ -2523,10 +2523,10 @@ function ChatInput({
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
           style={{
-            width: '40px',
-            height: '40px',
-            borderRadius: '10px',
-            backgroundColor: value.trim() ? '#4A5568' : '#2F343B',
+            width: '34px',
+            height: '34px',
+            borderRadius: '6px',
+            backgroundColor: value.trim() ? '#5B9EFF' : '#2F343B',
             border: 'none',
             cursor: value.trim() && !isLoading ? 'pointer' : 'not-allowed',
             display: 'flex',

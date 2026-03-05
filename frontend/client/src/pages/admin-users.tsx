@@ -612,20 +612,20 @@ export default function AdminUsersPage() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M15 18l-6-6 6-6"/></svg>
                   <span>Back to Chat</span>
               </button>
-                <h1 style={{ margin: 0, fontSize: '28px', fontWeight: 500, color: C.text, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>User Management</h1>
+                <h1 style={{ margin: 0, fontSize: '24px', fontWeight: 500, color: C.text, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", system-ui, sans-serif' }}>User Management</h1>
             </div>
           </div>
             
             {/* Category Tabs */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '-2px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '-6px' }}>
               <div style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                padding: '6px 0',
+                padding: '4px 0',
                 cursor: 'pointer',
               }}>
-                <span style={{ fontSize: '14px', fontWeight: 500, color: C.accent }}>Active user licenses</span>
+                <span style={{ fontSize: '13px', fontWeight: 500, color: C.accent }}>Active user licenses</span>
                 <span style={{
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -660,7 +660,7 @@ export default function AdminUsersPage() {
                   gap: '6px',
                   padding: '6px 12px',
                   borderRadius: '6px',
-                  border: viewMode === mode ? `1px solid ${C.border}` : 'none',
+                  border: 'none',
                   cursor: 'pointer',
                   fontSize: '13px',
                   fontWeight: 500,
@@ -723,8 +723,17 @@ export default function AdminUsersPage() {
           {/* Right Side: Actions */}
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
           {/* Search */}
+            <AnimatePresence mode="wait">
             {isSearchOpen ? (
-              <div ref={searchContainerRef} style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <motion.div
+                key="search-input"
+                ref={searchContainerRef}
+                initial={{ opacity: 0, scale: 0.95, width: 0 }}
+                animate={{ opacity: 1, scale: 1, width: 'auto' }}
+                exit={{ opacity: 0, scale: 0.95, width: 0 }}
+                transition={{ duration: 0.25, ease: [0.2, 0.8, 0.2, 1] }}
+                style={{ position: 'relative', display: 'flex', alignItems: 'center', overflow: 'hidden' }}
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={C.textMuted} strokeWidth="2" style={{ position: 'absolute', left: '12px', pointerEvents: 'none', zIndex: 1 }}>
               <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
             </svg>
@@ -745,7 +754,7 @@ export default function AdminUsersPage() {
                     width: '200px',
                     height: '36px',
                     outline: 'none',
-                    transition: 'all 0.15s ease',
+                    transition: 'border-color 0.2s ease',
                   }}
                   onFocus={(e) => {
                     e.target.style.borderColor = C.accent;
@@ -754,13 +763,18 @@ export default function AdminUsersPage() {
                     e.target.style.borderColor = C.border;
                   }}
             />
-          </div>
+          </motion.div>
             ) : (
-              <button
+              <motion.button
+                key="search-button"
                 onClick={() => {
                   setIsSearchOpen(true);
                   setTimeout(() => searchInputRef.current?.focus(), 0);
                 }}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: [0.2, 0.8, 0.2, 1] }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -774,7 +788,7 @@ export default function AdminUsersPage() {
                   fontWeight: 500,
                   cursor: 'pointer',
                   fontFamily: '"Inter", sans-serif',
-                  transition: 'all 0.15s ease',
+                  transition: 'color 0.15s ease',
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.color = C.text;
@@ -787,8 +801,9 @@ export default function AdminUsersPage() {
                   <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
                 </svg>
                 Search
-              </button>
+              </motion.button>
             )}
+            </AnimatePresence>
 
             {/* Hide - Toggle column visibility */}
               <button

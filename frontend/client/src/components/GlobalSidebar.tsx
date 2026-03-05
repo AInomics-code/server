@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { LogOut, PanelLeft } from 'lucide-react';
 import { useTranslation } from '@/config/i18n';
 import { logout, isAdmin, getUserName } from '@/utils/auth';
+import { apiRequest } from '@/lib/queryClient';
 
 interface GlobalSidebarProps {
   activePage?: 'home' | 'data' | 'playground' | 'llm' | 'admin';
@@ -16,7 +17,39 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
   const [isSidebarExpanded] = useState(false); // Keep state for layout but don't allow toggling
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsMenuRef = useRef<HTMLDivElement>(null);
+  const panelLeftIconRef = useRef<HTMLDivElement>(null);
   const { t } = useTranslation();
+
+  // Adjust PanelLeft icon rect dimensions and path alignment
+  useEffect(() => {
+    const adjustIconRect = () => {
+      if (panelLeftIconRef.current) {
+        const svg = panelLeftIconRef.current.querySelector('svg.lucide');
+        if (svg) {
+          const rect = svg.querySelector('rect');
+          if (rect) {
+            rect.setAttribute('width', '19');
+            rect.setAttribute('height', '16');
+            rect.setAttribute('x', '2.5');
+            rect.setAttribute('y', '4');
+            rect.setAttribute('stroke-width', '1');
+          }
+          
+          const path = svg.querySelector('path');
+          if (path) {
+            // Divider line on the left side, aligned with rect's top and bottom edges (y=4 to y=20)
+            path.setAttribute('d', 'M9 4v16');
+            path.setAttribute('stroke-width', '1');
+          }
+        }
+      }
+    };
+    
+    adjustIconRect();
+    // Also adjust after a short delay to ensure SVG is rendered
+    const timeout = setTimeout(adjustIconRect, 10);
+    return () => clearTimeout(timeout);
+  }, []);
 
   // Close settings menu when clicking outside
   useEffect(() => {
@@ -37,6 +70,19 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
 
   const handleLogout = () => {
     logout();
+  };
+
+  const handleNewChat = async () => {
+    try {
+      const response = await apiRequest("POST", "/api/conversations", {
+        title: "New conversation",
+      });
+      const newConversation = await response.json();
+      // Navigate to chat page - the chat page will handle loading the new conversation
+      setLocation('/chat');
+    } catch (error) {
+      console.error('Failed to create new conversation:', error);
+    }
   };
 
   return (
@@ -86,10 +132,11 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
         >
           {/* Burger Menu Icon */}
           <div 
+            ref={panelLeftIconRef}
             className="panel-left-icon-wrapper"
             style={{
-              width: '36px',
-              height: '36px',
+              width: '40px',
+              height: '40px',
               padding: '0',
               borderRadius: '6px',
               display: 'flex',
@@ -127,7 +174,7 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
               }
             }}
           >
-            <PanelLeft size={24} strokeWidth={2} color="#9CA3AF" />
+            <PanelLeft size={24} strokeWidth={1.5} color="#9CA3AF" />
           </div>
           {isSidebarExpanded && (
             <h2 style={{ fontSize: '20px', fontWeight: 600, color: '#5ca2f9', margin: 0 }}>
@@ -142,12 +189,13 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
 
         {/* Plus Button - Circular with rotating animation */}
         <button
+          onClick={handleNewChat}
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: '30px',
-            height: '30px',
+            width: '28px',
+            height: '28px',
             borderRadius: '50%',
             backgroundColor: 'rgba(180, 190, 200, 0.2)',
             border: 'none',
@@ -155,7 +203,7 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
             outline: 'none',
             transition: 'background-color 0.15s ease, transform 0.3s ease',
             position: 'relative',
-            marginTop: '4px',
+            marginTop: '0px',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = 'rgba(180, 190, 200, 0.35)';
@@ -179,8 +227,8 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
           }}
         >
           <svg 
-            width="20" 
-            height="20" 
+            width="18" 
+            height="18" 
             viewBox="0 0 24 24" 
             fill="none" 
             stroke="#FFFFFF" 
@@ -275,7 +323,7 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
               position: 'relative',
               width: '36px',
               height: '36px',
-              marginTop: '12px',
+              marginTop: '6px',
               transition: 'background-color 0.2s ease',
             }}
             onMouseEnter={(e) => {
@@ -446,7 +494,7 @@ export function GlobalSidebar({ activePage, onHomeClick, onHistoryToggle }: Glob
         </div>
         
         {/* User avatar - at bottom */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '5px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', position: 'absolute', bottom: '2px' }}>
           {(() => {
             const fullName = getUserName() || '';
             const parts = fullName.trim().split(' ').filter(Boolean);
