@@ -394,10 +394,10 @@ function UserAvatar({ name, lastName }: { name: string; lastName: string }) {
   const hue = (name.charCodeAt(0) * 37) % 360;
   return (
     <div style={{
-      width: '36px', height: '36px', borderRadius: '50%',
+      width: '32px', height: '32px', borderRadius: '50%',
       backgroundColor: `hsl(${hue}, 50%, 45%)`,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: '14px', fontWeight: 600, color: '#fff',
+      fontSize: '13px', fontWeight: 600, color: '#fff',
       flexShrink: 0,
     }}>
       {initial}
@@ -1112,7 +1112,12 @@ export default function AdminUsersPage() {
               No users found
             </div>
           ) : viewMode === 'table' ? (
-            <div style={{ borderRadius: '4px', overflow: 'hidden', backgroundColor: 'transparent' }}>
+            <div style={{ 
+              backgroundColor: C.bg,
+              border: `1.5px solid rgba(156, 165, 181, 0.2)`,
+              borderRadius: '4px',
+              overflow: 'hidden',
+            }}>
               {/* Table header */}
               <div style={{
                 display: 'grid',
@@ -1123,18 +1128,32 @@ export default function AdminUsersPage() {
                   : hiddenColumns.has('Active')
                   ? '2fr 2fr 140px 140px 100px'
                   : '2fr 2fr 140px 140px 150px 100px',
-                padding: '14px 24px',
-                borderTop: `1px solid rgba(103, 124, 153, 0.15)`,
-                borderLeft: `1px solid rgba(103, 124, 153, 0.15)`,
-                borderRight: `1px solid rgba(103, 124, 153, 0.15)`,
-                borderBottom: `1px solid rgba(103, 124, 153, 0.15)`,
-                backgroundColor: 'rgba(50, 55, 63, 0.4)',
-                borderRadius: '4px 4px 0 0',
+                padding: '0',
+                borderBottom: `1.5px solid rgba(156, 165, 181, 0.2)`,
+                backgroundColor: C.bg,
+                alignItems: 'stretch',
+                minHeight: '48px',
               }}>
                 {['User', 'Email', 'User type', 'Joined', 'Active', '']
                   .filter(h => !hiddenColumns.has(h))
-                  .map((h) => (
-                    <span key={h} style={{ fontSize: '12px', fontWeight: 600, color: C.textMuted, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{h}</span>
+                  .map((h, index, array) => (
+                    <div key={h} style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      borderRight: index < array.length - 1 ? `1.5px solid rgba(156, 165, 181, 0.2)` : 'none',
+                      padding: index < array.length - 1 ? '16px 24px' : '16px 0',
+                      alignSelf: 'stretch',
+                    }}>
+                      <span style={{ 
+                        fontSize: '11px', 
+                        fontWeight: 600, 
+                        color: '#9CA5B5', 
+                        textTransform: 'uppercase', 
+                        letterSpacing: '0.5px',
+                        fontFamily: '"Inter", sans-serif',
+                      }}>{h}</span>
+                    </div>
                 ))}
               </div>
 
@@ -1154,43 +1173,83 @@ export default function AdminUsersPage() {
                         : hiddenColumns.has('Active')
                         ? '2fr 2fr 140px 140px 100px'
                         : '2fr 2fr 140px 140px 150px 100px',
-                      padding: '16px 24px',
-                      borderLeft: `1px solid rgba(103, 124, 153, 0.15)`,
-                      borderRight: `1px solid rgba(103, 124, 153, 0.15)`,
-                      borderBottom: idx < filtered.length - 1 ? `1px solid rgba(103, 124, 153, 0.15)` : `1px solid rgba(103, 124, 153, 0.15)`,
-                      borderRadius: idx === filtered.length - 1 ? '0 0 4px 4px' : '0',
-                      alignItems: 'center',
-                      backgroundColor: 'rgba(50, 55, 63, 0.4)',
-                      transition: 'background-color 0.15s ease',
+                      padding: '0',
+                      borderBottom: idx < filtered.length - 1 ? `1.5px solid rgba(156, 165, 181, 0.2)` : 'none',
+                      alignItems: 'stretch',
+                      backgroundColor: C.bg,
+                      transition: 'background-color 0.2s ease',
+                      minHeight: '60px',
                     }}
-                    onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = 'rgba(50, 55, 63, 0.5)'; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'rgba(50, 55, 63, 0.4)'; }}
+                    onMouseEnter={(e) => { 
+                      e.currentTarget.style.backgroundColor = C.bg;
+                    }}
+                    onMouseLeave={(e) => { 
+                      e.currentTarget.style.backgroundColor = C.bg;
+                    }}
                   >
                     {/* User column */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', minWidth: 0 }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '12px', 
+                      minWidth: 0,
+                      height: '100%',
+                      borderRight: `1.5px solid rgba(156, 165, 181, 0.2)`,
+                      padding: '18px 24px',
+                      alignSelf: 'stretch',
+                    }}>
                       <UserAvatar name={user.name} lastName={user.last_name} />
                       <div style={{ minWidth: 0 }}>
-                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: C.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        <p style={{ margin: 0, fontSize: '14px', fontWeight: 500, color: '#E6EAF1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: '"Inter", sans-serif', lineHeight: '1.4' }}>
                           {user.name} {user.last_name}
                         </p>
                       </div>
                     </div>
 
                     {/* Email */}
-                    <span style={{ fontSize: '14px', color: C.textMuted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {user.email}
-                    </span>
+                    <div style={{ 
+                      display: 'flex',
+                      alignItems: 'center',
+                      height: '100%',
+                      borderRight: `1.5px solid rgba(156, 165, 181, 0.2)`,
+                      padding: '18px 24px',
+                      alignSelf: 'stretch',
+                    }}>
+                      <span style={{ 
+                        fontSize: '13px', 
+                        color: '#9CA5B5', 
+                        whiteSpace: 'nowrap', 
+                        overflow: 'hidden', 
+                        textOverflow: 'ellipsis', 
+                        fontFamily: '"Inter", sans-serif',
+                        textDecoration: 'underline',
+                        textDecorationColor: 'rgba(156, 165, 181, 0.4)',
+                        cursor: 'pointer',
+                      }}>
+                        {user.email}
+                      </span>
+                    </div>
 
                     {/* User type */}
-                    <div style={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      minWidth: 0,
+                      height: '100%',
+                      borderRight: !hiddenColumns.has('Joined') || !hiddenColumns.has('Active') ? `1.5px solid rgba(156, 165, 181, 0.2)` : 'none',
+                      padding: !hiddenColumns.has('Joined') || !hiddenColumns.has('Active') ? '18px 24px' : '18px 0',
+                      alignSelf: 'stretch',
+                    }}>
                       <span style={{
-                        fontSize: '14px',
+                        fontSize: '13px',
                         fontWeight: 500,
-                        color: user.admin ? C.accent : C.textMuted,
-                        padding: '4px 12px',
-                        borderRadius: '12px',
-                        backgroundColor: user.admin ? C.accentDim : 'transparent',
+                        color: user.admin ? '#5B9EFF' : '#9CA5B5',
+                        padding: '4px 10px',
+                        borderRadius: '6px',
+                        backgroundColor: user.admin ? 'rgba(91, 158, 255, 0.12)' : 'transparent',
                         display: 'inline-block',
+                        fontFamily: '"Inter", sans-serif',
+                        lineHeight: '1.4',
                       }}>
                         {user.admin ? 'Admin' : 'User'}
                       </span>
@@ -1198,12 +1257,34 @@ export default function AdminUsersPage() {
 
                     {/* Joined */}
                     {!hiddenColumns.has('Joined') && (
-                      <span style={{ fontSize: '14px', color: C.textMuted }}>{formatDate(user.created_at)}</span>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        height: '100%',
+                        borderRight: !hiddenColumns.has('Active') ? `1.5px solid rgba(156, 165, 181, 0.2)` : 'none',
+                        padding: !hiddenColumns.has('Active') ? '18px 24px' : '18px 0',
+                        alignSelf: 'stretch',
+                      }}>
+                        <span style={{ 
+                          fontSize: '13px', 
+                          color: '#9CA5B5', 
+                          fontFamily: '"Inter", sans-serif', 
+                          lineHeight: '1.4',
+                        }}>{formatDate(user.created_at)}</span>
+                      </div>
                     )}
 
                     {/* Active Status */}
                     {!hiddenColumns.has('Active') && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      gap: '8px',
+                      height: '100%',
+                      borderRight: `1.5px solid rgba(156, 165, 181, 0.2)`,
+                      padding: '18px 24px',
+                      alignSelf: 'stretch',
+                    }}>
                       {(() => {
                         const currentUserEmail = getUserEmail();
                         const isCurrentUser = currentUserEmail && currentUserEmail.toLowerCase() === user.email.toLowerCase();
@@ -1211,15 +1292,24 @@ export default function AdminUsersPage() {
                         // If it's the current logged-in user, they're always active
                         if (isCurrentUser) {
                           return (
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <div style={{ 
+                              display: 'inline-flex', 
+                              alignItems: 'center', 
+                              gap: '6px',
+                              padding: '5px 8px',
+                              borderRadius: '4px',
+                              backgroundColor: 'transparent',
+                              border: `1px solid rgba(156, 165, 181, 0.3)`,
+                              whiteSpace: 'nowrap',
+                            }}>
                               <div style={{
-                                width: '8px',
-                                height: '8px',
+                                width: '6px',
+                                height: '6px',
                                 borderRadius: '50%',
                                 backgroundColor: '#4ADE80',
                                 flexShrink: 0,
                               }} />
-                              <span style={{ fontSize: '13px', color: C.textMuted }}>
+                              <span style={{ fontSize: '13px', color: '#4ADE80', fontFamily: '"Inter", sans-serif', fontWeight: 500, lineHeight: '1.2' }}>
                                 Active now
                               </span>
                             </div>
@@ -1233,15 +1323,24 @@ export default function AdminUsersPage() {
                         const dotColor = isActive ? '#4ADE80' : '#F87171'; // Green if active, red if not
                         
                         return (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <div style={{ 
+                            display: 'inline-flex', 
+                            alignItems: 'center', 
+                            gap: '6px',
+                            padding: '5px 8px',
+                            borderRadius: '4px',
+                            backgroundColor: 'transparent',
+                            border: `1px solid rgba(103, 124, 153, 0.3)`,
+                            whiteSpace: 'nowrap',
+                          }}>
                             <div style={{
-                              width: '8px',
-                              height: '8px',
+                              width: '6px',
+                              height: '6px',
                               borderRadius: '50%',
                               backgroundColor: dotColor,
                               flexShrink: 0,
                             }} />
-                            <span style={{ fontSize: '13px', color: C.textMuted }}>
+                            <span style={{ fontSize: '13px', color: dotColor, fontFamily: '"Inter", sans-serif', fontWeight: 500, lineHeight: '1.2' }}>
                               {isActive ? `Active ${minutesAgo} min ago` : 'Not active'}
                             </span>
                           </div>
@@ -1251,20 +1350,34 @@ export default function AdminUsersPage() {
                     )}
 
                     {/* Actions */}
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                    <div style={{ 
+                      display: 'flex', 
+                      gap: '4px', 
+                      justifyContent: 'flex-end', 
+                      alignItems: 'center',
+                      height: '100%',
+                      padding: '18px 24px',
+                      alignSelf: 'stretch',
+                    }}>
                       <button
                         onClick={() => { setEditingUser(user); setModalMode('edit'); }}
                         title="Edit"
                         style={{
-                          padding: '8px', borderRadius: '6px', border: 'none',
-                          backgroundColor: 'transparent', color: C.textDim, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center',
-                          transition: 'all 0.15s ease',
+                          padding: '6px', borderRadius: '4px', border: 'none',
+                          backgroundColor: 'transparent', color: '#9CA5B5', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'opacity 0.2s ease',
+                          width: '28px',
+                          height: '28px',
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = C.accentDim; e.currentTarget.style.color = C.accent; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = C.textDim; }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.opacity = '0.7';
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.opacity = '1';
+                        }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
                         </svg>
                       </button>
@@ -1272,15 +1385,21 @@ export default function AdminUsersPage() {
                         onClick={() => setDeletingUser(user)}
                         title="Delete"
                         style={{
-                          padding: '8px', borderRadius: '6px', border: 'none',
-                          backgroundColor: 'transparent', color: C.textDim, cursor: 'pointer',
-                          display: 'flex', alignItems: 'center',
-                          transition: 'all 0.15s ease',
+                          padding: '6px', borderRadius: '4px', border: 'none',
+                          backgroundColor: 'transparent', color: '#9CA5B5', cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          transition: 'opacity 0.2s ease',
+                          width: '28px',
+                          height: '28px',
                         }}
-                        onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = C.dangerDim; e.currentTarget.style.color = C.danger; }}
-                        onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = 'transparent'; e.currentTarget.style.color = C.textDim; }}
+                        onMouseEnter={(e) => { 
+                          e.currentTarget.style.opacity = '0.7';
+                        }}
+                        onMouseLeave={(e) => { 
+                          e.currentTarget.style.opacity = '1';
+                        }}
                       >
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                           <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2"/>
                         </svg>
                       </button>
